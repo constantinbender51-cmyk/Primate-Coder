@@ -10,12 +10,11 @@ import warnings
 import time
 warnings.filterwarnings('ignore')
 
-def fetch_bitcoin_data_chunked():
-    """Fetch 10,000 days of Bitcoin OHLCV data from Binance using chunking"""
+def fetch_crypto_data_chunked(symbol, days_to_fetch=10000):
+    """Fetch OHLCV data for any cryptocurrency from Binance using chunking"""
     client = Spot()
     
     all_data = []
-    days_to_fetch = 10000
     chunk_size = 1000  # Binance API limit per request
     
     # Calculate end time (current time)
@@ -26,7 +25,7 @@ def fetch_bitcoin_data_chunked():
         
         try:
             klines = client.klines(
-                symbol='BTCUSDT',
+                symbol=symbol,
                 interval='1d',
                 limit=limit,
                 endTime=end_time
@@ -40,13 +39,13 @@ def fetch_bitcoin_data_chunked():
             # Set end_time for next chunk (oldest data)
             end_time = int(klines[0][0]) - 1  # Subtract 1ms from first candle
             
-            print(f"Fetched {len(klines)} days, total: {len(all_data)} days")
+            print(f"Fetched {len(klines)} days for {symbol}, total: {len(all_data)} days")
             
             # Small delay to avoid rate limiting
             time.sleep(0.1)
             
         except Exception as e:
-            print(f"Error fetching chunk: {e}")
+            print(f"Error fetching {symbol} chunk: {e}")
             break
     
     # Convert to DataFrame
@@ -69,16 +68,16 @@ def fetch_bitcoin_data_chunked():
     
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 
-def create_features(df):
-    """Create technical indicators and features for classification with 10-day lookback"""
-    df = df.copy()
+def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
+    """Create technical indicators and features including altcoin data"""
+    df = btc_df.copy()
     
-    # Price-based features
+    # Price-based features for Bitcoin
     df['price_change'] = df['close'].pct_change()
     df['high_low_ratio'] = df['high'] / df['low']
     df['close_open_ratio'] = df['close'] / df['open']
     
-    # Moving averages (reduced to 10-day max lookback)
+    # Moving averages (10-day max lookback)
     df['sma_5'] = df['close'].rolling(5).mean()
     df['sma_10'] = df['close'].rolling(10).mean()
     
@@ -86,7 +85,7 @@ def create_features(df):
     df['price_vs_sma5'] = df['close'] / df['sma_5']
     df['price_vs_sma10'] = df['close'] / df['sma_10']
     
-    # Volatility (reduced to 10-day max lookback)
+    # Volatility (10-day max lookback)
     df['volatility_5'] = df['price_change'].rolling(5).std()
     df['volatility_10'] = df['price_change'].rolling(10).std()
     
@@ -94,11 +93,34 @@ def create_features(df):
     df['volume_sma_5'] = df['volume'].rolling(5).mean()
     df['volume_ratio'] = df['volume'] / df['volume_sma_5']
     
-    # Lagged features (reduced to 3 lags for 10-day window)
+    # Lagged features (3 lags for 10-day window)
     for lag in [1, 2, 3]:
         df[f'close_lag_{lag}'] = df['close'].shift(lag)
         df[f'volume_lag_{lag}'] = df['volume'].shift(lag)
         df[f'price_change_lag_{lag}'] = df['price_change'].shift(lag)
+    
+    # Add altcoin features
+    # Ethereum features
+    df['eth_close'] = eth_df['close']
+    df['eth_price_change'] = eth_df['close'].pct_change()
+    df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(5).mean()
+    df['btc_eth_ratio'] = df['close'] / eth_df['close']  # BTC dominance vs ETH
+    
+    # Ripple features
+    df['xrp_close'] = xrp_df['close']
+    df['xrp_price_change'] = xrp_df['close'].pct_change()
+    df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(5).mean()
+    df['btc_xrp_ratio'] = df['close'] / xrp_df['close']  # BTC dominance vs XRP
+    
+    # Cardano features
+    df['ada_close'] = ada_df['close']
+    df['ada_price_change'] = ada_df['close'].pct_change()
+    df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(5).mean()
+    df['btc_ada_ratio'] = df['close'] / ada_df['close']  # BTC dominance vs ADA
+    
+    # Altcoin momentum indicators
+    df['altcoin_momentum'] = (df['eth_price_change'] + df['xrp_price_change'] + df['ada_price_change']) / 3
+    df['altcoin_volume_strength'] = (df['eth_volume_ratio'] + df['xrp_volume_ratio'] + df['ada_volume_ratio']) / 3
     
     # Target: Next day price direction (1 = up, 0 = down)
     df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
@@ -109,16 +131,31 @@ def create_features(df):
     return df
 
 def main():
-    # Fetch and prepare data
+    # Fetch Bitcoin data
     print("Fetching 10,000 days of Bitcoin data...")
-    df = fetch_bitcoin_data_chunked()
-    df = create_features(df)
+    btc_df = fetch_crypto_data_chunked('BTCUSDT', 10000)
+    
+    # Fetch altcoin data
+    print("\nFetching Ethereum data...")
+    eth_df = fetch_crypto_data_chunked('ETHUSDT', 10000)
+    
+    print("\nFetching Ripple data...")
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 10000)
+    
+    print("\nFetching Cardano data...")
+    ada_df = fetch_crypto_data_chunked('ADAUSDT', 10000)
+    
+    # Create features with altcoin data
+    df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
     
     # Dataset information
     print(f"\nDataset Info:")
     print(f"  Total days: {len(df)}")
     print(f"  Date range: {df['date'].min().strftime('%Y-%m-%d')} to {df['date'].max().strftime('%Y-%m-%d')}")
-    print(f"  Price range: ${df['close'].min():.0f} - ${df['close'].max():.0f}")
+    print(f"  BTC price range: ${df['close'].min():.0f} - ${df['close'].max():.0f}")
+    print(f"  ETH price range: ${df['eth_close'].min():.2f} - ${df['eth_close'].max():.2f}")
+    print(f"  XRP price range: ${df['xrp_close'].min():.4f} - ${df['xrp_close'].max():.4f}")
+    print(f"  ADA price range: ${df['ada_close'].min():.4f} - ${df['ada_close'].max():.4f}")
     print(f"  Features: {len([col for col in df.columns if col not in ['date', 'target', 'close']])}")
     print(f"  Lookback window: 10 days (max)")
     
@@ -158,12 +195,6 @@ def main():
     
     # Train and evaluate models
     results = {}
-    
-    print("\nModel Parameters:")
-    for name, model_info in models.items():
-        model = model_info['model']
-        params = model_info['params']
-        print(f"  {name}: {params}")
     
     print("\nModel Performance:")
     for name, model_info in models.items():
