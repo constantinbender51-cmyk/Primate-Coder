@@ -10,14 +10,14 @@ import warnings
 warnings.filterwarnings('ignore')
 
 def fetch_bitcoin_data():
-    """Fetch 1000 days of Bitcoin OHLCV data from Binance"""
+    """Fetch 10,000 days of Bitcoin OHLCV data from Binance"""
     client = Spot()
     
-    # Get daily candles for BTCUSDT
+    # Get daily candles for BTCUSDT - 10,000 days
     klines = client.klines(
         symbol='BTCUSDT',
         interval='1d',
-        limit=1000
+        limit=10000
     )
     
     # Convert to DataFrame
