@@ -10,8 +10,8 @@ import warnings
 import time
 warnings.filterwarnings('ignore')
 
-def fetch_crypto_data_chunked(symbol, days_to_fetch=10000):
-    """Fetch OHLCV data for any cryptocurrency from Binance using chunking"""
+def fetch_crypto_data_chunked(symbol, hours_to_fetch=24000):
+    """Fetch OHLCV data for any cryptocurrency from Binance using chunking - HOURLY DATA"""
     client = Spot()
     
     all_data = []
@@ -20,13 +20,13 @@ def fetch_crypto_data_chunked(symbol, days_to_fetch=10000):
     # Calculate end time (current time)
     end_time = None
     
-    for i in range(0, days_to_fetch, chunk_size):
-        limit = min(chunk_size, days_to_fetch - i)
+    for i in range(0, hours_to_fetch, chunk_size):
+        limit = min(chunk_size, hours_to_fetch - i)
         
         try:
             klines = client.klines(
                 symbol=symbol,
-                interval='1d',
+                interval='1h',  # Changed from '1d' to '1h' for hourly data
                 limit=limit,
                 endTime=end_time
             )
@@ -39,7 +39,7 @@ def fetch_crypto_data_chunked(symbol, days_to_fetch=10000):
             # Set end_time for next chunk (oldest data)
             end_time = int(klines[0][0]) - 1  # Subtract 1ms from first candle
             
-            print(f"Fetched {len(klines)} days for {symbol}, total: {len(all_data)} days")
+            print(f"Fetched {len(klines)} hours for {symbol}, total: {len(all_data)} hours")
             
             # Small delay to avoid rate limiting
             time.sleep(0.1)
@@ -69,7 +69,7 @@ def fetch_crypto_data_chunked(symbol, days_to_fetch=10000):
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 
 def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
-    """Create technical indicators and features including altcoin data - ONLY DERIVATIVES"""
+    """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - HOURLY ADJUSTED"""
     df = btc_df.copy()
     
     # Price-based derivative features for Bitcoin (NO RAW PRICES)
@@ -77,43 +77,43 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     df['high_low_ratio'] = df['high'] / df['low']
     df['close_open_ratio'] = df['close'] / df['open']
     
-    # Moving averages (10-day max lookback)
-    df['sma_5'] = df['close'].rolling(5).mean()
-    df['sma_10'] = df['close'].rolling(10).mean()
+    # Moving averages (adjusted for hourly data - 24h and 48h windows)
+    df['sma_24'] = df['close'].rolling(24).mean()  # 24 hours = 1 day
+    df['sma_48'] = df['close'].rolling(48).mean()  # 48 hours = 2 days
     
     # Price relative to moving averages (derivatives)
-    df['price_vs_sma5'] = df['close'] / df['sma_5']
-    df['price_vs_sma10'] = df['close'] / df['sma_10']
+    df['price_vs_sma24'] = df['close'] / df['sma_24']
+    df['price_vs_sma48'] = df['close'] / df['sma_48']
     
-    # Volatility (10-day max lookback)
-    df['volatility_5'] = df['price_change'].rolling(5).std()
-    df['volatility_10'] = df['price_change'].rolling(10).std()
+    # Volatility (adjusted for hourly data)
+    df['volatility_24'] = df['price_change'].rolling(24).std()
+    df['volatility_48'] = df['price_change'].rolling(48).std()
     
     # Volume features (derivatives only)
-    df['volume_sma_5'] = df['volume'].rolling(5).mean()
-    df['volume_ratio'] = df['volume'] / df['volume_sma_5']
+    df['volume_sma_24'] = df['volume'].rolling(24).mean()
+    df['volume_ratio'] = df['volume'] / df['volume_sma_24']
     
     # Add altcoin features (derivatives only)
     # Ethereum features
     df['eth_price_change'] = eth_df['close'].pct_change()
-    df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(5).mean()
+    df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(24).mean()
     df['btc_eth_ratio'] = df['close'] / eth_df['close']  # BTC dominance vs ETH
     
     # Ripple features
     df['xrp_price_change'] = xrp_df['close'].pct_change()
-    df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(5).mean()
+    df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(24).mean()
     df['btc_xrp_ratio'] = df['close'] / xrp_df['close']  # BTC dominance vs XRP
     
     # Cardano features
     df['ada_price_change'] = ada_df['close'].pct_change()
-    df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(5).mean()
+    df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(24).mean()
     df['btc_ada_ratio'] = df['close'] / ada_df['close']  # BTC dominance vs ADA
     
     # Altcoin momentum indicators
     df['altcoin_momentum'] = (df['eth_price_change'] + df['xrp_price_change'] + df['ada_price_change']) / 3
     df['altcoin_volume_strength'] = (df['eth_volume_ratio'] + df['xrp_volume_ratio'] + df['ada_volume_ratio']) / 3
     
-    # Target: Next day price direction (1 = up, 0 = down)
+    # Target: Next hour price direction (1 = up, 0 = down)
     df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
     
     # Drop NaN values
@@ -133,9 +133,9 @@ def normalize_features(X):
     # Features that are always positive (normalize to [0, 1])
     positive_features = [
         'high_low_ratio', 'close_open_ratio',
-        'sma_5', 'sma_10', 'price_vs_sma5', 'price_vs_sma10',
-        'volatility_5', 'volatility_10',
-        'volume_sma_5', 'volume_ratio',
+        'sma_24', 'sma_48', 'price_vs_sma24', 'price_vs_sma48',
+        'volatility_24', 'volatility_48',
+        'volume_sma_24', 'volume_ratio',
         'eth_volume_ratio', 'btc_eth_ratio',
         'xrp_volume_ratio', 'btc_xrp_ratio',
         'ada_volume_ratio', 'btc_ada_ratio',
@@ -158,32 +158,32 @@ def normalize_features(X):
 
 def main():
     # Fetch Bitcoin data
-    print("Fetching 10,000 days of Bitcoin data...")
-    btc_df = fetch_crypto_data_chunked('BTCUSDT', 10000)
+    print("Fetching 24,000 hours of Bitcoin data...")
+    btc_df = fetch_crypto_data_chunked('BTCUSDT', 24000)  # ~1000 days of hourly data
     
     # Fetch altcoin data
     print("\nFetching Ethereum data...")
-    eth_df = fetch_crypto_data_chunked('ETHUSDT', 10000)
+    eth_df = fetch_crypto_data_chunked('ETHUSDT', 24000)
     
     print("\nFetching Ripple data...")
-    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 10000)
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 24000)
     
     print("\nFetching Cardano data...")
-    ada_df = fetch_crypto_data_chunked('ADAUSDT', 10000)
+    ada_df = fetch_crypto_data_chunked('ADAUSDT', 24000)
     
     # Create features with altcoin data
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
     
     # Dataset information
     print(f"\nDataset Info:")
-    print(f"  Total days: {len(df)}")
-    print(f"  Date range: {df['date'].min().strftime('%Y-%m-%d')} to {df['date'].max().strftime('%Y-%m-%d')}")
+    print(f"  Total hours: {len(df)}")
+    print(f"  Date range: {df['date'].min().strftime('%Y-%m-%d %H:%M')} to {df['date'].max().strftime('%Y-%m-%d %H:%M')}")
     print(f"  BTC price range: ${df['close'].min():.0f} - ${df['close'].max():.0f}")
     print(f"  ETH price range: ${eth_df['close'].min():.2f} - ${eth_df['close'].max():.2f}")
     print(f"  XRP price range: ${xrp_df['close'].min():.4f} - ${xrp_df['close'].max():.4f}")
     print(f"  ADA price range: ${ada_df['close'].min():.4f} - ${ada_df['close'].max():.4f}")
     print(f"  Features: {len([col for col in df.columns if col not in ['date', 'target', 'close', 'open', 'high', 'low', 'volume']])}")
-    print(f"  Lookback window: 10 days (max)")
+    print(f"  Lookback window: 48 hours (max)")
     
     # Prepare features and target (EXCLUDE RAW PRICE DATA)
     exclude_cols = ['date', 'target', 'close', 'open', 'high', 'low', 'volume']
@@ -193,10 +193,10 @@ def main():
     
     print(f"\nFeature columns (DERIVATIVES ONLY): {feature_cols}")
     
-    # Print 2 days of full features (before normalization)
-    print(f"\nFirst 2 days of features (BEFORE NORMALIZATION):")
+    # Print 2 hours of full features (before normalization)
+    print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION):")
     for i in range(2):
-        print(f"\nDay {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d')}):")
+        print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
         for feature in feature_cols:
             value = X.iloc[i][feature]
             print(f"  {feature}: {value:.6f}")
@@ -204,10 +204,10 @@ def main():
     # Normalize features
     X_normalized = normalize_features(X)
     
-    # Print 2 days of normalized features
-    print(f"\nFirst 2 days of features (AFTER NORMALIZATION):")
+    # Print 2 hours of normalized features
+    print(f"\nFirst 2 hours of features (AFTER NORMALIZATION):")
     for i in range(2):
-        print(f"\nDay {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d')}):")
+        print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
         for feature in feature_cols:
             value = X_normalized.iloc[i][feature]
             print(f"  {feature}: {value:.6f}")
