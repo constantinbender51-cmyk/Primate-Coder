@@ -68,25 +68,6 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=10000):
     
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 
-def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
-    """Calculate MACD indicator"""
-    df_copy = df.copy()
-    
-    # Calculate EMAs
-    ema_fast = df_copy['close'].ewm(span=fast_period, adjust=False).mean()
-    ema_slow = df_copy['close'].ewm(span=slow_period, adjust=False).mean()
-    
-    # Calculate MACD line
-    macd_line = ema_fast - ema_slow
-    
-    # Calculate Signal line
-    signal_line = macd_line.ewm(span=signal_period, adjust=False).mean()
-    
-    # Calculate MACD Histogram (MACD - Signal)
-    macd_histogram = macd_line - signal_line
-    
-    return macd_line, signal_line, macd_histogram
-
 def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - HOURLY ADJUSTED"""
     df = btc_df.copy()
@@ -96,42 +77,33 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     df['high_low_ratio'] = df['high'] / df['low']
     df['close_open_ratio'] = df['close'] / df['open']
     
-    # Moving averages (adjusted for hourly data - 24h and 48h windows)
-    df['sma_24'] = df['close'].rolling(24).mean()  # 24 hours = 1 day
-    df['sma_48'] = df['close'].rolling(48).mean()  # 48 hours = 2 days
+    # Moving averages (adjusted for hourly data - 96h window)
+    df['sma_96'] = df['close'].rolling(96).mean()  # 96 hours = 4 days
     
     # Price relative to moving averages (derivatives)
-    df['price_vs_sma24'] = df['close'] / df['sma_24']
-    df['price_vs_sma48'] = df['close'] / df['sma_48']
+    df['price_vs_sma96'] = df['close'] / df['sma_96']
     
-    # Volatility (adjusted for hourly data)
-    df['volatility_24'] = df['price_change'].rolling(24).std()
-    df['volatility_48'] = df['price_change'].rolling(48).std()
+    # Volatility (adjusted for hourly data - 96h window)
+    df['volatility_96'] = df['price_change'].rolling(96).std()
     
     # Volume features (derivatives only)
-    df['volume_sma_24'] = df['volume'].rolling(24).mean()
-    df['volume_ratio'] = df['volume'] / df['volume_sma_24']
-    
-    # MACD features for Bitcoin
-    macd_line, signal_line, macd_histogram = calculate_macd(df)
-    df['macd_line'] = macd_line
-    df['macd_signal'] = signal_line
-    df['macd_histogram'] = macd_histogram
+    df['volume_sma_96'] = df['volume'].rolling(96).mean()
+    df['volume_ratio'] = df['volume'] / df['volume_sma_96']
     
     # Add altcoin features (derivatives only)
     # Ethereum features
     df['eth_price_change'] = eth_df['close'].pct_change()
-    df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(24).mean()
+    df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(96).mean()
     df['btc_eth_ratio'] = df['close'] / eth_df['close']  # BTC dominance vs ETH
     
     # Ripple features
     df['xrp_price_change'] = xrp_df['close'].pct_change()
-    df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(24).mean()
+    df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(96).mean()
     df['btc_xrp_ratio'] = df['close'] / xrp_df['close']  # BTC dominance vs XRP
     
     # Cardano features
     df['ada_price_change'] = ada_df['close'].pct_change()
-    df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(24).mean()
+    df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(96).mean()
     df['btc_ada_ratio'] = df['close'] / ada_df['close']  # BTC dominance vs ADA
     
     # Altcoin momentum indicators
@@ -152,9 +124,9 @@ def add_polynomial_features(X):
     
     # Select key features for polynomial expansion
     features_for_poly = [
-        'price_change', 'volatility_24', 'volatility_48', 
+        'price_change', 'volatility_96', 
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum', 'macd_histogram'
+        'altcoin_momentum'
     ]
     
     # Add squared features
@@ -178,15 +150,15 @@ def normalize_features(X):
     # Features that can be negative (normalize to [-1, 1])
     negative_features = [
         'price_change', 'eth_price_change', 'xrp_price_change', 'ada_price_change', 
-        'altcoin_momentum', 'macd_line', 'macd_signal', 'macd_histogram'
+        'altcoin_momentum'
     ]
     
     # Features that are always positive (normalize to [0, 1])
     positive_features = [
         'high_low_ratio', 'close_open_ratio',
-        'sma_24', 'sma_48', 'price_vs_sma24', 'price_vs_sma48',
-        'volatility_24', 'volatility_48',
-        'volume_sma_24', 'volume_ratio',
+        'sma_96', 'price_vs_sma96',
+        'volatility_96',
+        'volume_sma_96', 'volume_ratio',
         'eth_volume_ratio', 'btc_eth_ratio',
         'xrp_volume_ratio', 'btc_xrp_ratio',
         'ada_volume_ratio', 'btc_ada_ratio',
