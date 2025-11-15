@@ -7,21 +7,50 @@ from sklearn.metrics import accuracy_score, f1_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import warnings
+import time
 warnings.filterwarnings('ignore')
 
-def fetch_bitcoin_data():
-    """Fetch 10,000 days of Bitcoin OHLCV data from Binance"""
+def fetch_bitcoin_data_chunked():
+    """Fetch 10,000 days of Bitcoin OHLCV data from Binance using chunking"""
     client = Spot()
     
-    # Get daily candles for BTCUSDT - 10,000 days
-    klines = client.klines(
-        symbol='BTCUSDT',
-        interval='1d',
-        limit=10000
-    )
+    all_data = []
+    days_to_fetch = 10000
+    chunk_size = 1000  # Binance API limit per request
+    
+    # Calculate end time (current time)
+    end_time = None
+    
+    for i in range(0, days_to_fetch, chunk_size):
+        limit = min(chunk_size, days_to_fetch - i)
+        
+        try:
+            klines = client.klines(
+                symbol='BTCUSDT',
+                interval='1d',
+                limit=limit,
+                endTime=end_time
+            )
+            
+            if not klines:
+                break
+                
+            all_data.extend(klines)
+            
+            # Set end_time for next chunk (oldest data)
+            end_time = int(klines[0][0]) - 1  # Subtract 1ms from first candle
+            
+            print(f"Fetched {len(klines)} days, total: {len(all_data)} days")
+            
+            # Small delay to avoid rate limiting
+            time.sleep(0.1)
+            
+        except Exception as e:
+            print(f"Error fetching chunk: {e}")
+            break
     
     # Convert to DataFrame
-    df = pd.DataFrame(klines, columns=[
+    df = pd.DataFrame(all_data, columns=[
         'open_time', 'open', 'high', 'low', 'close', 'volume',
         'close_time', 'quote_asset_volume', 'number_of_trades',
         'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
@@ -34,6 +63,9 @@ def fetch_bitcoin_data():
     
     # Convert timestamp to datetime
     df['date'] = pd.to_datetime(df['open_time'], unit='ms')
+    
+    # Sort by date (oldest first)
+    df = df.sort_values('date').reset_index(drop=True)
     
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 
@@ -80,8 +112,8 @@ def create_features(df):
 
 def main():
     # Fetch and prepare data
-    print("Fetching Bitcoin data...")
-    df = fetch_bitcoin_data()
+    print("Fetching 10,000 days of Bitcoin data...")
+    df = fetch_bitcoin_data_chunked()
     df = create_features(df)
     
     # Dataset information
