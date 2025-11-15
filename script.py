@@ -1,725 +1,395 @@
-import os
-import json
-import re
-import base64
-import subprocess
-import threading
-import time
-from flask import Flask, render_template_string, request, jsonify
 import requests
-from queue import Queue
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+import time
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import warnings
+warnings.filterwarnings('ignore')
 
-# ==================== CONFIGURATION ====================
-GITHUB_USERNAME = "constantinbender51-cmyk"
-GITHUB_REPO = "Primate-Coder"
-GITHUB_BRANCH = "main"
-RAILWAY_PROJECT_ID = "your-project-id"  # Optional, for future use
-PORT = 8080
-
-# Base dependencies that must always be in requirements.txt
-BASE_REQUIREMENTS = ["flask", "requests"]
-
-# Environment variables (set these before running)
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-
-# ==================== GLOBAL STATE ====================
-app = Flask(__name__)
-script_output = Queue()  # Thread-safe queue for script output
-script_process = None
-tracked_files = ["script.py", "requirements.txt"]  # Files to track and send to DeepSeek
-
-# ==================== HTML TEMPLATE ====================
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Primate Coder</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            display: flex;
-            flex-direction: column;
-            height: 90vh;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 30px;
-            text-align: center;
-        }
-        .header h1 {
-            font-size: 2em;
-            margin-bottom: 5px;
-        }
-        .header p {
-            opacity: 0.9;
-            font-size: 0.9em;
-        }
-        .main-content {
-            display: flex;
-            flex: 1;
-            min-height: 0;
-            overflow-x: auto;
-            overflow-y: hidden;
-        }
-        .output-panel {
-            flex: 1;
-            min-width: 400px;
-            display: flex;
-            flex-direction: column;
-            border-right: 2px solid #e0e0e0;
-            background: #1e1e1e;
-            overflow: hidden;
-        }
-        .output-header {
-            background: #2d2d2d;
-            color: white;
-            padding: 15px;
-            font-weight: bold;
-            border-bottom: 2px solid #3d3d3d;
-        }
-        .output-content {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: auto;
-            padding: 15px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
-            color: #00ff00;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            min-height: 0;
-        }
-        .chat-panel {
-            flex: 1;
-            min-width: 400px;
-            display: flex;
-            flex-direction: column;
-            background: #f9f9f9;
-            overflow: hidden;
-        }
-        .chat-header {
-            background: #f0f0f0;
-            padding: 15px;
-            font-weight: bold;
-            border-bottom: 2px solid #e0e0e0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            min-height: 0;
-        }
-        .message {
-            margin-bottom: 15px;
-            padding: 12px 15px;
-            border-radius: 8px;
-            animation: fadeIn 0.3s;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .user-message {
-            background: #667eea;
-            color: white;
-            margin-left: 20%;
-        }
-        .assistant-message {
-            background: #e3f2fd;
-            color: #333;
-            margin-right: 20%;
-        }
-        .status-message {
-            background: #fff3cd;
-            color: #856404;
-            text-align: center;
-            font-size: 0.9em;
-        }
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        .success-message {
-            background: #d4edda;
-            color: #155724;
-        }
-        .chat-input-area {
-            padding: 20px;
-            background: white;
-            border-top: 2px solid #e0e0e0;
-        }
-        .input-wrapper {
-            display: flex;
-            gap: 10px;
-        }
-        #userInput {
-            flex: 1;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1em;
-            resize: vertical;
-            min-height: 50px;
-            font-family: inherit;
-        }
-        #userInput:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-        #sendBtn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        #newSessionBtn {
-            background: #f44336;
-            color: white;
-            font-size: 0.9em;
-            padding: 8px 16px;
-        }
-        .loading {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🐵 Primate Coder</h1>
-            <p>AI-powered code generation with DeepSeek</p>
-        </div>
-        <div class="main-content">
-            <div class="output-panel">
-                <div class="output-header">📟 Script Output (script.py)</div>
-                <div class="output-content" id="outputContent">Waiting for script.py output...</div>
-            </div>
-            <div class="chat-panel">
-                <div class="chat-header">
-                    <span>💬 Chat with DeepSeek</span>
-                    <button id="newSessionBtn" class="btn" onclick="startNewSession()">🔄 Start New Session</button>
-                </div>
-                <div class="chat-messages" id="chatMessages"></div>
-                <div class="chat-input-area">
-                    <div class="input-wrapper">
-                        <textarea id="userInput" placeholder="Describe what you want to build..."></textarea>
-                        <button id="sendBtn" class="btn" onclick="sendMessage()">Send</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Poll for script output
-        setInterval(async () => {
-            try {
-                const response = await fetch('/get_output');
-                const data = await response.json();
-                const outputDiv = document.getElementById('outputContent');
-                if (data.output) {
-                    outputDiv.textContent = data.output;
-                    outputDiv.scrollTop = outputDiv.scrollHeight;
-                }
-            } catch (error) {
-                console.error('Error fetching output:', error);
-            }
-        }, 1000);
-
-        function addMessage(content, type) {
-            const chatMessages = document.getElementById('chatMessages');
-            const msg = document.createElement('div');
-            msg.className = `message ${type}-message`;
-            msg.innerHTML = content;
-            chatMessages.appendChild(msg);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('userInput');
-            const btn = document.getElementById('sendBtn');
-            const message = input.value.trim();
-            
-            if (!message) return;
-            
-            addMessage(message, 'user');
-            input.value = '';
-            btn.disabled = true;
-            
-            addMessage('<span class="loading"></span>Processing your request...', 'status');
-            
-            try {
-                const response = await fetch('/generate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ message: message })
-                });
-                
-                const data = await response.json();
-                
-                if (data.error) {
-                    addMessage('❌ Error: ' + data.error, 'error');
-                } else {
-                    if (data.deepseek_response) {
-                        addMessage('🤖 DeepSeek: ' + data.deepseek_response, 'assistant');
-                    }
-                    if (data.files_updated) {
-                        addMessage('✅ Updated files: ' + data.files_updated.join(', '), 'success');
-                    }
-                    addMessage('🚀 Files pushed to GitHub. Railway will redeploy automatically...', 'success');
-                }
-            } catch (error) {
-                addMessage('❌ Error: ' + error.message, 'error');
-            }
-            
-            btn.disabled = false;
-        }
-
-        async function startNewSession() {
-            if (!confirm('This will clear script.py and start fresh. Continue?')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch('/new_session', { method: 'POST' });
-                const data = await response.json();
-                
-                if (data.success) {
-                    addMessage('🔄 New session started. script.py has been cleared.', 'success');
-                } else {
-                    addMessage('❌ Error: ' + data.error, 'error');
-                }
-            } catch (error) {
-                addMessage('❌ Error: ' + error.message, 'error');
-            }
-        }
-
-        document.getElementById('userInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-    </script>
-</body>
-</html>
-"""
-
-# ==================== SCRIPT EXECUTION ====================
-
-def run_script():
-    """Run script.py and capture its output."""
-    global script_process
+def calculate_technical_indicators(df):
+    """
+    Calculate various technical indicators from OHLCV data
+    """
+    # Moving Averages
+    df['sma_20'] = df['close'].rolling(window=20).mean()
+    df['sma_50'] = df['close'].rolling(window=50).mean()
+    df['ema_12'] = df['close'].ewm(span=12).mean()
+    df['ema_26'] = df['close'].ewm(span=26).mean()
     
-    # Check if script.py exists and is not empty
-    if not os.path.exists('script.py'):
-        script_output.put("script.py not found\n")
+    # RSI (Relative Strength Index)
+    delta = df['close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    df['rsi'] = 100 - (100 / (1 + rs))
+    
+    # MACD
+    df['macd'] = df['ema_12'] - df['ema_26']
+    df['macd_signal'] = df['macd'].ewm(span=9).mean()
+    df['macd_histogram'] = df['macd'] - df['macd_signal']
+    
+    # Bollinger Bands
+    df['bb_middle'] = df['close'].rolling(window=20).mean()
+    bb_std = df['close'].rolling(window=20).std()
+    df['bb_upper'] = df['bb_middle'] + (bb_std * 2)
+    df['bb_lower'] = df['bb_middle'] - (bb_std * 2)
+    df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
+    
+    # ATR (Average True Range)
+    high_low = df['high'] - df['low']
+    high_close = np.abs(df['high'] - df['close'].shift())
+    low_close = np.abs(df['low'] - df['close'].shift())
+    true_range = np.maximum(np.maximum(high_low, high_close), low_close)
+    df['atr'] = true_range.rolling(window=14).mean()
+    
+    # Volume indicators
+    df['volume_sma'] = df['volume'].rolling(window=20).mean()
+    df['volume_ratio'] = df['volume'] / df['volume_sma']
+    
+    # Price changes and returns
+    df['daily_return'] = df['close'].pct_change() * 100
+    df['price_change'] = df['close'] - df['open']
+    df['price_change_pct'] = (df['price_change'] / df['open']) * 100
+    
+    # Additional features for ML
+    df['high_low_ratio'] = df['high'] / df['low']
+    df['open_close_ratio'] = df['open'] / df['close']
+    df['volatility'] = df['daily_return'].rolling(window=5).std()
+    
+    return df
+
+def prepare_ml_data(df, prediction_horizon=1):
+    """
+    Prepare data for machine learning - predict if price will go up in next N days
+    """
+    # Create target variable: 1 if price increases in next N days, 0 otherwise
+    df['future_return'] = df['close'].shift(-prediction_horizon) / df['close'] - 1
+    df['target'] = (df['future_return'] > 0).astype(int)
+    
+    # Feature selection
+    feature_columns = [
+        'open', 'high', 'low', 'close', 'volume',
+        'sma_20', 'sma_50', 'ema_12', 'ema_26',
+        'rsi', 'macd', 'macd_signal', 'macd_histogram',
+        'bb_position', 'atr', 'volume_ratio',
+        'daily_return', 'volatility', 'high_low_ratio', 'open_close_ratio'
+    ]
+    
+    # Remove rows with NaN values
+    df_clean = df.dropna(subset=feature_columns + ['target'])
+    
+    X = df_clean[feature_columns]
+    y = df_clean['target']
+    
+    return X, y, df_clean
+
+def train_ml_models(X, y):
+    """
+    Train multiple machine learning models and compare performance
+    """
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, shuffle=False)
+    
+    # Scale features
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    # Define models
+    models = {
+        'Logistic Regression': LogisticRegression(random_state=42),
+        'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
+        'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42),
+        'SVM': SVC(kernel='rbf', random_state=42)
+    }
+    
+    results = {}
+    
+    print("🤖 TRAINING MACHINE LEARNING MODELS")
+    print("=" * 60)
+    
+    for name, model in models.items():
+        print(f"\n📊 Training {name}...")
+        
+        # Use scaled data for linear models, original for tree-based
+        if name in ['Logistic Regression', 'SVM']:
+            X_tr = X_train_scaled
+            X_te = X_test_scaled
+        else:
+            X_tr = X_train
+            X_te = X_test
+        
+        # Train model
+        model.fit(X_tr, y_train)
+        
+        # Predictions
+        y_pred = model.predict(X_te)
+        
+        # Calculate metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        cv_scores = cross_val_score(model, X_tr, y_train, cv=5, scoring='accuracy')
+        
+        results[name] = {
+            'model': model,
+            'accuracy': accuracy,
+            'cv_mean': cv_scores.mean(),
+            'cv_std': cv_scores.std(),
+            'predictions': y_pred,
+            'scaler': scaler if name in ['Logistic Regression', 'SVM'] else None
+        }
+        
+        print(f"   Accuracy: {accuracy:.4f}")
+        print(f"   Cross-validation: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+    
+    return results, X_test, y_test, scaler
+
+def analyze_feature_importance(results, feature_names):
+    """
+    Analyze feature importance from the best performing model
+    """
+    # Get the best model (highest accuracy)
+    best_model_name = max(results.keys(), key=lambda x: results[x]['accuracy'])
+    best_model = results[best_model_name]['model']
+    
+    print(f"\n🔍 FEATURE IMPORTANCE ANALYSIS (Best Model: {best_model_name})")
+    print("=" * 60)
+    
+    if hasattr(best_model, 'feature_importances_'):
+        # Tree-based models
+        importances = best_model.feature_importances_
+        feature_imp_df = pd.DataFrame({
+            'feature': feature_names,
+            'importance': importances
+        }).sort_values('importance', ascending=False)
+        
+        print("\nTop 10 Most Important Features:")
+        print(feature_imp_df.head(10).to_string(index=False))
+        
+        return feature_imp_df
+    elif hasattr(best_model, 'coef_'):
+        # Linear models
+        coefficients = best_model.coef_[0]
+        feature_imp_df = pd.DataFrame({
+            'feature': feature_names,
+            'coefficient': coefficients
+        }).sort_values('coefficient', key=abs, ascending=False)
+        
+        print("\nTop 10 Most Influential Features (by absolute coefficient):")
+        print(feature_imp_df.head(10).to_string(index=False))
+        
+        return feature_imp_df
+    else:
+        print("Feature importance not available for this model type")
+        return None
+
+def make_predictions(results, df, feature_columns, prediction_horizon=1):
+    """
+    Make predictions for the most recent data
+    """
+    print(f"\n🎯 PREDICTIONS FOR NEXT {prediction_horizon} DAY(S)")
+    print("=" * 60)
+    
+    # Get the best model
+    best_model_name = max(results.keys(), key=lambda x: results[x]['accuracy'])
+    best_result = results[best_model_name]
+    
+    # Prepare recent data for prediction
+    recent_data = df.tail(10).copy()
+    
+    predictions = []
+    
+    for i, (idx, row) in enumerate(recent_data.iterrows()):
+        # Prepare features
+        features = row[feature_columns].values.reshape(1, -1)
+        
+        # Scale if needed
+        if best_result['scaler'] is not None:
+            features = best_result['scaler'].transform(features)
+        
+        # Make prediction
+        prediction = best_result['model'].predict(features)[0]
+        probability = best_result['model'].predict_proba(features)[0]
+        
+        predictions.append({
+            'date': row['open_time'].strftime('%Y-%m-%d'),
+            'price': row['close'],
+            'prediction': 'UP' if prediction == 1 else 'DOWN',
+            'confidence': max(probability),
+            'up_probability': probability[1],
+            'down_probability': probability[0]
+        })
+    
+    # Display predictions
+    pred_df = pd.DataFrame(predictions)
+    print(f"\nUsing {best_model_name} (Accuracy: {best_result['accuracy']:.4f})")
+    print("\nRecent Predictions:")
+    display_cols = ['date', 'price', 'prediction', 'confidence', 'up_probability']
+    print(pred_df[display_cols].to_string(index=False, float_format='%.4f'))
+    
+    return pred_df
+
+def display_model_comparison(results):
+    """
+    Display comparison of all trained models
+    """
+    print("\n🏆 MODEL PERFORMANCE COMPARISON")
+    print("=" * 60)
+    
+    comparison_data = []
+    for name, result in results.items():
+        comparison_data.append({
+            'Model': name,
+            'Accuracy': result['accuracy'],
+            'CV Score': result['cv_mean'],
+            'CV Std': result['cv_std']
+        })
+    
+    comparison_df = pd.DataFrame(comparison_data)
+    print(comparison_df.to_string(index=False, float_format='%.4f'))
+    
+    # Highlight best model
+    best_model = comparison_df.loc[comparison_df['Accuracy'].idxmax()]
+    print(f"\n🏅 BEST MODEL: {best_model['Model']} (Accuracy: {best_model['Accuracy']:.4f})")
+
+def fetch_ohlcv_data(symbol='BTCUSDT', interval='1d', limit=1000, end_time=None):
+    """
+    Fetch OHLCV data from Binance API
+    """
+    base_url = 'https://api.binance.com/api/v3/klines'
+    params = {
+        'symbol': symbol,
+        'interval': interval,
+        'limit': limit
+    }
+    
+    if end_time:
+        params['endTime'] = int(end_time.timestamp() * 1000)
+    
+    try:
+        response = requests.get(base_url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        df = pd.DataFrame(data, columns=[
+            'open_time', 'open', 'high', 'low', 'close', 'volume',
+            'close_time', 'quote_asset_volume', 'number_of_trades',
+            'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
+        ])
+        
+        df['open_time'] = pd.to_datetime(df['open_time'], unit='ms')
+        df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
+        
+        numeric_columns = ['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume']
+        df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric)
+        
+        return df
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching data: {e}")
+        return None
+
+def fetch_2000_ohlcv_points(symbol='BTCUSDT', interval='1d'):
+    """
+    Fetch 2000 OHLCV data points by making multiple API calls
+    """
+    all_data = []
+    limit = 1000
+    remaining_points = 2000
+    end_time = datetime.now()
+    
+    while remaining_points > 0:
+        current_limit = min(limit, remaining_points)
+        print(f"Fetching {current_limit} data points...")
+        
+        df = fetch_ohlcv_data(symbol, interval, current_limit, end_time)
+        
+        if df is None or df.empty:
+            print("No more data available")
+            break
+            
+        all_data.append(df)
+        remaining_points -= len(df)
+        end_time = df['open_time'].min() - timedelta(days=1)
+        
+        print(f"Fetched {len(df)} points. Remaining: {remaining_points}")
+        time.sleep(0.1)
+    
+    if all_data:
+        final_df = pd.concat(all_data, ignore_index=True)
+        final_df = final_df.drop_duplicates(subset=['open_time']).sort_values('open_time').reset_index(drop=True)
+        return final_df.head(2000) if len(final_df) > 2000 else final_df
+    else:
+        return None
+
+def main():
+    """
+    Main function to fetch data and train ML models for price prediction
+    """
+    print("🤖 BITCOIN PRICE PREDICTION WITH MACHINE LEARNING")
+    print("=" * 60)
+    
+    # Fetch data
+    print("\n📊 Fetching OHLCV data from Binance...")
+    df = fetch_2000_ohlcv_points()
+    
+    if df is None:
+        print("❌ Failed to fetch data from Binance API")
         return
     
-    with open('script.py', 'r') as f:
-        content = f.read().strip()
-        if not content:
-            script_output.put("script.py is empty\n")
-            return
+    print(f"✅ Successfully fetched {len(df)} data points")
     
-    try:
-        # Run script.py as subprocess
-        script_process = subprocess.Popen(
-            ['python', 'script.py'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            universal_newlines=True
-        )
-        
-        # Read output line by line
-        for line in iter(script_process.stdout.readline, ''):
-            if line:
-                script_output.put(line)
-        
-        script_process.wait()
-        script_output.put(f"\n[Process exited with code {script_process.returncode}]\n")
-        
-    except Exception as e:
-        script_output.put(f"Error running script.py: {str(e)}\n")
-
-
-def start_script_thread():
-    """Start script.py in a background thread."""
-    thread = threading.Thread(target=run_script, daemon=True)
-    thread.start()
-
-
-# ==================== GITHUB API ====================
-
-def get_file_from_github(filepath):
-    """Get file content from GitHub."""
-    url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{filepath}"
-    headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json"
-    }
+    # Calculate technical indicators
+    print("\n🔧 Calculating technical indicators...")
+    df = calculate_technical_indicators(df)
     
-    try:
-        response = requests.get(url, headers=headers, params={"ref": GITHUB_BRANCH})
-        if response.status_code == 200:
-            content_b64 = response.json().get("content", "")
-            content = base64.b64decode(content_b64).decode('utf-8')
-            return content
-        return None
-    except Exception as e:
-        print(f"Error getting {filepath} from GitHub: {e}")
-        return None
-
-
-def update_github_file(filepath, content, commit_message):
-    """Update or create a file in the GitHub repository."""
-    url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{filepath}"
+    # Prepare data for ML
+    print("\n📈 Preparing data for machine learning...")
+    prediction_horizon = 1  # Predict next day's direction
+    X, y, df_clean = prepare_ml_data(df, prediction_horizon)
     
-    headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json"
-    }
+    print(f"📋 Dataset Info:")
+    print(f"   Total samples: {len(df_clean)}")
+    print(f"   Features: {X.shape[1]}")
+    print(f"   Target distribution: {y.value_counts().to_dict()}")
     
-    # Get current file SHA if it exists
-    response = requests.get(url, headers=headers, params={"ref": GITHUB_BRANCH})
-    sha = None
-    if response.status_code == 200:
-        sha = response.json().get("sha")
+    # Train ML models
+    results, X_test, y_test, scaler = train_ml_models(X, y)
     
-    # Encode content to base64
-    content_b64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+    # Display model comparison
+    display_model_comparison(results)
     
-    payload = {
-        "message": commit_message,
-        "content": content_b64,
-        "branch": GITHUB_BRANCH
-    }
+    # Analyze feature importance
+    feature_imp_df = analyze_feature_importance(results, X.columns.tolist())
     
-    if sha:
-        payload["sha"] = sha
+    # Make predictions
+    predictions_df = make_predictions(results, df_clean, X.columns.tolist(), prediction_horizon)
     
-    response = requests.put(url, json=payload, headers=headers)
-    response.raise_for_status()
-    return response.json()
-
-
-def list_repo_files():
-    """List all files in the repository."""
-    url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents"
-    headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json"
-    }
+    # Save results
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    try:
-        response = requests.get(url, headers=headers, params={"ref": GITHUB_BRANCH})
-        if response.status_code == 200:
-            files = response.json()
-            return [f["name"] for f in files if f["type"] == "file" and f["name"] != "main.py"]
-        return []
-    except Exception as e:
-        print(f"Error listing repo files: {e}")
-        return []
-
-
-# ==================== DEEPSEEK API ====================
-
-def call_deepseek_api(user_message, file_contents, script_output_text):
-    """Call DeepSeek API with coding agent prompt."""
+    # Save predictions
+    predictions_df.to_csv(f'price_predictions_{timestamp}.csv', index=False)
     
-    system_prompt = """You are a coding agent with the ability to create and edit files.
-
-IMPORTANT: The main executable file is 'script.py' which will be run automatically. When you create or modify code, put it in script.py.
-
-To create or edit files, include JSON objects in your response with this format:
-{
-  "filename.py": "file content here",
-  "requirements.txt": "package1\\npackage2",
-  "style.css": "css content here"
-}
-
-You can create any files needed (script.py, requirements.txt, index.html, style.css, etc.).
-
-When updating requirements.txt, only include additional packages needed by script.py. Do not include flask or requests as they are already available.
-
-Current files in the repository:
-""" + "\n".join([f"- {name}: {len(content)} characters" for name, content in file_contents.items()])
-
-    if script_output_text:
-        system_prompt += f"\n\nCurrent script.py output:\n{script_output_text}"
-
-    url = "https://api.deepseek.com/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    # Save feature importance
+    if feature_imp_df is not None:
+        feature_imp_df.to_csv(f'feature_importance_{timestamp}.csv', index=False)
     
-    # Include file contents in the user message
-    context = "\n\n".join([f"=== {name} ===\n{content}" for name, content in file_contents.items()])
-    full_message = f"{context}\n\n=== User Request ===\n{user_message}"
+    print(f"\n💾 Results saved to:")
+    print(f"   - price_predictions_{timestamp}.csv")
+    print(f"   - feature_importance_{timestamp}.csv")
     
-    payload = {
-        "model": "deepseek-coder",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": full_message}
-        ],
-        "temperature": 0.7,
-        "max_tokens": 8000
-    }
-    
-    response = requests.post(url, json=payload, headers=headers)
-    response.raise_for_status()
-    
-    data = response.json()
-    if "choices" in data and len(data["choices"]) > 0:
-        return data["choices"][0]["message"]["content"]
-    
-    raise Exception("No valid response from DeepSeek")
+    print("\n🚀 NEXT STEPS:")
+    print("1. Experiment with different prediction horizons (3-day, 7-day)")
+    print("2. Try more advanced models (LSTM, XGBoost)")
+    print("3. Add sentiment analysis features")
+    print("4. Implement ensemble methods")
+    print("5. Backtest trading strategies based on predictions")
 
-
-def extract_json_from_text(text):
-    """Extract all JSON objects from text."""
-    json_objects = []
-    brace_count = 0
-    start_idx = -1
-    
-    for i, char in enumerate(text):
-        if char == '{':
-            if brace_count == 0:
-                start_idx = i
-            brace_count += 1
-        elif char == '}':
-            brace_count -= 1
-            if brace_count == 0 and start_idx != -1:
-                json_str = text[start_idx:i+1]
-                try:
-                    obj = json.loads(json_str)
-                    json_objects.append(obj)
-                except json.JSONDecodeError:
-                    pass
-                start_idx = -1
-    
-    return json_objects
-
-
-def remove_json_from_text(text):
-    """Remove JSON objects from text to get plain text response."""
-    result = text
-    brace_count = 0
-    start_idx = -1
-    ranges_to_remove = []
-    
-    for i, char in enumerate(text):
-        if char == '{':
-            if brace_count == 0:
-                start_idx = i
-            brace_count += 1
-        elif char == '}':
-            brace_count -= 1
-            if brace_count == 0 and start_idx != -1:
-                json_str = text[start_idx:i+1]
-                try:
-                    json.loads(json_str)
-                    ranges_to_remove.append((start_idx, i+1))
-                except json.JSONDecodeError:
-                    pass
-                start_idx = -1
-    
-    # Remove ranges in reverse order
-    for start, end in reversed(ranges_to_remove):
-        result = result[:start] + result[end:]
-    
-    return result.strip()
-
-
-def merge_requirements(deepseek_requirements):
-    """Merge DeepSeek requirements with base requirements."""
-    lines = [line.strip() for line in deepseek_requirements.split('\n') if line.strip()]
-    
-    # Add base requirements if not present
-    for base_req in BASE_REQUIREMENTS:
-        if not any(line.lower().startswith(base_req.lower()) for line in lines):
-            lines.insert(0, base_req)
-    
-    return '\n'.join(lines)
-
-
-# ==================== FLASK ROUTES ====================
-
-@app.route('/')
-def index():
-    return render_template_string(HTML_TEMPLATE)
-
-
-@app.route('/get_output')
-def get_output():
-    """Get current script output."""
-    output_lines = []
-    while not script_output.empty():
-        output_lines.append(script_output.get())
-    
-    # Store accumulated output
-    if not hasattr(get_output, 'accumulated'):
-        get_output.accumulated = ""
-    
-    get_output.accumulated += ''.join(output_lines)
-    
-    return jsonify({"output": get_output.accumulated})
-
-
-@app.route('/generate', methods=['POST'])
-def generate():
-    """Handle code generation request."""
-    try:
-        data = request.json
-        user_message = data.get('message', '')
-        
-        if not user_message:
-            return jsonify({"error": "No message provided"}), 400
-        
-        if not DEEPSEEK_API_KEY:
-            return jsonify({"error": "DEEPSEEK_API_KEY not set"}), 500
-        
-        if not GITHUB_TOKEN:
-            return jsonify({"error": "GITHUB_TOKEN not set"}), 500
-        
-        # Get all tracked files from repo
-        global tracked_files
-        tracked_files = list_repo_files()
-        
-        file_contents = {}
-        for filename in tracked_files:
-            content = get_file_from_github(filename)
-            if content is not None:
-                file_contents[filename] = content
-        
-        # Get current script output
-        script_output_text = getattr(get_output, 'accumulated', '')
-        
-        # Call DeepSeek API
-        deepseek_response = call_deepseek_api(user_message, file_contents, script_output_text)
-        
-        # Extract JSON objects from response
-        json_objects = extract_json_from_text(deepseek_response)
-        
-        # Get plain text response (without JSON)
-        text_response = remove_json_from_text(deepseek_response)
-        
-        # Update files on GitHub
-        files_updated = []
-        for json_obj in json_objects:
-            for filename, content in json_obj.items():
-                # Special handling for requirements.txt
-                if filename == "requirements.txt":
-                    content = merge_requirements(content)
-                
-                update_github_file(filename, content, f"Update {filename} via DeepSeek")
-                files_updated.append(filename)
-                
-                # Add to tracked files if new
-                if filename not in tracked_files:
-                    tracked_files.append(filename)
-        
-        return jsonify({
-            "success": True,
-            "deepseek_response": text_response if text_response else "Files updated successfully",
-            "files_updated": files_updated
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/new_session', methods=['POST'])
-def new_session():
-    """Start a new session by clearing script.py."""
-    try:
-        if not GITHUB_TOKEN:
-            return jsonify({"error": "GITHUB_TOKEN not set"}), 500
-        
-        # Clear script.py
-        update_github_file("script.py", "", "Clear script.py for new session")
-        
-        # Reset output
-        if hasattr(get_output, 'accumulated'):
-            get_output.accumulated = ""
-        
-        return jsonify({"success": True})
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# ==================== MAIN ====================
-
-if __name__ == '__main__':
-    print("=" * 60)
-    print("🐵 PRIMATE CODER - Starting...")
-    print("=" * 60)
-    print(f"Repository: {GITHUB_USERNAME}/{GITHUB_REPO}")
-    print(f"Branch: {GITHUB_BRANCH}")
-    print(f"Port: {PORT}")
-    print()
-    print("Environment variables:")
-    print(f"  DEEPSEEK_API_KEY: {'✓ Set' if DEEPSEEK_API_KEY else '✗ Not set'}")
-    print(f"  GITHUB_TOKEN: {'✓ Set' if GITHUB_TOKEN else '✗ Not set'}")
-    print()
-    print("Starting script.py execution...")
-    print("=" * 60)
-    
-    # Start script.py in background
-    start_script_thread()
-    
-    # Start Flask server
-    app.run(host='0.0.0.0', port=PORT, debug=False)
+if __name__ == "__main__":
+    main()
