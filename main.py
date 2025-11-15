@@ -43,7 +43,7 @@ HTML_TEMPLATE = """
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-            background: #ffffff;
+            background: #fafafa;
             min-height: 100vh;
             padding: 20px;
         }
@@ -51,25 +51,26 @@ HTML_TEMPLATE = """
             max-width: 1200px;
             margin: 0 auto;
             background: white;
-            border: 1px solid #e0e0e0;
+            border: 1px solid #e8e8e8;
             display: flex;
             flex-direction: column;
             height: 90vh;
         }
         .header {
-            background: #000000;
-            color: white;
+            background: #ffffff;
+            color: #1a1a1a;
             padding: 20px 30px;
             text-align: center;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e8e8e8;
         }
         .header h1 {
             font-size: 1.5em;
             margin-bottom: 5px;
-            font-weight: 400;
+            font-weight: 500;
+            color: #1a1a1a;
         }
         .header p {
-            opacity: 0.7;
+            color: #666666;
             font-size: 0.85em;
             font-weight: 300;
         }
@@ -85,16 +86,16 @@ HTML_TEMPLATE = """
             min-width: 400px;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid #e0e0e0;
-            background: #000000;
+            border-right: 1px solid #e8e8e8;
+            background: #1e1e1e;
             overflow: hidden;
         }
         .output-header {
-            background: #000000;
-            color: white;
+            background: #1e1e1e;
+            color: #d4d4d4;
             padding: 15px;
             font-weight: 400;
-            border-bottom: 1px solid #333333;
+            border-bottom: 1px solid #2d2d2d;
             font-size: 0.9em;
         }
         .output-content {
@@ -102,13 +103,13 @@ HTML_TEMPLATE = """
             overflow-y: auto;
             overflow-x: auto;
             padding: 15px;
-            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
             font-size: 0.85em;
-            color: #ffffff;
+            color: #d4d4d4;
             white-space: pre-wrap;
             word-wrap: break-word;
             min-height: 0;
-            background: #000000;
+            background: #1e1e1e;
         }
         .chat-panel {
             flex: 1;
@@ -122,11 +123,12 @@ HTML_TEMPLATE = """
             background: #ffffff;
             padding: 15px;
             font-weight: 400;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e8e8e8;
             display: flex;
             justify-content: space-between;
             align-items: center;
             font-size: 0.9em;
+            color: #1a1a1a;
         }
         .chat-messages {
             flex: 1;
@@ -138,49 +140,52 @@ HTML_TEMPLATE = """
         .message {
             margin-bottom: 15px;
             padding: 12px 15px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid #e8e8e8;
             animation: fadeIn 0.3s;
             font-size: 0.9em;
-            line-height: 1.5;
+            line-height: 1.6;
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .user-message {
-            background: #000000;
-            color: white;
+            background: #f8f9fa;
+            color: #1a1a1a;
             margin-left: 20%;
-            border-color: #000000;
+            border-color: #d0d0d0;
         }
         .assistant-message {
-            background: #ffffff;
-            color: #000000;
+            background: #f0f7ff;
+            color: #1a1a1a;
             margin-right: 20%;
-            border-color: #e0e0e0;
+            border-color: #4a9eff;
+            border-left-width: 3px;
         }
         .status-message {
             background: #ffffff;
             color: #666666;
             text-align: center;
             font-size: 0.85em;
-            border-color: #e0e0e0;
+            border-color: #e8e8e8;
+            font-style: italic;
         }
         .error-message {
-            background: #ffffff;
-            color: #000000;
-            border-color: #000000;
-            border-width: 2px;
+            background: #fff5f5;
+            color: #d32f2f;
+            border-color: #ef5350;
+            border-left-width: 3px;
         }
         .success-message {
-            background: #ffffff;
-            color: #000000;
-            border-color: #cccccc;
+            background: #f1f8f4;
+            color: #2e7d32;
+            border-color: #66bb6a;
+            border-left-width: 3px;
         }
         .chat-input-area {
             padding: 20px;
             background: white;
-            border-top: 1px solid #e0e0e0;
+            border-top: 1px solid #e8e8e8;
         }
         .input-wrapper {
             display: flex;
@@ -189,63 +194,69 @@ HTML_TEMPLATE = """
         #userInput {
             flex: 1;
             padding: 12px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid #d0d0d0;
             font-size: 0.9em;
             resize: vertical;
             min-height: 50px;
             font-family: inherit;
             background: #ffffff;
-            color: #000000;
+            color: #1a1a1a;
+            transition: border-color 0.2s;
         }
         #userInput:focus {
             outline: none;
-            border-color: #000000;
+            border-color: #4a9eff;
         }
         .btn {
             padding: 12px 24px;
-            border: 1px solid #000000;
+            border: 1px solid #d0d0d0;
             font-size: 0.9em;
             font-weight: 400;
             cursor: pointer;
             transition: all 0.2s;
             background: #ffffff;
-            color: #000000;
+            color: #1a1a1a;
         }
         .btn:hover {
-            background: #000000;
-            color: #ffffff;
+            border-color: #4a9eff;
+            color: #4a9eff;
         }
         .btn:disabled {
             background: #f5f5f5;
             color: #cccccc;
-            border-color: #e0e0e0;
+            border-color: #e8e8e8;
             cursor: not-allowed;
         }
         #sendBtn {
-            background: #000000;
+            background: #4a9eff;
             color: white;
-            border-color: #000000;
+            border-color: #4a9eff;
         }
         #sendBtn:hover {
-            background: #333333;
+            background: #2b87f5;
+            border-color: #2b87f5;
+        }
+        #sendBtn:disabled {
+            background: #e8e8e8;
+            border-color: #e8e8e8;
         }
         #newSessionBtn {
             background: #ffffff;
-            color: #000000;
-            border-color: #000000;
+            color: #666666;
+            border-color: #d0d0d0;
             font-size: 0.85em;
             padding: 8px 16px;
         }
         #newSessionBtn:hover {
-            background: #000000;
-            color: #ffffff;
+            border-color: #888888;
+            color: #1a1a1a;
         }
         .loading {
             display: inline-block;
             width: 12px;
             height: 12px;
-            border: 1px solid #e0e0e0;
-            border-top: 1px solid #000000;
+            border: 1px solid #e8e8e8;
+            border-top: 1px solid #4a9eff;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-right: 8px;
