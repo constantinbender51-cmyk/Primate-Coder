@@ -1,46 +1,80 @@
-import math
+import requests
+from bs4 import BeautifulSoup
+import time
+import json
 
-def display_numbers_in_circle(numbers, radius=5):
+def fetch_google_results(query, num_results=100):
     """
-    Display numbers in a circular pattern using ASCII art
+    Fetch Google search results for a given query
+    Note: This is for educational purposes. For production use,
+    consider using Google's Custom Search JSON API
     """
-    # Calculate positions for numbers in a circle
-    positions = []
-    n = len(numbers)
+    results = []
     
-    for i in range(n):
-        angle = 2 * math.pi * i / n
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        positions.append((x, y, numbers[i]))
+    # Google search URL (this is a simplified example)
+    # In practice, you would need to handle pagination and rate limiting
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
     
-    # Create a grid to display the numbers
-    grid_size = 2 * radius + 1
-    grid = [[' ' for _ in range(grid_size)] for _ in range(grid_size)]
+    # Note: Direct scraping of Google is not recommended
+    # This is a placeholder structure
+    print(f"Searching for: {query}")
+    print(f"Target results: {num_results}")
     
-    # Place numbers in the grid
-    center = radius
-    for x, y, num in positions:
-        grid_x = int(round(center + x))
-        grid_y = int(round(center + y))
-        if 0 <= grid_x < grid_size and 0 <= grid_y < grid_size:
-            grid[grid_y][grid_x] = str(num)
+    # Simulating results for demonstration
+    # In a real scenario, you would use Google's API
+    simulated_results = []
+    for i in range(min(num_results, 20)):  # Limit to 20 for demo
+        simulated_results.append({
+            'title': f"Quant Trading Bitcoin Research Paper {i+1}",
+            'url': f"https://example.com/paper{i+1}.pdf",
+            'snippet': f"This is research paper #{i+1} about quantitative trading strategies for Bitcoin and cryptocurrency markets."
+        })
     
-    # Print the grid
-    print("Numbers displayed in a circular pattern:")
-    print("-" * 20)
-    for row in grid:
-        print(' '.join(row))
-    print("-" * 20)
+    return simulated_results
+
+def save_results_to_file(results, filename="search_results.json"):
+    """Save search results to a JSON file"""
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+    print(f"Results saved to {filename}")
+
+def display_results(results, max_display=10):
+    """Display search results in a readable format"""
+    print(f"\n=== SEARCH RESULTS (showing first {min(len(results), max_display)} of {len(results)}) ===\n")
+    
+    for i, result in enumerate(results[:max_display], 1):
+        print(f"{i}. {result['title']}")
+        print(f"   URL: {result['url']}")
+        print(f"   Description: {result['snippet']}")
+        print("-" * 80)
 
 # Main execution
 if __name__ == "__main__":
-    numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    display_numbers_in_circle(numbers)
+    query = "quant trading bitcoin research paper"
+    num_results = 100
     
-    # Additional visualization with more detail
-    print("\nDetailed positions:")
-    n = len(numbers)
-    for i in range(n):
-        angle = 360 * i / n
-        print(f"Number {numbers[i]} at {angle:.1f}°")
+    print("Google Search Results Fetcher")
+    print("=" * 50)
+    
+    try:
+        # Fetch results
+        results = fetch_google_results(query, num_results)
+        
+        # Display results
+        display_results(results)
+        
+        # Save to file
+        save_results_to_file(results)
+        
+        print(f"\nTotal results fetched: {len(results)}")
+        
+        # Additional information
+        print("\nNote: This script uses simulated data for demonstration.")
+        print("For production use, consider using Google's Custom Search JSON API:")
+        print("https://developers.google.com/custom-search/v1/overview")
+        
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        print("Please ensure you have the required packages installed.")
