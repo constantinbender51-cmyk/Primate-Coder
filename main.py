@@ -514,7 +514,8 @@ Current files in the repository:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": full_message}
         ],
-        "temperature": 0.7
+        "temperature": 0.7,
+        "max_tokens": 8000
     }
     
     response = requests.post(url, json=payload, headers=headers)
