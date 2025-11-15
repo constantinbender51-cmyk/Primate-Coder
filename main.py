@@ -257,6 +257,66 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        // Chat history management
+        function saveChatHistory() {
+            const chatMessages = document.getElementById('chatMessages');
+            const messages = [];
+            
+            // Collect all messages from the chat
+            const messageElements = chatMessages.querySelectorAll('.message');
+            messageElements.forEach(msg => {
+                if (msg.classList.contains('user-message')) {
+                    messages.push({ role: 'user', content: msg.textContent });
+                } else if (msg.classList.contains('assistant-message')) {
+                    messages.push({ role: 'assistant', content: msg.textContent });
+                }
+                // Skip status/error/success messages for history
+            });
+            
+            localStorage.setItem('primateCoderChatHistory', JSON.stringify(messages));
+        }
+
+        function loadChatHistory() {
+            const saved = localStorage.getItem('primateCoderChatHistory');
+            if (saved) {
+                try {
+                    const messages = JSON.parse(saved);
+                    const chatMessages = document.getElementById('chatMessages');
+                    
+                    // Clear existing messages and reload from history
+                    chatMessages.innerHTML = '';
+                    messages.forEach(msg => {
+                        if (msg.role === 'user') {
+                            addMessage(msg.content, 'user');
+                        } else if (msg.role === 'assistant') {
+                            addMessage(msg.content, 'assistant');
+                        }
+                    });
+                } catch (e) {
+                    console.error('Error loading chat history:', e);
+                    localStorage.removeItem('primateCoderChatHistory');
+                }
+            }
+        }
+
+        function clearChatHistory() {
+            localStorage.removeItem('primateCoderChatHistory');
+        }
+
+        function addMessage(content, type) {
+            const chatMessages = document.getElementById('chatMessages');
+            const msg = document.createElement('div');
+            msg.className = `message ${type}-message`;
+            msg.innerHTML = content;
+            chatMessages.appendChild(msg);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Save to history (only for user/assistant messages)
+            if (type === 'user' || type === 'assistant') {
+                saveChatHistory();
+            }
+        }
+
         // Poll for script output
         setInterval(async () => {
             try {
@@ -272,15 +332,6 @@ HTML_TEMPLATE = """
             }
         }, 1000);
 
-        function addMessage(content, type) {
-            const chatMessages = document.getElementById('chatMessages');
-            const msg = document.createElement('div');
-            msg.className = `message ${type}-message`;
-            msg.innerHTML = content;
-            chatMessages.appendChild(msg);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
         async function sendMessage() {
             const input = document.getElementById('userInput');
             const btn = document.getElementById('sendBtn');
@@ -295,15 +346,29 @@ HTML_TEMPLATE = """
             addMessage('<span class="loading"></span>Processing your request...', 'status');
             
             try {
+                // Get chat history for API call
+                const saved = localStorage.getItem('primateCoderChatHistory');
+                const chatHistory = saved ? JSON.parse(saved) : [];
+                
                 const response = await fetch('/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ message: message })
+                    body: JSON.stringify({ 
+                        message: message,
+                        chat_history: chatHistory 
+                    })
                 });
                 
                 const data = await response.json();
+                
+                // Remove the loading message
+                const chatMessages = document.getElementById('chatMessages');
+                const lastMessage = chatMessages.lastChild;
+                if (lastMessage && lastMessage.textContent.includes('Processing your request')) {
+                    chatMessages.removeChild(lastMessage);
+                }
                 
                 if (data.error) {
                     addMessage('❌ Error: ' + data.error, 'error');
@@ -333,6 +398,10 @@ HTML_TEMPLATE = """
                 const data = await response.json();
                 
                 if (data.success) {
+                    // Clear chat history on new session
+                    clearChatHistory();
+                    const chatMessages = document.getElementById('chatMessages');
+                    chatMessages.innerHTML = '';
                     addMessage('🔄 New session started. script.py has been cleared.', 'success');
                 } else {
                     addMessage('❌ Error: ' + data.error, 'error');
@@ -341,6 +410,11 @@ HTML_TEMPLATE = """
                 addMessage('❌ Error: ' + error.message, 'error');
             }
         }
+
+        // Load chat history when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadChatHistory();
+        });
 
         document.getElementById('userInput').addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -474,8 +548,8 @@ def list_repo_files():
 
 # ==================== DEEPSEEK API ====================
 
-def call_deepseek_api(user_message, file_contents, script_output_text):
-    """Call DeepSeek API with coding agent prompt."""
+def call_deepseek_api(user_message, file_contents, script_output_text, chat_history):
+    """Call DeepSeek API with coding agent prompt and chat history."""
     
     system_prompt = """You are a coding agent with the ability to create and edit files.
 
@@ -498,22 +572,26 @@ Current files in the repository:
     if script_output_text:
         system_prompt += f"\n\nCurrent script.py output:\n{script_output_text}"
 
+    # Build messages array with chat history
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    # Add chat history (last 10 messages to avoid token limits)
+    for message in chat_history[-10:]:
+        role = "user" if message.get("role") == "user" else "assistant"
+        messages.append({"role": role, "content": message.get("content", "")})
+    
+    # Add current user message
+    messages.append({"role": "user", "content": user_message})
+
     url = "https://api.deepseek.com/chat/completions"
     headers = {
         "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
         "Content-Type": "application/json"
     }
     
-    # Include file contents in the user message
-    context = "\n\n".join([f"=== {name} ===\n{content}" for name, content in file_contents.items()])
-    full_message = f"{context}\n\n=== User Request ===\n{user_message}"
-    
     payload = {
         "model": "deepseek-coder",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": full_message}
-        ],
+        "messages": messages,
         "temperature": 0.7,
         "max_tokens": 8000
     }
@@ -624,6 +702,7 @@ def generate():
     try:
         data = request.json
         user_message = data.get('message', '')
+        chat_history = data.get('chat_history', [])  # Get chat history from client
         
         if not user_message:
             return jsonify({"error": "No message provided"}), 400
@@ -647,8 +726,8 @@ def generate():
         # Get current script output
         script_output_text = getattr(get_output, 'accumulated', '')
         
-        # Call DeepSeek API
-        deepseek_response = call_deepseek_api(user_message, file_contents, script_output_text)
+        # Call DeepSeek API with chat history
+        deepseek_response = call_deepseek_api(user_message, file_contents, script_output_text, chat_history)
         
         # Extract JSON objects from response
         json_objects = extract_json_from_text(deepseek_response)
