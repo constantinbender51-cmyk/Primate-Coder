@@ -164,12 +164,22 @@ def main():
     X = df[feature_cols]
     y = df['target']
     
+    # Print 5 days of features
+    print(f"\nFirst 5 days of features:")
+    for i in range(5):
+        print(f"\nDay {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d')}):")
+        for feature in feature_cols[:10]:  # Show first 10 features to avoid too much output
+            value = X.iloc[i][feature]
+            print(f"  {feature}: {value:.4f}")
+        if len(feature_cols) > 10:
+            print(f"  ... and {len(feature_cols) - 10} more features")
+    
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, shuffle=False
     )
     
-    print(f"  Train samples: {len(X_train)}")
+    print(f"\n  Train samples: {len(X_train)}")
     print(f"  Test samples: {len(X_test)}")
     
     # Scale features
