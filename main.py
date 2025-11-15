@@ -257,6 +257,9 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        // Conversation history stored in memory (resets on page refresh)
+        let conversationHistory = [];
+
         // Poll for script output
         setInterval(async () => {
             try {
@@ -272,13 +275,21 @@ HTML_TEMPLATE = """
             }
         }, 1000);
 
-        function addMessage(content, type) {
+        function addMessage(content, type, storeInHistory = true) {
             const chatMessages = document.getElementById('chatMessages');
             const msg = document.createElement('div');
             msg.className = `message ${type}-message`;
             msg.innerHTML = content;
             chatMessages.appendChild(msg);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Store in conversation history (exclude status messages)
+            if (storeInHistory && (type === 'user' || type === 'assistant')) {
+                conversationHistory.push({
+                    role: type === 'user' ? 'user' : 'assistant',
+                    content: content
+                });
+            }
         }
 
         async function sendMessage() {
@@ -292,7 +303,7 @@ HTML_TEMPLATE = """
             input.value = '';
             btn.disabled = true;
             
-            addMessage('<span class="loading"></span>Processing your request...', 'status');
+            addMessage('<span class="loading"></span>Processing your request...', 'status', false);
             
             try {
                 const response = await fetch('/generate', {
@@ -300,31 +311,34 @@ HTML_TEMPLATE = """
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ message: message })
+                    body: JSON.stringify({ 
+                        message: message,
+                        conversation_history: conversationHistory
+                    })
                 });
                 
                 const data = await response.json();
                 
                 if (data.error) {
-                    addMessage('❌ Error: ' + data.error, 'error');
+                    addMessage('❌ Error: ' + data.error, 'error', false);
                 } else {
                     if (data.deepseek_response) {
-                        addMessage('🤖 DeepSeek: ' + data.deepseek_response, 'assistant');
+                        addMessage(data.deepseek_response, 'assistant');
                     }
-                    if (data.files_updated) {
-                        addMessage('✅ Updated files: ' + data.files_updated.join(', '), 'success');
+                    if (data.files_updated && data.files_updated.length > 0) {
+                        addMessage('✅ Updated files: ' + data.files_updated.join(', '), 'success', false);
+                        addMessage('🚀 Files pushed to GitHub. Railway will redeploy automatically...', 'success', false);
                     }
-                    addMessage('🚀 Files pushed to GitHub. Railway will redeploy automatically...', 'success');
                 }
             } catch (error) {
-                addMessage('❌ Error: ' + error.message, 'error');
+                addMessage('❌ Error: ' + error.message, 'error', false);
             }
             
             btn.disabled = false;
         }
 
         async function startNewSession() {
-            if (!confirm('This will clear script.py and start fresh. Continue?')) {
+            if (!confirm('This will clear script.py, reset the chat, and start fresh. Continue?')) {
                 return;
             }
             
@@ -333,12 +347,18 @@ HTML_TEMPLATE = """
                 const data = await response.json();
                 
                 if (data.success) {
-                    addMessage('🔄 New session started. script.py has been cleared.', 'success');
+                    // Clear conversation history
+                    conversationHistory = [];
+                    
+                    // Clear chat display
+                    document.getElementById('chatMessages').innerHTML = '';
+                    
+                    addMessage('🔄 New session started. script.py has been cleared.', 'success', false);
                 } else {
-                    addMessage('❌ Error: ' + data.error, 'error');
+                    addMessage('❌ Error: ' + data.error, 'error', false);
                 }
             } catch (error) {
-                addMessage('❌ Error: ' + error.message, 'error');
+                addMessage('❌ Error: ' + error.message, 'error', false);
             }
         }
 
@@ -481,7 +501,15 @@ def call_deepseek_api(user_message, file_contents, script_output_text):
 
 IMPORTANT: The main executable file is 'script.py' which will be run automatically. When you create or modify code, put it in script.py.
 
-To create or edit files, include JSON objects in your response with this format:
+CRITICAL - ALWAYS SEEK CONFIRMATION BEFORE CODING:
+1. First, analyze the user's request and explain what changes you plan to make
+2. Outline which files will be created/modified
+3. List any new dependencies that will be added to requirements.txt
+4. Explain the key code changes you'll implement
+5. Ask for confirmation: "Should I proceed with these changes?"
+6. ONLY after receiving explicit confirmation should you provide the JSON with file contents
+
+To create or edit files AFTER CONFIRMATION, include JSON objects in your response with this format:
 {
   "filename.py": "file content here",
   "requirements.txt": "package1\\npackage2",
