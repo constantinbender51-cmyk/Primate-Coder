@@ -74,14 +74,18 @@ HTML_TEMPLATE = """
         .main-content {
             display: flex;
             flex: 1;
-            overflow: hidden;
+            min-height: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
         }
         .output-panel {
             flex: 1;
+            min-width: 400px;
             display: flex;
             flex-direction: column;
             border-right: 2px solid #e0e0e0;
             background: #1e1e1e;
+            overflow: hidden;
         }
         .output-header {
             background: #2d2d2d;
@@ -93,18 +97,22 @@ HTML_TEMPLATE = """
         .output-content {
             flex: 1;
             overflow-y: auto;
+            overflow-x: auto;
             padding: 15px;
             font-family: 'Courier New', monospace;
             font-size: 0.9em;
             color: #00ff00;
             white-space: pre-wrap;
             word-wrap: break-word;
+            min-height: 0;
         }
         .chat-panel {
             flex: 1;
+            min-width: 400px;
             display: flex;
             flex-direction: column;
             background: #f9f9f9;
+            overflow: hidden;
         }
         .chat-header {
             background: #f0f0f0;
@@ -119,6 +127,7 @@ HTML_TEMPLATE = """
             flex: 1;
             overflow-y: auto;
             padding: 20px;
+            min-height: 0;
         }
         .message {
             margin-bottom: 15px;
