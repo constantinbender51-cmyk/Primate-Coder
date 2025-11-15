@@ -70,7 +70,7 @@ def fetch_bitcoin_data_chunked():
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 
 def create_features(df):
-    """Create technical indicators and features for classification"""
+    """Create technical indicators and features for classification with 10-day lookback"""
     df = df.copy()
     
     # Price-based features
@@ -78,17 +78,15 @@ def create_features(df):
     df['high_low_ratio'] = df['high'] / df['low']
     df['close_open_ratio'] = df['close'] / df['open']
     
-    # Moving averages
+    # Moving averages (reduced to 10-day max lookback)
     df['sma_5'] = df['close'].rolling(5).mean()
     df['sma_10'] = df['close'].rolling(10).mean()
-    df['sma_20'] = df['close'].rolling(20).mean()
     
     # Price relative to moving averages
     df['price_vs_sma5'] = df['close'] / df['sma_5']
     df['price_vs_sma10'] = df['close'] / df['sma_10']
-    df['price_vs_sma20'] = df['close'] / df['sma_20']
     
-    # Volatility
+    # Volatility (reduced to 10-day max lookback)
     df['volatility_5'] = df['price_change'].rolling(5).std()
     df['volatility_10'] = df['price_change'].rolling(10).std()
     
@@ -96,7 +94,7 @@ def create_features(df):
     df['volume_sma_5'] = df['volume'].rolling(5).mean()
     df['volume_ratio'] = df['volume'] / df['volume_sma_5']
     
-    # Lagged features
+    # Lagged features (reduced to 3 lags for 10-day window)
     for lag in [1, 2, 3]:
         df[f'close_lag_{lag}'] = df['close'].shift(lag)
         df[f'volume_lag_{lag}'] = df['volume'].shift(lag)
@@ -122,7 +120,7 @@ def main():
     print(f"  Date range: {df['date'].min().strftime('%Y-%m-%d')} to {df['date'].max().strftime('%Y-%m-%d')}")
     print(f"  Price range: ${df['close'].min():.0f} - ${df['close'].max():.0f}")
     print(f"  Features: {len([col for col in df.columns if col not in ['date', 'target', 'close']])}")
-    print(f"  Lookback window: 20 days (max)")
+    print(f"  Lookback window: 10 days (max)")
     
     # Prepare features and target
     feature_cols = [col for col in df.columns if col not in ['date', 'target', 'close']]
