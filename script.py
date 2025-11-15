@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 from binance.spot import Spot
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
@@ -38,7 +38,7 @@ def fetch_bitcoin_data():
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 
 def create_features(df):
-    """Create technical indicators and features"""
+    """Create technical indicators and features for regression"""
     df = df.copy()
     
     # Price-based features
@@ -70,18 +70,18 @@ def create_features(df):
         df[f'volume_lag_{lag}'] = df['volume'].shift(lag)
         df[f'price_change_lag_{lag}'] = df['price_change'].shift(lag)
     
-    # Target: Next day price direction (1 for up, 0 for down)
-    df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
+    # Target: Next day closing price (regression target)
+    df['target'] = df['close'].shift(-1)
     
     # Drop NaN values
     df = df.dropna()
     
     return df
 
-def calculate_nmae(y_true, y_pred, y_actual_prices):
+def calculate_nmae(y_true, y_pred):
     """Calculate Normalized Mean Absolute Error"""
     mae = mean_absolute_error(y_true, y_pred)
-    price_range = y_actual_prices.max() - y_actual_prices.min()
+    price_range = y_true.max() - y_true.min()
     nmae = mae / price_range if price_range > 0 else mae
     return nmae
 
@@ -92,7 +92,7 @@ def main():
     df = create_features(df)
     
     # Prepare features and target
-    feature_cols = [col for col in df.columns if col not in ['date', 'target', 'close'] and not col.startswith('close_lag')]
+    feature_cols = [col for col in df.columns if col not in ['date', 'target', 'close']]
     X = df[feature_cols]
     y = df['target']
     
@@ -106,14 +106,11 @@ def main():
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Get actual prices for test set
-    test_prices = df.loc[X_test.index, 'close']
-    
-    # Initialize models
+    # Initialize regression models
     models = {
-        'Logistic Regression': LogisticRegression(random_state=42),
-        'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
-        'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42)
+        'Linear Regression': LinearRegression(),
+        'Random Forest': RandomForestRegressor(n_estimators=100, random_state=42),
+        'Gradient Boosting': GradientBoostingRegressor(n_estimators=100, random_state=42)
     }
     
     # Train and evaluate models
@@ -121,18 +118,15 @@ def main():
     
     for name, model in models.items():
         # Train model
-        if name == 'Logistic Regression':
+        if name == 'Linear Regression':
             model.fit(X_train_scaled, y_train)
-            y_pred_proba = model.predict_proba(X_test_scaled)[:, 1]
+            y_pred = model.predict(X_test_scaled)
         else:
             model.fit(X_train, y_train)
-            y_pred_proba = model.predict_proba(X_test)[:, 1]
-        
-        # Convert probabilities to binary predictions
-        y_pred = (y_pred_proba > 0.5).astype(int)
+            y_pred = model.predict(X_test)
         
         # Calculate NMAE
-        nmae = calculate_nmae(y_test, y_pred, test_prices)
+        nmae = calculate_nmae(y_test, y_pred)
         results[name] = nmae
     
     # Minimalistic output
