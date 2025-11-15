@@ -84,6 +84,14 @@ def main():
     df = fetch_bitcoin_data()
     df = create_features(df)
     
+    # Dataset information
+    print(f"\nDataset Info:")
+    print(f"  Total days: {len(df)}")
+    print(f"  Date range: {df['date'].min().strftime('%Y-%m-%d')} to {df['date'].max().strftime('%Y-%m-%d')}")
+    print(f"  Price range: ${df['close'].min():.0f} - ${df['close'].max():.0f}")
+    print(f"  Features: {len([col for col in df.columns if col not in ['date', 'target', 'close']])}")
+    print(f"  Lookback window: 20 days (max)")
+    
     # Prepare features and target
     feature_cols = [col for col in df.columns if col not in ['date', 'target', 'close']]
     X = df[feature_cols]
@@ -94,22 +102,43 @@ def main():
         X, y, test_size=0.2, random_state=42, shuffle=False
     )
     
+    print(f"  Train samples: {len(X_train)}")
+    print(f"  Test samples: {len(X_test)}")
+    
     # Scale features
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Initialize classification models
+    # Initialize classification models with parameters
     models = {
-        'Logistic Regression': LogisticRegression(random_state=42),
-        'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
-        'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42)
+        'Logistic Regression': {
+            'model': LogisticRegression(random_state=42),
+            'params': 'C=1.0, max_iter=1000'
+        },
+        'Random Forest': {
+            'model': RandomForestClassifier(n_estimators=100, random_state=42),
+            'params': 'n_estimators=100, max_depth=None'
+        },
+        'Gradient Boosting': {
+            'model': GradientBoostingClassifier(n_estimators=100, random_state=42),
+            'params': 'n_estimators=100, learning_rate=0.1'
+        }
     }
     
     # Train and evaluate models
     results = {}
     
-    for name, model in models.items():
+    print("\nModel Parameters:")
+    for name, model_info in models.items():
+        model = model_info['model']
+        params = model_info['params']
+        print(f"  {name}: {params}")
+    
+    print("\nModel Performance:")
+    for name, model_info in models.items():
+        model = model_info['model']
+        
         # Train model
         if name == 'Logistic Regression':
             model.fit(X_train_scaled, y_train)
@@ -122,13 +151,10 @@ def main():
         accuracy = accuracy_score(y_test, y_pred)
         f1 = f1_score(y_test, y_pred)
         results[name] = {'accuracy': accuracy, 'f1_score': f1}
-    
-    # Minimalistic output
-    print("\nModel Performance:")
-    for model_name, metrics in results.items():
-        print(f"{model_name}:")
-        print(f"  Accuracy: {metrics['accuracy']:.4f}")
-        print(f"  F1-Score: {metrics['f1_score']:.4f}")
+        
+        print(f"{name}:")
+        print(f"  Accuracy: {accuracy:.4f}")
+        print(f"  F1-Score: {f1:.4f}")
     
     # Find best model by F1 score
     best_model = max(results, key=lambda x: results[x]['f1_score'])
