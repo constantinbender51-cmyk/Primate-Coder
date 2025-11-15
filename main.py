@@ -71,6 +71,9 @@ HTML_TEMPLATE = """
             font-weight: 500;
             color: #1a1a1a;
         }
+        .header h1 .highlight {
+            color: #4a9eff;
+        }
         .header p {
             color: #666666;
             font-size: 0.85em;
