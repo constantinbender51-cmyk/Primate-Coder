@@ -1,6 +1,8 @@
 import numpy as np
 from sklearn.datasets import fetch_california_housing
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
 
@@ -12,21 +14,38 @@ X, y = data.data, data.target
 # Split data
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Train model
-print("Training Random Forest model...")
-model = RandomForestRegressor(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
-
-# Make predictions
-y_pred = model.predict(X_test)
-
-# Calculate metrics
-mae = mean_absolute_error(y_test, y_pred)
 target_range = np.max(y) - np.min(y)
-nmae = mae / target_range
+print(f"Target Range: {target_range:.4f}\n")
 
-# Print results
-print(f"\nMean Absolute Error: {mae:.4f}")
-print(f"Target Range: {target_range:.4f}")
-print(f"Normalized MAE: {nmae:.4f}")
-print(f"NMAE as percentage: {nmae * 100:.2f}%")
+# Define models to test
+models = {
+    'Random Forest': RandomForestRegressor(n_estimators=100, random_state=42),
+    'Linear Regression': LinearRegression(),
+    'Gradient Boosting': GradientBoostingRegressor(n_estimators=100, random_state=42),
+    'Support Vector Regression': SVR()
+}
+
+# Train and evaluate each model
+results = []
+for name, model in models.items():
+    print(f"Training {name}...")
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    
+    mae = mean_absolute_error(y_test, y_pred)
+    nmae = mae / target_range
+    
+    results.append((name, mae, nmae))
+    print(f"  MAE: {mae:.4f}")
+    print(f"  NMAE: {nmae:.4f} ({nmae * 100:.2f}%)\n")
+
+# Show comparison
+print("\n=== Model Comparison ===")
+print("Model\t\t\tNMAE (%)")
+print("-" * 30)
+for name, mae, nmae in sorted(results, key=lambda x: x[2]):
+    print(f"{name:<20} {nmae * 100:.2f}%")
+
+# Best model
+best_model = min(results, key=lambda x: x[2])
+print(f"\nBest model: {best_model[0]} with NMAE = {best_model[2] * 100:.2f}%")
