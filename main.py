@@ -114,7 +114,7 @@ HTML_TEMPLATE = """
             white-space: pre-wrap;
             word-wrap: break-word;
             min-height: 0;
-            background: #f8f9fa;
+            background: #f0f0f0;
             border: 1px solid #e8e8e8;
             margin: 10px;
         }
@@ -180,16 +180,16 @@ HTML_TEMPLATE = """
             to { opacity: 1; transform: translateY(0); }
         }
         .user-message {
-            background: #f8f9fa;
+            background: #ffffff;
             color: #1a1a1a;
             margin-left: 20%;
-            border-color: #d0d0d0;
+            border-color: #1a1a1a;
         }
         .assistant-message {
-            background: #f5f5f5;
-            color: #4a4a4a;
+            background: #ffffff;
+            color: #1a1a1a;
             margin-right: 20%;
-            border-color: #d0d0d0;
+            border-color: #888888;
         }
         .status-message {
             background: #ffffff;
@@ -257,14 +257,14 @@ HTML_TEMPLATE = """
             cursor: not-allowed;
         }
         #sendBtn {
-            background: #888888;
-            color: white;
-            border-color: #888888;
+            background: #ffffff;
+            color: #1a1a1a;
+            border-color: #1a1a1a;
         }
         #sendBtn:hover {
-            background: #666666;
-            border-color: #666666;
-            color: white;
+            background: #f0f0f0;
+            border-color: #1a1a1a;
+            color: #1a1a1a;
         }
         #sendBtn:disabled {
             background: #e8e8e8;
@@ -430,8 +430,10 @@ HTML_TEMPLATE = """
             const msg = document.createElement('div');
             msg.className = `message ${type}-message`;
             msg.innerHTML = content;
+            msg.dataset.type = type; // Store type for easy identification
             chatMessages.appendChild(msg);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+            return msg; // Return the element so we can remove it later
         }
         
         function saveChatHistory() {
@@ -461,7 +463,7 @@ HTML_TEMPLATE = """
             input.value = '';
             btn.disabled = true;
             
-            addMessage('<span class="loading"></span>Processing your request...', 'status');
+            const statusMsg = addMessage('<span class="loading"></span>Processing your request...', 'status');
             
             try {
                 const response = await fetch('/generate', {
@@ -474,6 +476,9 @@ HTML_TEMPLATE = """
                         chat_history: chatHistory
                     })
                 });
+                
+                // Remove status message
+                statusMsg.remove();
                 
                 const data = await response.json();
                 
@@ -494,13 +499,19 @@ HTML_TEMPLATE = """
                         if (data.audio && ttsEnabled) {
                             playAudio(data.audio);
                         }
+                    } else if (data.files_updated && data.files_updated.length > 0) {
+                        // If only files were updated with no text response, show a message
+                        addMessage('🤖 DeepSeek: Files updated as requested.', 'assistant');
                     }
+                    
                     if (data.files_updated && data.files_updated.length > 0) {
                         addMessage('✅ Updated files: ' + data.files_updated.join(', '), 'success');
                         addMessage('🚀 Files pushed to GitHub. Railway will redeploy automatically...', 'success');
                     }
                 }
             } catch (error) {
+                // Remove status message on error too
+                statusMsg.remove();
                 addMessage('❌ Error: ' + error.message, 'error');
             }
             
@@ -916,7 +927,7 @@ def generate():
         
         return jsonify({
             "success": True,
-            "deepseek_response": text_response if text_response else "Files updated successfully",
+            "deepseek_response": text_response if text_response else "",
             "files_updated": files_updated,
             "audio": audio_data
         })
