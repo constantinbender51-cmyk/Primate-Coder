@@ -116,18 +116,48 @@ try:
         for name, importance in zip(feature_names, importances):
             print(f"{name}: {importance:.4f}")
     
-    # Calculate metrics
+    # Calculate basic metrics
     mse = mean_squared_error(y_test, y_pred)
+    rmse = np.sqrt(mse)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
+    
+    # Calculate generalizable accuracy metrics
+    target_range = y.max() - y.min()  # Range of target variable
+    target_mean = y.mean()  # Mean of target variable
+    
+    # Normalized Mean Absolute Error (scale-independent)
+    nmae = mae / target_range
+    
+    # Mean Absolute Percentage Error
+    mape = np.mean(np.abs((y_test - y_pred) / y_test)) * 100
+    
+    # Coefficient of Variation (normalized RMSE)
+    cv = (rmse / target_mean) * 100
+    
+    # Normalized Root Mean Squared Error
+    nrmse = rmse / target_range
     
     print("\n" + "="*50)
     print(f"MODEL PERFORMANCE RESULTS ({model_type})")
     print("="*50)
+    
+    print("\nSTANDARD METRICS:")
     print(f"Mean Squared Error (MSE): {mse:.4f}")
-    print(f"Root Mean Squared Error (RMSE): {np.sqrt(mse):.4f}")
+    print(f"Root Mean Squared Error (RMSE): {rmse:.4f}")
     print(f"Mean Absolute Error (MAE): {mae:.4f}")
     print(f"R-squared (R²): {r2:.4f}")
+    
+    print("\nGENERALIZABLE ACCURACY METRICS:")
+    print(f"Normalized MAE (NMAE): {nmae:.4f} ({nmae*100:.2f}% of target range)")
+    print(f"Mean Absolute Percentage Error (MAPE): {mape:.2f}%")
+    print(f"Coefficient of Variation (CV): {cv:.2f}%")
+    print(f"Normalized RMSE (NRMSE): {nrmse:.4f} ({nrmse*100:.2f}% of target range)")
+    
+    print("\nTARGET STATISTICS:")
+    print(f"Target range: {target_range} ({y.min()} to {y.max()})")
+    print(f"Target mean: {target_mean:.2f}")
+    print(f"Target std: {y.std():.2f}")
     
     # Show some prediction examples
     print("\n" + "="*50)
