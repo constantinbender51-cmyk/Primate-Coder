@@ -4,6 +4,14 @@ import numpy as np
 from datetime import datetime, timedelta
 import time
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import warnings
+warnings.filterwarnings('ignore')
 
 def calculate_technical_indicators(df):
     """
@@ -32,6 +40,7 @@ def calculate_technical_indicators(df):
     bb_std = df['close'].rolling(window=20).std()
     df['bb_upper'] = df['bb_middle'] + (bb_std * 2)
     df['bb_lower'] = df['bb_middle'] - (bb_std * 2)
+    df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
     
     # ATR (Average True Range)
     high_low = df['high'] - df['low']
@@ -49,127 +58,205 @@ def calculate_technical_indicators(df):
     df['price_change'] = df['close'] - df['open']
     df['price_change_pct'] = (df['price_change'] / df['open']) * 100
     
+    # Additional features for ML
+    df['high_low_ratio'] = df['high'] / df['low']
+    df['open_close_ratio'] = df['open'] / df['close']
+    df['volatility'] = df['daily_return'].rolling(window=5).std()
+    
     return df
 
-def calculate_statistical_metrics(df):
+def prepare_ml_data(df, prediction_horizon=1):
     """
-    Calculate statistical metrics from the data
+    Prepare data for machine learning - predict if price will go up in next N days
     """
-    metrics = {}
+    # Create target variable: 1 if price increases in next N days, 0 otherwise
+    df['future_return'] = df['close'].shift(-prediction_horizon) / df['close'] - 1
+    df['target'] = (df['future_return'] > 0).astype(int)
     
-    # Basic price statistics
-    metrics['avg_daily_return'] = df['daily_return'].mean()
-    metrics['volatility'] = df['daily_return'].std()
-    metrics['sharpe_ratio'] = metrics['avg_daily_return'] / metrics['volatility'] if metrics['volatility'] != 0 else 0
+    # Feature selection
+    feature_columns = [
+        'open', 'high', 'low', 'close', 'volume',
+        'sma_20', 'sma_50', 'ema_12', 'ema_26',
+        'rsi', 'macd', 'macd_signal', 'macd_histogram',
+        'bb_position', 'atr', 'volume_ratio',
+        'daily_return', 'volatility', 'high_low_ratio', 'open_close_ratio'
+    ]
     
-    # Risk metrics
-    metrics['max_drawdown'] = (df['close'] / df['close'].cummax() - 1).min() * 100
-    metrics['var_95'] = df['daily_return'].quantile(0.05)
+    # Remove rows with NaN values
+    df_clean = df.dropna(subset=feature_columns + ['target'])
     
-    # Volume statistics
-    metrics['avg_volume'] = df['volume'].mean()
-    metrics['volume_volatility'] = df['volume'].std()
+    X = df_clean[feature_columns]
+    y = df_clean['target']
     
-    # Trend metrics
-    metrics['uptrend_days'] = len(df[df['price_change'] > 0])
-    metrics['downtrend_days'] = len(df[df['price_change'] < 0])
-    metrics['trend_ratio'] = metrics['uptrend_days'] / len(df)
-    
-    return metrics
+    return X, y, df_clean
 
-def generate_trading_signals(df):
+def train_ml_models(X, y):
     """
-    Generate basic trading signals based on technical indicators
+    Train multiple machine learning models and compare performance
     """
-    signals = []
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, shuffle=False)
     
-    for i in range(1, len(df)):
-        signal = {
-            'date': df.iloc[i]['open_time'],
-            'price': df.iloc[i]['close'],
-            'signal': 'HOLD',
-            'strength': 0
+    # Scale features
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    # Define models
+    models = {
+        'Logistic Regression': LogisticRegression(random_state=42),
+        'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
+        'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42),
+        'SVM': SVC(kernel='rbf', random_state=42)
+    }
+    
+    results = {}
+    
+    print("🤖 TRAINING MACHINE LEARNING MODELS")
+    print("=" * 60)
+    
+    for name, model in models.items():
+        print(f"\n📊 Training {name}...")
+        
+        # Use scaled data for linear models, original for tree-based
+        if name in ['Logistic Regression', 'SVM']:
+            X_tr = X_train_scaled
+            X_te = X_test_scaled
+        else:
+            X_tr = X_train
+            X_te = X_test
+        
+        # Train model
+        model.fit(X_tr, y_train)
+        
+        # Predictions
+        y_pred = model.predict(X_te)
+        
+        # Calculate metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        cv_scores = cross_val_score(model, X_tr, y_train, cv=5, scoring='accuracy')
+        
+        results[name] = {
+            'model': model,
+            'accuracy': accuracy,
+            'cv_mean': cv_scores.mean(),
+            'cv_std': cv_scores.std(),
+            'predictions': y_pred,
+            'scaler': scaler if name in ['Logistic Regression', 'SVM'] else None
         }
         
-        # RSI based signals
-        if df.iloc[i]['rsi'] < 30 and df.iloc[i-1]['rsi'] >= 30:
-            signal['signal'] = 'BUY'
-            signal['strength'] = 1
-        elif df.iloc[i]['rsi'] > 70 and df.iloc[i-1]['rsi'] <= 70:
-            signal['signal'] = 'SELL'
-            signal['strength'] = 1
-        
-        # Moving average crossover
-        if (df.iloc[i]['sma_20'] > df.iloc[i]['sma_50'] and 
-            df.iloc[i-1]['sma_20'] <= df.iloc[i-1]['sma_50']):
-            if signal['signal'] == 'HOLD':
-                signal['signal'] = 'BUY'
-                signal['strength'] = max(signal['strength'], 0.5)
-        elif (df.iloc[i]['sma_20'] < df.iloc[i]['sma_50'] and 
-              df.iloc[i-1]['sma_20'] >= df.iloc[i-1]['sma_50']):
-            if signal['signal'] == 'HOLD':
-                signal['signal'] = 'SELL'
-                signal['strength'] = max(signal['strength'], 0.5)
-        
-        signals.append(signal)
+        print(f"   Accuracy: {accuracy:.4f}")
+        print(f"   Cross-validation: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
     
-    return pd.DataFrame(signals)
+    return results, X_test, y_test, scaler
 
-def display_enhanced_analysis(df):
+def analyze_feature_importance(results, feature_names):
     """
-    Display enhanced analysis with technical indicators and statistics
+    Analyze feature importance from the best performing model
     """
-    if df is None or df.empty:
-        print("No data to display")
-        return
+    # Get the best model (highest accuracy)
+    best_model_name = max(results.keys(), key=lambda x: results[x]['accuracy'])
+    best_model = results[best_model_name]['model']
     
-    print("=" * 100)
-    print(f"ENHANCED OHLCV ANALYSIS FOR BTCUSDT")
-    print(f"Data points: {len(df)} | Date range: {df['open_time'].min().strftime('%Y-%m-%d')} to {df['open_time'].max().strftime('%Y-%m-%d')}")
-    print("=" * 100)
+    print(f"\n🔍 FEATURE IMPORTANCE ANALYSIS (Best Model: {best_model_name})")
+    print("=" * 60)
     
-    # Calculate technical indicators
-    df = calculate_technical_indicators(df)
-    
-    # Calculate statistical metrics
-    metrics = calculate_statistical_metrics(df)
-    
-    # Display statistical summary
-    print("\n📊 STATISTICAL SUMMARY:")
-    print(f"Average Daily Return: {metrics['avg_daily_return']:.4f}%")
-    print(f"Daily Volatility: {metrics['volatility']:.4f}%")
-    print(f"Sharpe Ratio: {metrics['sharpe_ratio']:.4f}")
-    print(f"Maximum Drawdown: {metrics['max_drawdown']:.2f}%")
-    print(f"Value at Risk (95%): {metrics['var_95']:.4f}%")
-    print(f"Uptrend Days: {metrics['uptrend_days']} ({metrics['trend_ratio']:.1%})")
-    
-    # Display technical indicators for recent period
-    recent = df.tail(5)
-    print("\n🔧 RECENT TECHNICAL INDICATORS:")
-    tech_data = recent[['open_time', 'close', 'sma_20', 'rsi', 'macd']].copy()
-    tech_data['open_time'] = tech_data['open_time'].dt.strftime('%Y-%m-%d')
-    print(tech_data.to_string(index=False, float_format='%.2f'))
-    
-    # Generate and display trading signals
-    signals_df = generate_trading_signals(df)
-    recent_signals = signals_df.tail(10)
-    
-    print("\n🎯 RECENT TRADING SIGNALS:")
-    if not recent_signals.empty:
-        signal_data = recent_signals[['date', 'price', 'signal', 'strength']].copy()
-        signal_data['date'] = signal_data['date'].dt.strftime('%Y-%m-%d')
-        print(signal_data.to_string(index=False, float_format='%.2f'))
+    if hasattr(best_model, 'feature_importances_'):
+        # Tree-based models
+        importances = best_model.feature_importances_
+        feature_imp_df = pd.DataFrame({
+            'feature': feature_names,
+            'importance': importances
+        }).sort_values('importance', ascending=False)
+        
+        print("\nTop 10 Most Important Features:")
+        print(feature_imp_df.head(10).to_string(index=False))
+        
+        return feature_imp_df
+    elif hasattr(best_model, 'coef_'):
+        # Linear models
+        coefficients = best_model.coef_[0]
+        feature_imp_df = pd.DataFrame({
+            'feature': feature_names,
+            'coefficient': coefficients
+        }).sort_values('coefficient', key=abs, ascending=False)
+        
+        print("\nTop 10 Most Influential Features (by absolute coefficient):")
+        print(feature_imp_df.head(10).to_string(index=False))
+        
+        return feature_imp_df
     else:
-        print("No significant signals in recent period")
+        print("Feature importance not available for this model type")
+        return None
+
+def make_predictions(results, df, feature_columns, prediction_horizon=1):
+    """
+    Make predictions for the most recent data
+    """
+    print(f"\n🎯 PREDICTIONS FOR NEXT {prediction_horizon} DAY(S)")
+    print("=" * 60)
     
-    # Market regime analysis
-    volatility_regime = 'HIGH' if metrics['volatility'] > 3 else 'LOW'
-    trend_strength = 'STRONG BULL' if metrics['trend_ratio'] > 0.6 else 'STRONG BEAR' if metrics['trend_ratio'] < 0.4 else 'SIDEWAYS'
+    # Get the best model
+    best_model_name = max(results.keys(), key=lambda x: results[x]['accuracy'])
+    best_result = results[best_model_name]
     
-    print(f"\n📈 MARKET REGIME ANALYSIS:")
-    print(f"Volatility Regime: {volatility_regime}")
-    print(f"Trend Strength: {trend_strength}")
-    print(f"Current RSI: {df['rsi'].iloc[-1]:.1f} ({'OVERSOLD' if df['rsi'].iloc[-1] < 30 else 'OVERBOUGHT' if df['rsi'].iloc[-1] > 70 else 'NEUTRAL'})")
+    # Prepare recent data for prediction
+    recent_data = df.tail(10).copy()
+    
+    predictions = []
+    
+    for i, (idx, row) in enumerate(recent_data.iterrows()):
+        # Prepare features
+        features = row[feature_columns].values.reshape(1, -1)
+        
+        # Scale if needed
+        if best_result['scaler'] is not None:
+            features = best_result['scaler'].transform(features)
+        
+        # Make prediction
+        prediction = best_result['model'].predict(features)[0]
+        probability = best_result['model'].predict_proba(features)[0]
+        
+        predictions.append({
+            'date': row['open_time'].strftime('%Y-%m-%d'),
+            'price': row['close'],
+            'prediction': 'UP' if prediction == 1 else 'DOWN',
+            'confidence': max(probability),
+            'up_probability': probability[1],
+            'down_probability': probability[0]
+        })
+    
+    # Display predictions
+    pred_df = pd.DataFrame(predictions)
+    print(f"\nUsing {best_model_name} (Accuracy: {best_result['accuracy']:.4f})")
+    print("\nRecent Predictions:")
+    display_cols = ['date', 'price', 'prediction', 'confidence', 'up_probability']
+    print(pred_df[display_cols].to_string(index=False, float_format='%.4f'))
+    
+    return pred_df
+
+def display_model_comparison(results):
+    """
+    Display comparison of all trained models
+    """
+    print("\n🏆 MODEL PERFORMANCE COMPARISON")
+    print("=" * 60)
+    
+    comparison_data = []
+    for name, result in results.items():
+        comparison_data.append({
+            'Model': name,
+            'Accuracy': result['accuracy'],
+            'CV Score': result['cv_mean'],
+            'CV Std': result['cv_std']
+        })
+    
+    comparison_df = pd.DataFrame(comparison_data)
+    print(comparison_df.to_string(index=False, float_format='%.4f'))
+    
+    # Highlight best model
+    best_model = comparison_df.loc[comparison_df['Accuracy'].idxmax()]
+    print(f"\n🏅 BEST MODEL: {best_model['Model']} (Accuracy: {best_model['Accuracy']:.4f})")
 
 def fetch_ohlcv_data(symbol='BTCUSDT', interval='1d', limit=1000, end_time=None):
     """
@@ -182,7 +269,6 @@ def fetch_ohlcv_data(symbol='BTCUSDT', interval='1d', limit=1000, end_time=None)
         'limit': limit
     }
     
-    # Add endTime parameter if provided
     if end_time:
         params['endTime'] = int(end_time.timestamp() * 1000)
     
@@ -191,18 +277,15 @@ def fetch_ohlcv_data(symbol='BTCUSDT', interval='1d', limit=1000, end_time=None)
         response.raise_for_status()
         data = response.json()
         
-        # Convert to DataFrame
         df = pd.DataFrame(data, columns=[
             'open_time', 'open', 'high', 'low', 'close', 'volume',
             'close_time', 'quote_asset_volume', 'number_of_trades',
             'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
         ])
         
-        # Convert timestamp to datetime
         df['open_time'] = pd.to_datetime(df['open_time'], unit='ms')
         df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
         
-        # Convert price and volume columns to numeric
         numeric_columns = ['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume']
         df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric)
         
@@ -216,15 +299,12 @@ def fetch_2000_ohlcv_points(symbol='BTCUSDT', interval='1d'):
     Fetch 2000 OHLCV data points by making multiple API calls
     """
     all_data = []
-    limit = 1000  # Maximum limit per request
+    limit = 1000
     remaining_points = 2000
-    
-    # Start from current time and go backwards
     end_time = datetime.now()
     
     while remaining_points > 0:
         current_limit = min(limit, remaining_points)
-        
         print(f"Fetching {current_limit} data points...")
         
         df = fetch_ohlcv_data(symbol, interval, current_limit, end_time)
@@ -235,14 +315,9 @@ def fetch_2000_ohlcv_points(symbol='BTCUSDT', interval='1d'):
             
         all_data.append(df)
         remaining_points -= len(df)
-        
-        # Update end_time for next request (go backwards in time)
-        # Use the earliest open_time minus 1 day to avoid overlap
         end_time = df['open_time'].min() - timedelta(days=1)
         
         print(f"Fetched {len(df)} points. Remaining: {remaining_points}")
-        
-        # Rate limiting
         time.sleep(0.1)
     
     if all_data:
@@ -254,38 +329,67 @@ def fetch_2000_ohlcv_points(symbol='BTCUSDT', interval='1d'):
 
 def main():
     """
-    Main function to fetch and display enhanced OHLCV analysis
+    Main function to fetch data and train ML models for price prediction
     """
-    print("Fetching 2000 OHLCV data points from Binance for enhanced analysis...")
+    print("🤖 BITCOIN PRICE PREDICTION WITH MACHINE LEARNING")
+    print("=" * 60)
     
-    # Fetch the data
+    # Fetch data
+    print("\n📊 Fetching OHLCV data from Binance...")
     df = fetch_2000_ohlcv_points()
     
-    if df is not None:
-        print(f"\n✅ Successfully fetched {len(df)} data points")
-        
-        # Add symbol column
-        df['symbol'] = 'BTCUSDT'
-        
-        # Display enhanced analysis
-        display_enhanced_analysis(df)
-        
-        # Save enhanced data to CSV
-        csv_filename = f'enhanced_binance_analysis_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-        
-        # Calculate technical indicators before saving
-        df = calculate_technical_indicators(df)
-        df.to_csv(csv_filename, index=False)
-        print(f"\n💾 Enhanced data saved to: {csv_filename}")
-        
-        print("\n🚀 NEXT STEPS:")
-        print("1. Use the data for backtesting trading strategies")
-        print("2. Build machine learning models for price prediction")
-        print("3. Create interactive dashboards for real-time monitoring")
-        print("4. Develop risk management systems")
-        
-    else:
+    if df is None:
         print("❌ Failed to fetch data from Binance API")
+        return
+    
+    print(f"✅ Successfully fetched {len(df)} data points")
+    
+    # Calculate technical indicators
+    print("\n🔧 Calculating technical indicators...")
+    df = calculate_technical_indicators(df)
+    
+    # Prepare data for ML
+    print("\n📈 Preparing data for machine learning...")
+    prediction_horizon = 1  # Predict next day's direction
+    X, y, df_clean = prepare_ml_data(df, prediction_horizon)
+    
+    print(f"📋 Dataset Info:")
+    print(f"   Total samples: {len(df_clean)}")
+    print(f"   Features: {X.shape[1]}")
+    print(f"   Target distribution: {y.value_counts().to_dict()}")
+    
+    # Train ML models
+    results, X_test, y_test, scaler = train_ml_models(X, y)
+    
+    # Display model comparison
+    display_model_comparison(results)
+    
+    # Analyze feature importance
+    feature_imp_df = analyze_feature_importance(results, X.columns.tolist())
+    
+    # Make predictions
+    predictions_df = make_predictions(results, df_clean, X.columns.tolist(), prediction_horizon)
+    
+    # Save results
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Save predictions
+    predictions_df.to_csv(f'price_predictions_{timestamp}.csv', index=False)
+    
+    # Save feature importance
+    if feature_imp_df is not None:
+        feature_imp_df.to_csv(f'feature_importance_{timestamp}.csv', index=False)
+    
+    print(f"\n💾 Results saved to:")
+    print(f"   - price_predictions_{timestamp}.csv")
+    print(f"   - feature_importance_{timestamp}.csv")
+    
+    print("\n🚀 NEXT STEPS:")
+    print("1. Experiment with different prediction horizons (3-day, 7-day)")
+    print("2. Try more advanced models (LSTM, XGBoost)")
+    print("3. Add sentiment analysis features")
+    print("4. Implement ensemble methods")
+    print("5. Backtest trading strategies based on predictions")
 
 if __name__ == "__main__":
     main()
