@@ -69,10 +69,10 @@ def fetch_crypto_data_chunked(symbol, days_to_fetch=10000):
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 
 def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
-    """Create technical indicators and features including altcoin data"""
+    """Create technical indicators and features including altcoin data - ONLY DERIVATIVES"""
     df = btc_df.copy()
     
-    # Price-based features for Bitcoin
+    # Price-based derivative features for Bitcoin (NO RAW PRICES)
     df['price_change'] = df['close'].pct_change()
     df['high_low_ratio'] = df['high'] / df['low']
     df['close_open_ratio'] = df['close'] / df['open']
@@ -81,7 +81,7 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     df['sma_5'] = df['close'].rolling(5).mean()
     df['sma_10'] = df['close'].rolling(10).mean()
     
-    # Price relative to moving averages
+    # Price relative to moving averages (derivatives)
     df['price_vs_sma5'] = df['close'] / df['sma_5']
     df['price_vs_sma10'] = df['close'] / df['sma_10']
     
@@ -89,31 +89,22 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     df['volatility_5'] = df['price_change'].rolling(5).std()
     df['volatility_10'] = df['price_change'].rolling(10).std()
     
-    # Volume features
+    # Volume features (derivatives only)
     df['volume_sma_5'] = df['volume'].rolling(5).mean()
     df['volume_ratio'] = df['volume'] / df['volume_sma_5']
     
-    # Lagged features (3 lags for 10-day window)
-    for lag in [1, 2, 3]:
-        df[f'close_lag_{lag}'] = df['close'].shift(lag)
-        df[f'volume_lag_{lag}'] = df['volume'].shift(lag)
-        df[f'price_change_lag_{lag}'] = df['price_change'].shift(lag)
-    
-    # Add altcoin features
+    # Add altcoin features (derivatives only)
     # Ethereum features
-    df['eth_close'] = eth_df['close']
     df['eth_price_change'] = eth_df['close'].pct_change()
     df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(5).mean()
     df['btc_eth_ratio'] = df['close'] / eth_df['close']  # BTC dominance vs ETH
     
     # Ripple features
-    df['xrp_close'] = xrp_df['close']
     df['xrp_price_change'] = xrp_df['close'].pct_change()
     df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(5).mean()
     df['btc_xrp_ratio'] = df['close'] / xrp_df['close']  # BTC dominance vs XRP
     
     # Cardano features
-    df['ada_close'] = ada_df['close']
     df['ada_price_change'] = ada_df['close'].pct_change()
     df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(5).mean()
     df['btc_ada_ratio'] = df['close'] / ada_df['close']  # BTC dominance vs ADA
@@ -136,22 +127,18 @@ def normalize_features(X):
     
     # Features that can be negative (normalize to [-1, 1])
     negative_features = [
-        'price_change', 'price_change_lag_1', 'price_change_lag_2', 'price_change_lag_3',
-        'eth_price_change', 'xrp_price_change', 'ada_price_change', 'altcoin_momentum'
+        'price_change', 'eth_price_change', 'xrp_price_change', 'ada_price_change', 'altcoin_momentum'
     ]
     
     # Features that are always positive (normalize to [0, 1])
     positive_features = [
-        'open', 'high', 'low', 'close', 'volume',
         'high_low_ratio', 'close_open_ratio',
         'sma_5', 'sma_10', 'price_vs_sma5', 'price_vs_sma10',
         'volatility_5', 'volatility_10',
         'volume_sma_5', 'volume_ratio',
-        'close_lag_1', 'close_lag_2', 'close_lag_3',
-        'volume_lag_1', 'volume_lag_2', 'volume_lag_3',
-        'eth_close', 'eth_volume_ratio', 'btc_eth_ratio',
-        'xrp_close', 'xrp_volume_ratio', 'btc_xrp_ratio',
-        'ada_close', 'ada_volume_ratio', 'btc_ada_ratio',
+        'eth_volume_ratio', 'btc_eth_ratio',
+        'xrp_volume_ratio', 'btc_xrp_ratio',
+        'ada_volume_ratio', 'btc_ada_ratio',
         'altcoin_volume_strength'
     ]
     
@@ -192,16 +179,19 @@ def main():
     print(f"  Total days: {len(df)}")
     print(f"  Date range: {df['date'].min().strftime('%Y-%m-%d')} to {df['date'].max().strftime('%Y-%m-%d')}")
     print(f"  BTC price range: ${df['close'].min():.0f} - ${df['close'].max():.0f}")
-    print(f"  ETH price range: ${df['eth_close'].min():.2f} - ${df['eth_close'].max():.2f}")
-    print(f"  XRP price range: ${df['xrp_close'].min():.4f} - ${df['xrp_close'].max():.4f}")
-    print(f"  ADA price range: ${df['ada_close'].min():.4f} - ${df['ada_close'].max():.4f}")
-    print(f"  Features: {len([col for col in df.columns if col not in ['date', 'target', 'close']])}")
+    print(f"  ETH price range: ${eth_df['close'].min():.2f} - ${eth_df['close'].max():.2f}")
+    print(f"  XRP price range: ${xrp_df['close'].min():.4f} - ${xrp_df['close'].max():.4f}")
+    print(f"  ADA price range: ${ada_df['close'].min():.4f} - ${ada_df['close'].max():.4f}")
+    print(f"  Features: {len([col for col in df.columns if col not in ['date', 'target', 'close', 'open', 'high', 'low', 'volume']])}")
     print(f"  Lookback window: 10 days (max)")
     
-    # Prepare features and target
-    feature_cols = [col for col in df.columns if col not in ['date', 'target', 'close']]
+    # Prepare features and target (EXCLUDE RAW PRICE DATA)
+    exclude_cols = ['date', 'target', 'close', 'open', 'high', 'low', 'volume']
+    feature_cols = [col for col in df.columns if col not in exclude_cols]
     X = df[feature_cols]
     y = df['target']
+    
+    print(f"\nFeature columns (DERIVATIVES ONLY): {feature_cols}")
     
     # Print 2 days of full features (before normalization)
     print(f"\nFirst 2 days of features (BEFORE NORMALIZATION):")
