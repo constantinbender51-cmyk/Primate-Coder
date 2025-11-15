@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import time
 
-def fetch_ohlcv_data(symbol='BTCUSDT', interval='1d', limit=1000):
+def fetch_ohlcv_data(symbol='BTCUSDT', interval='1d', limit=1000, end_time=None):
     """
     Fetch OHLCV data from Binance API
     """
@@ -13,6 +13,10 @@ def fetch_ohlcv_data(symbol='BTCUSDT', interval='1d', limit=1000):
         'interval': interval,
         'limit': limit
     }
+    
+    # Add endTime parameter if provided
+    if end_time:
+        params['endTime'] = int(end_time.timestamp() * 1000)
     
     try:
         response = requests.get(base_url, params=params)
@@ -48,31 +52,27 @@ def fetch_2000_ohlcv_points(symbol='BTCUSDT', interval='1d'):
     remaining_points = 2000
     
     # Start from current time and go backwards
-    end_time = None
+    end_time = datetime.now()
     
     while remaining_points > 0:
         current_limit = min(limit, remaining_points)
         
-        params = {
-            'symbol': symbol,
-            'interval': interval,
-            'limit': current_limit
-        }
+        print(f"Fetching {current_limit} data points...")
         
-        # Add endTime parameter for pagination
-        if end_time:
-            params['endTime'] = int(end_time.timestamp() * 1000)
-        
-        df = fetch_ohlcv_data(symbol, interval, current_limit)
+        df = fetch_ohlcv_data(symbol, interval, current_limit, end_time)
         
         if df is None or df.empty:
+            print("No more data available")
             break
             
         all_data.append(df)
         remaining_points -= len(df)
         
         # Update end_time for next request (go backwards in time)
+        # Use the earliest open_time minus 1 day to avoid overlap
         end_time = df['open_time'].min() - timedelta(days=1)
+        
+        print(f"Fetched {len(df)} points. Remaining: {remaining_points}")
         
         # Rate limiting
         time.sleep(0.1)
@@ -80,7 +80,7 @@ def fetch_2000_ohlcv_points(symbol='BTCUSDT', interval='1d'):
     if all_data:
         final_df = pd.concat(all_data, ignore_index=True)
         final_df = final_df.drop_duplicates(subset=['open_time']).sort_values('open_time').reset_index(drop=True)
-        return final_df.head(2000)
+        return final_df.head(2000) if len(final_df) > 2000 else final_df
     else:
         return None
 
@@ -130,7 +130,7 @@ def main():
     df = fetch_2000_ohlcv_points()
     
     if df is not None:
-        print(f"Successfully fetched {len(df)} data points")
+        print(f"\nSuccessfully fetched {len(df)} data points")
         
         # Add symbol column for display
         df['symbol'] = 'BTCUSDT'
