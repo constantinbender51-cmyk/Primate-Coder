@@ -8,6 +8,8 @@ import time
 from flask import Flask, render_template_string, request, jsonify
 import requests
 from queue import Queue
+from io import BytesIO
+from gtts import gTTS
 
 # ==================== CONFIGURATION ====================
 GITHUB_USERNAME = "constantinbender51-cmyk"
@@ -17,7 +19,7 @@ RAILWAY_PROJECT_ID = "your-project-id"  # Optional, for future use
 PORT = 8080
 
 # Base dependencies that must always be in requirements.txt
-BASE_REQUIREMENTS = ["flask", "requests"]
+BASE_REQUIREMENTS = ["flask", "requests", "gtts"]
 
 # Environment variables (set these before running)
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
@@ -129,6 +131,29 @@ HTML_TEMPLATE = """
             align-items: center;
             font-size: 0.9em;
             color: #1a1a1a;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        #ttsToggle {
+            background: #ffffff;
+            color: #666666;
+            border: 1px solid #d0d0d0;
+            font-size: 0.85em;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #ttsToggle:hover {
+            border-color: #4a9eff;
+            color: #4a9eff;
+        }
+        #ttsToggle.active {
+            background: #4a9eff;
+            color: white;
+            border-color: #4a9eff;
         }
         .chat-messages {
             flex: 1;
@@ -280,7 +305,10 @@ HTML_TEMPLATE = """
             </div>
             <div class="chat-panel">
                 <div class="chat-header">
-                    <span>💬 Chat with DeepSeek</span>
+                    <div class="header-left">
+                        <span>💬 Chat with DeepSeek</span>
+                        <button id="ttsToggle" class="btn active" onclick="toggleTTS()">🔊 TTS On</button>
+                    </div>
                     <button id="newSessionBtn" class="btn" onclick="startNewSession()">🔄 Start New Session</button>
                 </div>
                 <div class="chat-messages" id="chatMessages"></div>
@@ -297,6 +325,15 @@ HTML_TEMPLATE = """
     <script>
         let shouldAutoScroll = true;
         let chatHistory = [];  // Client-side chat history storage
+        let ttsEnabled = true; // TTS enabled by default
+        let currentAudio = null; // Track currently playing audio
+        
+        // Load TTS preference from localStorage
+        const savedTTSPref = localStorage.getItem('primateTTSEnabled');
+        if (savedTTSPref !== null) {
+            ttsEnabled = savedTTSPref === 'true';
+            updateTTSButton();
+        }
         
         // Load chat history from localStorage on page load
         const savedHistory = localStorage.getItem('primateChatHistory');
@@ -315,6 +352,47 @@ HTML_TEMPLATE = """
                 console.error('Error loading chat history:', e);
                 chatHistory = [];
             }
+        }
+        
+        function toggleTTS() {
+            ttsEnabled = !ttsEnabled;
+            localStorage.setItem('primateTTSEnabled', ttsEnabled);
+            updateTTSButton();
+            
+            // Stop current audio if disabling
+            if (!ttsEnabled && currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+        }
+        
+        function updateTTSButton() {
+            const btn = document.getElementById('ttsToggle');
+            if (ttsEnabled) {
+                btn.textContent = '🔊 TTS On';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '🔇 TTS Off';
+                btn.classList.remove('active');
+            }
+        }
+        
+        function playAudio(audioData) {
+            if (!ttsEnabled) return;
+            
+            // Stop any currently playing audio
+            if (currentAudio) {
+                currentAudio.pause();
+            }
+            
+            currentAudio = new Audio(audioData);
+            currentAudio.play().catch(err => {
+                console.error('Error playing audio:', err);
+            });
+            
+            currentAudio.onended = () => {
+                currentAudio = null;
+            };
         }
         
         // Add scroll detection to output panel
@@ -406,6 +484,11 @@ HTML_TEMPLATE = """
                             content: data.deepseek_response
                         });
                         saveChatHistory();
+                        
+                        // Play TTS audio if available
+                        if (data.audio && ttsEnabled) {
+                            playAudio(data.audio);
+                        }
                     }
                     if (data.files_updated && data.files_updated.length > 0) {
                         addMessage('✅ Updated files: ' + data.files_updated.join(', '), 'success');
@@ -710,6 +793,33 @@ def merge_requirements(deepseek_requirements):
     return '\n'.join(lines)
 
 
+def generate_tts_audio(text):
+    """Generate TTS audio from text using gTTS."""
+    try:
+        # Remove emojis and special characters that might cause issues
+        clean_text = text.strip()
+        
+        if not clean_text:
+            return None
+        
+        # Generate speech
+        tts = gTTS(text=clean_text, lang='en', slow=False)
+        
+        # Save to BytesIO buffer
+        audio_buffer = BytesIO()
+        tts.write_to_fp(audio_buffer)
+        audio_buffer.seek(0)
+        
+        # Convert to base64
+        audio_base64 = base64.b64encode(audio_buffer.getvalue()).decode('utf-8')
+        
+        return f"data:audio/mp3;base64,{audio_base64}"
+    
+    except Exception as e:
+        print(f"TTS Error: {e}")
+        return None
+
+
 # ==================== FLASK ROUTES ====================
 
 @app.route('/')
@@ -772,6 +882,11 @@ def generate():
         # Get plain text response (without JSON)
         text_response = remove_json_from_text(deepseek_response)
         
+        # Generate TTS audio for DeepSeek response
+        audio_data = None
+        if text_response:
+            audio_data = generate_tts_audio(text_response)
+        
         # Update files on GitHub
         files_updated = []
         for json_obj in json_objects:
@@ -790,7 +905,8 @@ def generate():
         return jsonify({
             "success": True,
             "deepseek_response": text_response if text_response else "Files updated successfully",
-            "files_updated": files_updated
+            "files_updated": files_updated,
+            "audio": audio_data
         })
         
     except Exception as e:
