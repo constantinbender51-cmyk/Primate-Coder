@@ -184,12 +184,12 @@ def main():
             'params': 'C=1.0, max_iter=5000'
         },
         'Random Forest': {
-            'model': RandomForestClassifier(n_estimators=100, random_state=42),
-            'params': 'n_estimators=100, max_depth=None'
+            'model': RandomForestClassifier(n_estimators=500, random_state=42),
+            'params': 'n_estimators=500, max_depth=None'
         },
         'Gradient Boosting': {
-            'model': GradientBoostingClassifier(n_estimators=100, random_state=42),
-            'params': 'n_estimators=100, learning_rate=0.1'
+            'model': GradientBoostingClassifier(n_estimators=500, learning_rate=0.05, random_state=42),
+            'params': 'n_estimators=500, learning_rate=0.05'
         }
     }
     
