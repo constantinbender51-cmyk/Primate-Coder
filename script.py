@@ -193,6 +193,11 @@ def main():
         }
     }
     
+    # Print model hyperparameters
+    print(f"\nModel Hyperparameters:")
+    for name, model_info in models.items():
+        print(f"  {name}: {model_info['params']}")
+    
     # Train and evaluate models
     results = {}
     
