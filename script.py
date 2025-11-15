@@ -4,7 +4,7 @@ from binance.spot import Spot
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split
 import warnings
 import time
@@ -130,6 +130,45 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     
     return df
 
+def normalize_features(X):
+    """Normalize features based on their value ranges"""
+    X_normalized = X.copy()
+    
+    # Features that can be negative (normalize to [-1, 1])
+    negative_features = [
+        'price_change', 'price_change_lag_1', 'price_change_lag_2', 'price_change_lag_3',
+        'eth_price_change', 'xrp_price_change', 'ada_price_change', 'altcoin_momentum'
+    ]
+    
+    # Features that are always positive (normalize to [0, 1])
+    positive_features = [
+        'open', 'high', 'low', 'close', 'volume',
+        'high_low_ratio', 'close_open_ratio',
+        'sma_5', 'sma_10', 'price_vs_sma5', 'price_vs_sma10',
+        'volatility_5', 'volatility_10',
+        'volume_sma_5', 'volume_ratio',
+        'close_lag_1', 'close_lag_2', 'close_lag_3',
+        'volume_lag_1', 'volume_lag_2', 'volume_lag_3',
+        'eth_close', 'eth_volume_ratio', 'btc_eth_ratio',
+        'xrp_close', 'xrp_volume_ratio', 'btc_xrp_ratio',
+        'ada_close', 'ada_volume_ratio', 'btc_ada_ratio',
+        'altcoin_volume_strength'
+    ]
+    
+    # Normalize negative features to [-1, 1]
+    for feature in negative_features:
+        if feature in X.columns:
+            scaler = MinMaxScaler(feature_range=(-1, 1))
+            X_normalized[feature] = scaler.fit_transform(X[[feature]])
+    
+    # Normalize positive features to [0, 1]
+    for feature in positive_features:
+        if feature in X.columns:
+            scaler = MinMaxScaler(feature_range=(0, 1))
+            X_normalized[feature] = scaler.fit_transform(X[[feature]])
+    
+    return X_normalized
+
 def main():
     # Fetch Bitcoin data
     print("Fetching 10,000 days of Bitcoin data...")
@@ -164,25 +203,34 @@ def main():
     X = df[feature_cols]
     y = df['target']
     
-    # Print 5 days of features
-    print(f"\nFirst 5 days of features:")
-    for i in range(5):
+    # Print 2 days of full features (before normalization)
+    print(f"\nFirst 2 days of features (BEFORE NORMALIZATION):")
+    for i in range(2):
         print(f"\nDay {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d')}):")
-        for feature in feature_cols[:10]:  # Show first 10 features to avoid too much output
+        for feature in feature_cols:
             value = X.iloc[i][feature]
-            print(f"  {feature}: {value:.4f}")
-        if len(feature_cols) > 10:
-            print(f"  ... and {len(feature_cols) - 10} more features")
+            print(f"  {feature}: {value:.6f}")
+    
+    # Normalize features
+    X_normalized = normalize_features(X)
+    
+    # Print 2 days of normalized features
+    print(f"\nFirst 2 days of features (AFTER NORMALIZATION):")
+    for i in range(2):
+        print(f"\nDay {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d')}):")
+        for feature in feature_cols:
+            value = X_normalized.iloc[i][feature]
+            print(f"  {feature}: {value:.6f}")
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, shuffle=False
+        X_normalized, y, test_size=0.2, random_state=42, shuffle=False
     )
     
     print(f"\n  Train samples: {len(X_train)}")
     print(f"  Test samples: {len(X_test)}")
     
-    # Scale features
+    # Scale features (additional standardization for models that need it)
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
