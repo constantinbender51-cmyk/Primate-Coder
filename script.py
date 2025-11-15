@@ -121,24 +121,30 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     
     return df
 
-def add_squared_features(X):
-    """Add squared versions of key features to capture non-linear relationships"""
-    X_squared = X.copy()
+def add_polynomial_features(X):
+    """Add squared and cubic versions of key features to capture non-linear relationships"""
+    X_poly = X.copy()
     
-    # Select key features to square (avoid squaring ratios that are already non-linear)
-    features_to_square = [
+    # Select key features for polynomial expansion
+    features_for_poly = [
         'price_change', 'volatility_24', 'volatility_48', 
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
         'altcoin_momentum'
     ]
     
     # Add squared features
-    for feature in features_to_square:
+    for feature in features_for_poly:
         if feature in X.columns:
             squared_feature_name = f"{feature}_squared"
-            X_squared[squared_feature_name] = X[feature] ** 2
+            X_poly[squared_feature_name] = X[feature] ** 2
     
-    return X_squared
+    # Add cubic features
+    for feature in features_for_poly:
+        if feature in X.columns:
+            cubic_feature_name = f"{feature}_cubed"
+            X_poly[cubic_feature_name] = X[feature] ** 3
+    
+    return X_poly
 
 def normalize_features(X):
     """Normalize features based on their value ranges"""
@@ -161,12 +167,12 @@ def normalize_features(X):
         'altcoin_volume_strength'
     ]
     
-    # Add squared features to appropriate categories
-    squared_features = [col for col in X.columns if col.endswith('_squared')]
-    for feature in squared_features:
-        base_feature = feature.replace('_squared', '')
+    # Add polynomial features to appropriate categories
+    poly_features = [col for col in X.columns if col.endswith('_squared') or col.endswith('_cubed')]
+    for feature in poly_features:
+        base_feature = feature.replace('_squared', '').replace('_cubed', '')
         if base_feature in negative_features:
-            # Squared negative features become positive
+            # Squared/cubed negative features become positive
             positive_features.append(feature)
         elif base_feature in positive_features:
             positive_features.append(feature)
@@ -220,12 +226,14 @@ def main():
     
     print(f"\nOriginal feature columns (DERIVATIVES ONLY): {feature_cols}")
     
-    # Add squared features
-    X_with_squared = add_squared_features(X)
-    squared_feature_cols = [col for col in X_with_squared.columns if col.endswith('_squared')]
-    all_feature_cols = list(X.columns) + squared_feature_cols
+    # Add polynomial features (squared and cubed)
+    X_with_poly = add_polynomial_features(X)
+    squared_feature_cols = [col for col in X_with_poly.columns if col.endswith('_squared')]
+    cubed_feature_cols = [col for col in X_with_poly.columns if col.endswith('_cubed')]
+    all_feature_cols = list(X.columns) + squared_feature_cols + cubed_feature_cols
     
     print(f"\nSquared features added: {squared_feature_cols}")
+    print(f"Cubed features added: {cubed_feature_cols}")
     print(f"Total features: {len(all_feature_cols)}")
     
     # Print 2 hours of full features (before normalization)
@@ -233,12 +241,12 @@ def main():
     for i in range(2):
         print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
         for feature in all_feature_cols:
-            if feature in X_with_squared.columns:
-                value = X_with_squared.iloc[i][feature]
+            if feature in X_with_poly.columns:
+                value = X_with_poly.iloc[i][feature]
                 print(f"  {feature}: {value:.6f}")
     
     # Normalize features
-    X_normalized = normalize_features(X_with_squared)
+    X_normalized = normalize_features(X_with_poly)
     
     # Print 2 hours of normalized features
     print(f"\nFirst 2 hours of features (AFTER NORMALIZATION):")
@@ -269,12 +277,12 @@ def main():
             'params': 'C=1.0, max_iter=5000'
         },
         'Random Forest': {
-            'model': RandomForestClassifier(n_estimators=2000, random_state=42),
-            'params': 'n_estimators=2000, max_depth=None'
+            'model': RandomForestClassifier(n_estimators=1000, random_state=42),
+            'params': 'n_estimators=1000, max_depth=None'
         },
         'Gradient Boosting': {
-            'model': GradientBoostingClassifier(n_estimators=2000, learning_rate=0.05, random_state=42),
-            'params': 'n_estimators=2000, learning_rate=0.05'
+            'model': GradientBoostingClassifier(n_estimators=1000, learning_rate=0.05, random_state=42),
+            'params': 'n_estimators=1000, learning_rate=0.05'
         }
     }
     
