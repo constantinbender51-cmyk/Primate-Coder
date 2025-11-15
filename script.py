@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
 from binance.spot import Spot
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, f1_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import warnings
@@ -38,7 +38,7 @@ def fetch_bitcoin_data():
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 
 def create_features(df):
-    """Create technical indicators and features for regression"""
+    """Create technical indicators and features for classification"""
     df = df.copy()
     
     # Price-based features
@@ -70,20 +70,13 @@ def create_features(df):
         df[f'volume_lag_{lag}'] = df['volume'].shift(lag)
         df[f'price_change_lag_{lag}'] = df['price_change'].shift(lag)
     
-    # Target: Next day closing price (regression target)
-    df['target'] = df['close'].shift(-1)
+    # Target: Next day price direction (1 = up, 0 = down)
+    df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
     
     # Drop NaN values
     df = df.dropna()
     
     return df
-
-def calculate_nmae(y_true, y_pred):
-    """Calculate Normalized Mean Absolute Error"""
-    mae = mean_absolute_error(y_true, y_pred)
-    price_range = y_true.max() - y_true.min()
-    nmae = mae / price_range if price_range > 0 else mae
-    return nmae
 
 def main():
     # Fetch and prepare data
@@ -106,11 +99,11 @@ def main():
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Initialize regression models
+    # Initialize classification models
     models = {
-        'Linear Regression': LinearRegression(),
-        'Random Forest': RandomForestRegressor(n_estimators=100, random_state=42),
-        'Gradient Boosting': GradientBoostingRegressor(n_estimators=100, random_state=42)
+        'Logistic Regression': LogisticRegression(random_state=42),
+        'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
+        'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42)
     }
     
     # Train and evaluate models
@@ -118,24 +111,27 @@ def main():
     
     for name, model in models.items():
         # Train model
-        if name == 'Linear Regression':
+        if name == 'Logistic Regression':
             model.fit(X_train_scaled, y_train)
             y_pred = model.predict(X_test_scaled)
         else:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
         
-        # Calculate NMAE
-        nmae = calculate_nmae(y_test, y_pred)
-        results[name] = nmae
+        # Calculate metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        results[name] = {'accuracy': accuracy, 'f1_score': f1}
     
     # Minimalistic output
-    print("\nModel Performance (NMAE):")
-    for model_name, nmae in results.items():
-        print(f"{model_name}: {nmae:.6f}")
+    print("\nModel Performance:")
+    for model_name, metrics in results.items():
+        print(f"{model_name}:")
+        print(f"  Accuracy: {metrics['accuracy']:.4f}")
+        print(f"  F1-Score: {metrics['f1_score']:.4f}")
     
-    # Find best model
-    best_model = min(results, key=results.get)
+    # Find best model by F1 score
+    best_model = max(results, key=lambda x: results[x]['f1_score'])
     print(f"\nBest Model: {best_model}")
 
 if __name__ == "__main__":
