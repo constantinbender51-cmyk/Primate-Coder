@@ -1,6 +1,6 @@
 import math
 
-def display_numbers_in_circle(numbers, radius=3):
+def display_numbers_in_circle(numbers, radius=5):
     """
     Display numbers in a circular pattern using ASCII art
     """
@@ -35,7 +35,7 @@ def display_numbers_in_circle(numbers, radius=3):
 
 # Main execution
 if __name__ == "__main__":
-    numbers = [1, 2, 5]
+    numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     display_numbers_in_circle(numbers)
     
     # Additional visualization with more detail
