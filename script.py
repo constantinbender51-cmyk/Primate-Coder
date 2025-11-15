@@ -68,6 +68,25 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=10000):
     
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 
+def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
+    """Calculate MACD indicator"""
+    df_copy = df.copy()
+    
+    # Calculate EMAs
+    ema_fast = df_copy['close'].ewm(span=fast_period, adjust=False).mean()
+    ema_slow = df_copy['close'].ewm(span=slow_period, adjust=False).mean()
+    
+    # Calculate MACD line
+    macd_line = ema_fast - ema_slow
+    
+    # Calculate Signal line
+    signal_line = macd_line.ewm(span=signal_period, adjust=False).mean()
+    
+    # Calculate MACD Histogram (MACD - Signal)
+    macd_histogram = macd_line - signal_line
+    
+    return macd_line, signal_line, macd_histogram
+
 def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - HOURLY ADJUSTED"""
     df = btc_df.copy()
@@ -92,6 +111,12 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     # Volume features (derivatives only)
     df['volume_sma_24'] = df['volume'].rolling(24).mean()
     df['volume_ratio'] = df['volume'] / df['volume_sma_24']
+    
+    # MACD features for Bitcoin
+    macd_line, signal_line, macd_histogram = calculate_macd(df)
+    df['macd_line'] = macd_line
+    df['macd_signal'] = signal_line
+    df['macd_histogram'] = macd_histogram
     
     # Add altcoin features (derivatives only)
     # Ethereum features
@@ -129,7 +154,7 @@ def add_polynomial_features(X):
     features_for_poly = [
         'price_change', 'volatility_24', 'volatility_48', 
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum'
+        'altcoin_momentum', 'macd_histogram'
     ]
     
     # Add squared features
@@ -152,7 +177,8 @@ def normalize_features(X):
     
     # Features that can be negative (normalize to [-1, 1])
     negative_features = [
-        'price_change', 'eth_price_change', 'xrp_price_change', 'ada_price_change', 'altcoin_momentum'
+        'price_change', 'eth_price_change', 'xrp_price_change', 'ada_price_change', 
+        'altcoin_momentum', 'macd_line', 'macd_signal', 'macd_histogram'
     ]
     
     # Features that are always positive (normalize to [0, 1])
