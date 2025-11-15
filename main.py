@@ -53,7 +53,6 @@ HTML_TEMPLATE = """
             background: white;
             border-radius: 15px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             height: 90vh;
