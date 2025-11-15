@@ -2,37 +2,28 @@ import random
 import string
 
 def generate_matrix():
-    # Total characters needed: 25 * 200 = 5000
     total_chars = 5000
     hidden_em_dashes = 1000
+    rows = 10
+    cols = 500
     
     # Generate random characters
     all_chars = []
     
-    # Add 1000 em dashes
-    for _ in range(hidden_em_dashes):
-        all_chars.append('—')  # em dash
+    # Add regular random characters
+    for _ in range(total_chars - hidden_em_dashes):
+        all_chars.append(random.choice(string.printable[:-5]))  # Exclude some special chars
     
-    # Add remaining 4000 random characters
-    remaining_chars = total_chars - hidden_em_dashes
-    for _ in range(remaining_chars):
-        # Include various character types for diversity
-        char_type = random.choice(['digit', 'letter', 'symbol'])
-        if char_type == 'digit':
-            all_chars.append(random.choice(string.digits))
-        elif char_type == 'letter':
-            all_chars.append(random.choice(string.ascii_letters))
-        else:
-            all_chars.append(random.choice('!@#$%^&*()_+-=[]{}|;:,.<>?/~`'))
+    # Add hidden em dashes
+    for _ in range(hidden_em_dashes):
+        all_chars.append('—')  # Em dash character
     
     # Shuffle all characters
     random.shuffle(all_chars)
     
     # Display header
-    print(f"Generating {total_chars} random characters with {hidden_em_dashes} hidden em dashes...")
-    print(f"Displaying in 25x200 matrix format...")
-    print("\n" + "=" * 100)
-    print("Random Character Matrix (25x200)")
+    print("=" * 100)
+    print("Random Character Matrix (10x500)")
     print("=" * 100)
     print(f"Total characters: {total_chars}")
     print(f"Hidden em dashes: {hidden_em_dashes}")
@@ -40,23 +31,25 @@ def generate_matrix():
     
     # Display matrix
     char_index = 0
-    actual_em_dashes = 0
+    em_dash_count = 0
     
-    for row in range(25):
-        row_chars = all_chars[char_index:char_index + 200]
-        char_index += 200
+    for row in range(rows):
+        row_chars = []
+        for col in range(cols):
+            if char_index < len(all_chars):
+                char = all_chars[char_index]
+                row_chars.append(char)
+                if char == '—':
+                    em_dash_count += 1
+                char_index += 1
         
-        # Count actual em dashes in this row
-        row_em_dashes = row_chars.count('—')
-        actual_em_dashes += row_em_dashes
-        
-        # Format row display
-        row_display = ''.join(row_chars)
-        print(f"Row {row+1:2d}: {row_display}")
+        # Display row with row number
+        row_display = f"Row {row+1:2d}: {''.join(row_chars)}"
+        print(row_display)
     
     print("=" * 100)
-    print(f"Matrix display complete!")
-    print(f"Actual em dashes in matrix: {actual_em_dashes}")
+    print(f"Actual em dashes in matrix: {em_dash_count}")
+    print("=" * 100)
 
 if __name__ == "__main__":
     generate_matrix()
