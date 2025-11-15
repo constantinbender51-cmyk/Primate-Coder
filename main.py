@@ -110,7 +110,7 @@ HTML_TEMPLATE = """
             padding: 15px;
             font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
             font-size: 0.85em;
-            color: #00ff00;
+            color: #4a9eff;
             white-space: pre-wrap;
             word-wrap: break-word;
             min-height: 0;
@@ -152,13 +152,13 @@ HTML_TEMPLATE = """
             transition: all 0.2s;
         }
         #ttsToggle:hover {
-            border-color: #4a9eff;
-            color: #4a9eff;
+            border-color: #888888;
+            color: #888888;
         }
         #ttsToggle.active {
-            background: #4a9eff;
+            background: #888888;
             color: white;
-            border-color: #4a9eff;
+            border-color: #888888;
         }
         .chat-messages {
             flex: 1;
@@ -186,14 +186,14 @@ HTML_TEMPLATE = """
             border-color: #d0d0d0;
         }
         .assistant-message {
-            background: #ffffff;
-            color: #1a1a1a;
+            background: #f5f5f5;
+            color: #4a4a4a;
             margin-right: 20%;
             border-color: #d0d0d0;
         }
         .status-message {
             background: #ffffff;
-            color: #666666;
+            color: #888888;
             text-align: center;
             font-size: 0.85em;
             border-color: #e8e8e8;
@@ -201,14 +201,14 @@ HTML_TEMPLATE = """
         }
         .error-message {
             background: #fff5f5;
-            color: #d32f2f;
-            border-color: #ef5350;
+            color: #666666;
+            border-color: #d0d0d0;
             border-left-width: 3px;
         }
         .success-message {
-            background: #f1f8f4;
-            color: #2e7d32;
-            border-color: #66bb6a;
+            background: #f8f9fa;
+            color: #666666;
+            border-color: #d0d0d0;
             border-left-width: 3px;
         }
         .chat-input-area {
@@ -234,7 +234,7 @@ HTML_TEMPLATE = """
         }
         #userInput:focus {
             outline: none;
-            border-color: #4a9eff;
+            border-color: #888888;
         }
         .btn {
             padding: 12px 24px;
@@ -247,8 +247,8 @@ HTML_TEMPLATE = """
             color: #1a1a1a;
         }
         .btn:hover {
-            border-color: #4a9eff;
-            color: #4a9eff;
+            border-color: #888888;
+            color: #888888;
         }
         .btn:disabled {
             background: #f5f5f5;
@@ -257,13 +257,14 @@ HTML_TEMPLATE = """
             cursor: not-allowed;
         }
         #sendBtn {
-            background: #4a9eff;
+            background: #888888;
             color: white;
-            border-color: #4a9eff;
+            border-color: #888888;
         }
         #sendBtn:hover {
-            background: #2b87f5;
-            border-color: #2b87f5;
+            background: #666666;
+            border-color: #666666;
+            color: white;
         }
         #sendBtn:disabled {
             background: #e8e8e8;
@@ -285,7 +286,7 @@ HTML_TEMPLATE = """
             width: 12px;
             height: 12px;
             border: 1px solid #e8e8e8;
-            border-top: 1px solid #4a9eff;
+            border-top: 1px solid #888888;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-right: 8px;
