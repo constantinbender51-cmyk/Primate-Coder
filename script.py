@@ -10,7 +10,7 @@ import warnings
 import time
 warnings.filterwarnings('ignore')
 
-def fetch_crypto_data_chunked(symbol, hours_to_fetch=24000):
+def fetch_crypto_data_chunked(symbol, hours_to_fetch=10000):
     """Fetch OHLCV data for any cryptocurrency from Binance using chunking - HOURLY DATA"""
     client = Spot()
     
@@ -121,6 +121,25 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     
     return df
 
+def add_squared_features(X):
+    """Add squared versions of key features to capture non-linear relationships"""
+    X_squared = X.copy()
+    
+    # Select key features to square (avoid squaring ratios that are already non-linear)
+    features_to_square = [
+        'price_change', 'volatility_24', 'volatility_48', 
+        'eth_price_change', 'xrp_price_change', 'ada_price_change',
+        'altcoin_momentum'
+    ]
+    
+    # Add squared features
+    for feature in features_to_square:
+        if feature in X.columns:
+            squared_feature_name = f"{feature}_squared"
+            X_squared[squared_feature_name] = X[feature] ** 2
+    
+    return X_squared
+
 def normalize_features(X):
     """Normalize features based on their value ranges"""
     X_normalized = X.copy()
@@ -142,6 +161,16 @@ def normalize_features(X):
         'altcoin_volume_strength'
     ]
     
+    # Add squared features to appropriate categories
+    squared_features = [col for col in X.columns if col.endswith('_squared')]
+    for feature in squared_features:
+        base_feature = feature.replace('_squared', '')
+        if base_feature in negative_features:
+            # Squared negative features become positive
+            positive_features.append(feature)
+        elif base_feature in positive_features:
+            positive_features.append(feature)
+    
     # Normalize negative features to [-1, 1]
     for feature in negative_features:
         if feature in X.columns:
@@ -158,18 +187,18 @@ def normalize_features(X):
 
 def main():
     # Fetch Bitcoin data
-    print("Fetching 24,000 hours of Bitcoin data...")
-    btc_df = fetch_crypto_data_chunked('BTCUSDT', 24000)  # ~1000 days of hourly data
+    print("Fetching 10,000 hours of Bitcoin data...")
+    btc_df = fetch_crypto_data_chunked('BTCUSDT', 10000)  # Reduced to 10,000 hours
     
     # Fetch altcoin data
     print("\nFetching Ethereum data...")
-    eth_df = fetch_crypto_data_chunked('ETHUSDT', 24000)
+    eth_df = fetch_crypto_data_chunked('ETHUSDT', 10000)
     
     print("\nFetching Ripple data...")
-    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 24000)
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 10000)
     
     print("\nFetching Cardano data...")
-    ada_df = fetch_crypto_data_chunked('ADAUSDT', 24000)
+    ada_df = fetch_crypto_data_chunked('ADAUSDT', 10000)
     
     # Create features with altcoin data
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
@@ -182,8 +211,6 @@ def main():
     print(f"  ETH price range: ${eth_df['close'].min():.2f} - ${eth_df['close'].max():.2f}")
     print(f"  XRP price range: ${xrp_df['close'].min():.4f} - ${xrp_df['close'].max():.4f}")
     print(f"  ADA price range: ${ada_df['close'].min():.4f} - ${ada_df['close'].max():.4f}")
-    print(f"  Features: {len([col for col in df.columns if col not in ['date', 'target', 'close', 'open', 'high', 'low', 'volume']])}")
-    print(f"  Lookback window: 48 hours (max)")
     
     # Prepare features and target (EXCLUDE RAW PRICE DATA)
     exclude_cols = ['date', 'target', 'close', 'open', 'high', 'low', 'volume']
@@ -191,26 +218,36 @@ def main():
     X = df[feature_cols]
     y = df['target']
     
-    print(f"\nFeature columns (DERIVATIVES ONLY): {feature_cols}")
+    print(f"\nOriginal feature columns (DERIVATIVES ONLY): {feature_cols}")
+    
+    # Add squared features
+    X_with_squared = add_squared_features(X)
+    squared_feature_cols = [col for col in X_with_squared.columns if col.endswith('_squared')]
+    all_feature_cols = list(X.columns) + squared_feature_cols
+    
+    print(f"\nSquared features added: {squared_feature_cols}")
+    print(f"Total features: {len(all_feature_cols)}")
     
     # Print 2 hours of full features (before normalization)
     print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION):")
     for i in range(2):
         print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        for feature in feature_cols:
-            value = X.iloc[i][feature]
-            print(f"  {feature}: {value:.6f}")
+        for feature in all_feature_cols:
+            if feature in X_with_squared.columns:
+                value = X_with_squared.iloc[i][feature]
+                print(f"  {feature}: {value:.6f}")
     
     # Normalize features
-    X_normalized = normalize_features(X)
+    X_normalized = normalize_features(X_with_squared)
     
     # Print 2 hours of normalized features
     print(f"\nFirst 2 hours of features (AFTER NORMALIZATION):")
     for i in range(2):
         print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        for feature in feature_cols:
-            value = X_normalized.iloc[i][feature]
-            print(f"  {feature}: {value:.6f}")
+        for feature in all_feature_cols:
+            if feature in X_normalized.columns:
+                value = X_normalized.iloc[i][feature]
+                print(f"  {feature}: {value:.6f}")
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
