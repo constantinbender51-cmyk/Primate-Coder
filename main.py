@@ -114,7 +114,7 @@ HTML_TEMPLATE = """
             white-space: pre-wrap;
             word-wrap: break-word;
             min-height: 0;
-            background: #ffffff;
+            background: #f8f9fa;
             border: 1px solid #e8e8e8;
             margin: 10px;
         }
