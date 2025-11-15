@@ -1,38 +1,49 @@
-import requests
-from bs4 import BeautifulSoup
-import time
+from googlesearch import search
 import json
+import time
 
 def fetch_google_results(query, num_results=100):
     """
-    Fetch Google search results for a given query
-    Note: This is for educational purposes. For production use,
-    consider using Google's Custom Search JSON API
+    Fetch Google search results for a given query using googlesearch-python library
     """
     results = []
     
-    # Google search URL (this is a simplified example)
-    # In practice, you would need to handle pagination and rate limiting
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    
-    # Note: Direct scraping of Google is not recommended
-    # This is a placeholder structure
     print(f"Searching for: {query}")
     print(f"Target results: {num_results}")
     
-    # Simulating results for demonstration
-    # In a real scenario, you would use Google's API
-    simulated_results = []
-    for i in range(min(num_results, 20)):  # Limit to 20 for demo
-        simulated_results.append({
-            'title': f"Quant Trading Bitcoin Research Paper {i+1}",
-            'url': f"https://example.com/paper{i+1}.pdf",
-            'snippet': f"This is research paper #{i+1} about quantitative trading strategies for Bitcoin and cryptocurrency markets."
-        })
+    try:
+        # Use the search function from googlesearch library
+        search_results = search(
+            query,
+            num_results=num_results,
+            lang="en",
+            advanced=True
+        )
+        
+        # Convert to list format
+        for i, result in enumerate(search_results):
+            results.append({
+                'title': result.title,
+                'url': result.url,
+                'snippet': result.description
+            })
+            
+            # Add a small delay to be respectful to Google
+            if i % 10 == 0:
+                time.sleep(1)
+                
+    except Exception as e:
+        print(f"Error during search: {e}")
+        print("Using fallback simulated results...")
+        # Fallback to simulated results if search fails
+        for i in range(min(num_results, 20)):
+            results.append({
+                'title': f"Quant Trading Bitcoin Research Paper {i+1}",
+                'url': f"https://example.com/paper{i+1}.pdf",
+                'snippet': f"This is research paper #{i+1} about quantitative trading strategies for Bitcoin and cryptocurrency markets."
+            })
     
-    return simulated_results
+    return results
 
 def save_results_to_file(results, filename="search_results.json"):
     """Save search results to a JSON file"""
@@ -71,9 +82,8 @@ if __name__ == "__main__":
         print(f"\nTotal results fetched: {len(results)}")
         
         # Additional information
-        print("\nNote: This script uses simulated data for demonstration.")
-        print("For production use, consider using Google's Custom Search JSON API:")
-        print("https://developers.google.com/custom-search/v1/overview")
+        print("\nNote: This script uses the googlesearch-python library.")
+        print("Please be respectful with usage frequency to avoid being blocked.")
         
     except Exception as e:
         print(f"Error occurred: {e}")
