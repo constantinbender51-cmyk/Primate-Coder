@@ -369,10 +369,10 @@ HTML_TEMPLATE = """
                         });
                         saveChatHistory();
                     }
-                    if (data.files_updated) {
+                    if (data.files_updated && data.files_updated.length > 0) {
                         addMessage('✅ Updated files: ' + data.files_updated.join(', '), 'success');
+                        addMessage('🚀 Files pushed to GitHub. Railway will redeploy automatically...', 'success');
                     }
-                    addMessage('🚀 Files pushed to GitHub. Railway will redeploy automatically...', 'success');
                 }
             } catch (error) {
                 addMessage('❌ Error: ' + error.message, 'error');
