@@ -92,15 +92,15 @@ HTML_TEMPLATE = """
             display: flex;
             flex-direction: column;
             border-right: 1px solid #e8e8e8;
-            background: #1e1e1e;
+            background: #ffffff;
             overflow: hidden;
         }
         .output-header {
-            background: #1e1e1e;
-            color: #d4d4d4;
+            background: #ffffff;
+            color: #1a1a1a;
             padding: 15px;
             font-weight: 400;
-            border-bottom: 1px solid #2d2d2d;
+            border-bottom: 1px solid #e8e8e8;
             font-size: 0.9em;
         }
         .output-content {
@@ -110,11 +110,13 @@ HTML_TEMPLATE = """
             padding: 15px;
             font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
             font-size: 0.85em;
-            color: #d4d4d4;
+            color: #00ff00;
             white-space: pre-wrap;
             word-wrap: break-word;
             min-height: 0;
-            background: #1e1e1e;
+            background: #ffffff;
+            border: 1px solid #e8e8e8;
+            margin: 10px;
         }
         .chat-panel {
             flex: 1;
@@ -184,11 +186,10 @@ HTML_TEMPLATE = """
             border-color: #d0d0d0;
         }
         .assistant-message {
-            background: #f0f7ff;
+            background: #ffffff;
             color: #1a1a1a;
             margin-right: 20%;
-            border-color: #4a9eff;
-            border-left-width: 3px;
+            border-color: #d0d0d0;
         }
         .status-message {
             background: #ffffff;
@@ -298,7 +299,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <div class="header">
-            <h1>🐵 Primate Coder</h1>
+            <h1>🐵 Prima<span class="highlight">t</span>e Coder</h1>
             <p>AI-powered code generation with DeepSeek</p>
         </div>
         <div class="main-content">
@@ -676,6 +677,13 @@ IMPORTANT WORKFLOW:
 
 IMPORTANT: The main executable file is 'script.py' which will be run automatically. When you create or modify code, put it in script.py.
 
+CRITICAL - DEPENDENCY MANAGEMENT:
+- Whenever you write code that uses external packages (imports), you MUST update requirements.txt
+- Always include ALL packages needed by your code in requirements.txt
+- Do NOT include flask, requests, or gtts in requirements.txt as they are already available
+- If you use packages like numpy, pandas, beautifulsoup4, selenium, pillow, opencv-python, matplotlib, scikit-learn, etc., you MUST add them to requirements.txt
+- Format: one package per line, optionally with version (e.g., "numpy==1.24.0" or just "numpy")
+
 To create or edit files, include JSON objects in your response with this format:
 {
   "filename.py": "file content here",
@@ -685,7 +693,7 @@ To create or edit files, include JSON objects in your response with this format:
 
 You can create any files needed (script.py, requirements.txt, index.html, style.css, etc.).
 
-When updating requirements.txt, only include additional packages needed by script.py. Do not include flask or requests as they are already available.
+When updating requirements.txt, only include additional packages needed by script.py. Do not include flask, requests, or gtts as they are already available.
 
 Current files in the repository:
 """ + "\n".join([f"- {name}: {len(content)} characters" for name, content in file_contents.items()])
