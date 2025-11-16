@@ -30,6 +30,7 @@ app = Flask(__name__)
 script_output = Queue()  # Thread-safe queue for script output
 script_process = None
 tracked_files = ["script.py", "requirements.txt"]  # Files to track and send to DeepSeek
+debug_logs = Queue()  # Thread-safe queue for debug logs
 
 # ==================== HTML TEMPLATE ====================
 HTML_TEMPLATE = """
@@ -119,80 +120,43 @@ HTML_TEMPLATE = """
             margin: 10px;
         }
         .debug-console {
-            display: none;
-            flex-direction: column;
-            height: 40%;
-            border-top: 1px solid #3a3a3a;
-            background: #0a0a0a;
-        }
-        .debug-console.active {
-            display: flex;
-        }
-        .debug-header {
-            background: #1a1a1a;
-            color: #FF176A;
-            padding: 10px 15px;
-            font-weight: 500;
-            border-bottom: 1px solid #3a3a3a;
-            font-size: 0.85em;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .debug-controls {
-            display: flex;
-            gap: 10px;
-        }
-        .debug-controls button {
-            background: #1a1a1a;
-            color: #888888;
-            border: 1px solid #3a3a3a;
-            padding: 4px 10px;
-            font-size: 0.75em;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .debug-controls button:hover {
-            border-color: #FF176A;
-            color: #FF176A;
-        }
-        .debug-content {
             flex: 1;
             overflow-y: auto;
-            padding: 10px 15px;
-            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            overflow-x: auto;
+            padding: 15px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
             font-size: 0.75em;
             color: #888888;
-            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 0;
+            background: #0a0a0a;
+            border: 1px solid #3a3a3a;
+            margin: 10px;
+            display: none;
+        }
+        .debug-console.active {
+            display: block;
         }
         .debug-entry {
             margin-bottom: 15px;
-            padding: 8px;
+            padding: 10px;
+            border-left: 3px solid #FF176A;
             background: #1a1a1a;
-            border-left: 2px solid #3a3a3a;
-        }
-        .debug-entry.request {
-            border-left-color: #4a9eff;
-        }
-        .debug-entry.response {
-            border-left-color: #00ff88;
-        }
-        .debug-entry.error {
-            border-left-color: #ff4444;
         }
         .debug-timestamp {
-            color: #666666;
-            font-size: 0.9em;
-        }
-        .debug-label {
             color: #FF176A;
-            font-weight: 500;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .debug-type {
+            color: #00ff88;
+            font-weight: 600;
+            margin-bottom: 5px;
         }
         .debug-data {
-            margin-top: 5px;
             color: #ffffff;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            margin-top: 5px;
         }
         .chat-panel {
             flex: 1;
@@ -254,28 +218,6 @@ HTML_TEMPLATE = """
             color: #ffffff;
             border-color: #FF176A;
         }
-        .debug-info {
-            margin-top: 10px;
-            padding: 10px;
-            background: #0a0a0a;
-            border: 1px solid #3a3a3a;
-            border-left: 3px solid #FF176A;
-            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-            font-size: 0.8em;
-            color: #888888;
-            cursor: pointer;
-        }
-        .debug-info summary {
-            font-weight: 500;
-            color: #FF176A;
-            user-select: none;
-        }
-        .debug-info pre {
-            margin-top: 10px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            color: #ffffff;
-        }
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -306,69 +248,6 @@ HTML_TEMPLATE = """
             color: #1a1a1a;
             margin-right: 20%;
             border-color: #3a3a3a;
-        }
-        .assistant-message h1,
-        .assistant-message h2,
-        .assistant-message h3,
-        .assistant-message h4 {
-            margin: 10px 0 5px 0;
-            font-weight: 600;
-        }
-        .assistant-message h1 { font-size: 1.3em; }
-        .assistant-message h2 { font-size: 1.2em; }
-        .assistant-message h3 { font-size: 1.1em; }
-        .assistant-message h4 { font-size: 1em; }
-        .assistant-message p {
-            margin: 8px 0;
-        }
-        .assistant-message code {
-            background: #f5f5f5;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-            font-size: 0.9em;
-            color: #FF176A;
-        }
-        .assistant-message pre {
-            background: #0a0a0a;
-            padding: 12px;
-            border-radius: 4px;
-            overflow-x: auto;
-            margin: 10px 0;
-            border: 1px solid #3a3a3a;
-        }
-        .assistant-message pre code {
-            background: transparent;
-            padding: 0;
-            color: #FF176A;
-            font-size: 0.85em;
-        }
-        .assistant-message ul,
-        .assistant-message ol {
-            margin: 8px 0;
-            padding-left: 25px;
-        }
-        .assistant-message li {
-            margin: 4px 0;
-        }
-        .assistant-message a {
-            color: #FF176A;
-            text-decoration: underline;
-        }
-        .assistant-message a:hover {
-            color: #ff3388;
-        }
-        .assistant-message blockquote {
-            border-left: 3px solid #FF176A;
-            padding-left: 15px;
-            margin: 10px 0;
-            color: #666666;
-        }
-        .assistant-message strong {
-            font-weight: 600;
-        }
-        .assistant-message em {
-            font-style: italic;
         }
         .status-message {
             background: #1a1a1a;
@@ -486,13 +365,17 @@ HTML_TEMPLATE = """
             <div class="output-panel">
                 <div class="output-header">📟 Script Output (script.py)</div>
                 <div class="output-content" id="outputContent">Waiting for script.py output...</div>
+                <div class="output-header">
+                    🐛 Debug Console
+                    <button id="debugToggle" class="btn" onclick="toggleDebug()" style="float: right; padding: 4px 10px; font-size: 0.8em;">Show</button>
+                </div>
+                <div class="debug-console" id="debugConsole">No debug logs yet...</div>
             </div>
             <div class="chat-panel">
                 <div class="chat-header">
                     <div class="header-left">
                         <span>💬 Chat with DeepSeek</span>
                         <button id="ttsToggle" class="btn active" onclick="toggleTTS()">🔊 TTS On</button>
-                        <button id="debugToggle" class="btn" onclick="toggleDebug()">🐛 Debug Off</button>
                     </div>
                     <button id="newSessionBtn" class="btn" onclick="startNewSession()">🔄 Start New Session</button>
                 </div>
@@ -511,13 +394,22 @@ HTML_TEMPLATE = """
         let shouldAutoScroll = true;
         let chatHistory = [];  // Client-side chat history storage
         let ttsEnabled = true; // TTS enabled by default
+        let debugMode = false; // Debug mode disabled by default
         let currentAudio = null; // Track currently playing audio
+        let debugLogs = []; // Store debug logs
         
         // Load TTS preference from localStorage
         const savedTTSPref = localStorage.getItem('primateTTSEnabled');
         if (savedTTSPref !== null) {
             ttsEnabled = savedTTSPref === 'true';
             updateTTSButton();
+        }
+        
+        // Load Debug preference from localStorage
+        const savedDebugPref = localStorage.getItem('primateDebugEnabled');
+        if (savedDebugPref !== null) {
+            debugMode = savedDebugPref === 'true';
+            updateDebugButton();
         }
         
         // Load chat history from localStorage on page load
@@ -531,14 +423,72 @@ HTML_TEMPLATE = """
                         addMessage(msg.content, 'user', false);
                     } else if (msg.role === 'assistant') {
                         addMessage('🤖 DeepSeek: ' + msg.content, 'assistant', false);
-                    } else if (msg.role === 'system') {
-                        // Restore system messages
-                        addMessage(msg.content, 'success', false);
                     }
                 });
             } catch (e) {
                 console.error('Error loading chat history:', e);
                 chatHistory = [];
+            }
+        }
+        
+        function addDebugLog(type, data) {
+            const timestamp = new Date().toLocaleTimeString();
+            const log = {
+                timestamp: timestamp,
+                type: type,
+                data: data
+            };
+            debugLogs.push(log);
+            
+            // Keep only last 50 logs
+            if (debugLogs.length > 50) {
+                debugLogs.shift();
+            }
+            
+            updateDebugConsole();
+        }
+        
+        function updateDebugConsole() {
+            const console = document.getElementById('debugConsole');
+            if (debugLogs.length === 0) {
+                console.innerHTML = 'No debug logs yet...';
+                return;
+            }
+            
+            let html = '';
+            debugLogs.forEach(log => {
+                html += `<div class="debug-entry">
+                    <div class="debug-timestamp">⏱ ${log.timestamp}</div>
+                    <div class="debug-type">📡 ${log.type}</div>
+                    <div class="debug-data">${log.data}</div>
+                </div>`;
+            });
+            
+            console.innerHTML = html;
+            
+            // Auto-scroll if debug console is visible
+            if (debugMode) {
+                console.scrollTop = console.scrollHeight;
+            }
+        }
+        
+        function toggleDebug() {
+            debugMode = !debugMode;
+            localStorage.setItem('primateDebugEnabled', debugMode);
+            updateDebugButton();
+        }
+        
+        function updateDebugButton() {
+            const btn = document.getElementById('debugToggle');
+            const console = document.getElementById('debugConsole');
+            if (debugMode) {
+                btn.textContent = 'Hide';
+                btn.classList.add('active');
+                console.classList.add('active');
+            } else {
+                btn.textContent = 'Show';
+                btn.classList.remove('active');
+                console.classList.remove('active');
             }
         }
         
@@ -576,11 +526,14 @@ HTML_TEMPLATE = """
             currentAudio = new Audio(audioData);
             currentAudio.play().catch(err => {
                 console.error('Error playing audio:', err);
+                addDebugLog('TTS Error', 'Failed to play audio: ' + err.message);
             });
             
             currentAudio.onended = () => {
                 currentAudio = null;
             };
+            
+            addDebugLog('TTS Generated', 'Audio playing');
         }
         
         // Add scroll detection to output panel
@@ -607,6 +560,21 @@ HTML_TEMPLATE = """
                 console.error('Error fetching output:', error);
             }
         }, 1000);
+        
+        // Poll for debug logs
+        setInterval(async () => {
+            try {
+                const response = await fetch('/get_debug_logs');
+                const data = await response.json();
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        addDebugLog(log.type, log.data);
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching debug logs:', error);
+            }
+        }, 1000);
 
         function addMessage(content, type, saveToHistory = true) {
             const chatMessages = document.getElementById('chatMessages');
@@ -616,25 +584,13 @@ HTML_TEMPLATE = """
             msg.dataset.type = type; // Store type for easy identification
             chatMessages.appendChild(msg);
             chatMessages.scrollTop = chatMessages.scrollHeight;
-            
-            // Save system messages to chat history for DeepSeek context
-            if (saveToHistory && (type === 'success' || type === 'error')) {
-                // Remove emoji and extract text for cleaner history
-                const textContent = content.replace(/<[^>]*>/g, '').replace(/[✅❌🚀]/g, '').trim();
-                chatHistory.push({
-                    role: 'system',
-                    content: textContent
-                });
-                saveChatHistory();
-            }
-            
             return msg; // Return the element so we can remove it later
         }
         
         function saveChatHistory() {
-            // Limit to last 30 messages to avoid localStorage limits and token limits
-            if (chatHistory.length > 30) {
-                chatHistory = chatHistory.slice(-30);
+            // Limit to last 20 messages to avoid localStorage limits
+            if (chatHistory.length > 20) {
+                chatHistory = chatHistory.slice(-20);
             }
             localStorage.setItem('primateChatHistory', JSON.stringify(chatHistory));
         }
@@ -660,6 +616,9 @@ HTML_TEMPLATE = """
             
             const statusMsg = addMessage('<span class="loading"></span>Processing your request...', 'status');
             
+            // Log outgoing request
+            addDebugLog('Client → DeepSeek API', 'Request: ' + message.substring(0, 100) + (message.length > 100 ? '...' : ''));
+            
             let response;
             let data;
             try {
@@ -679,11 +638,16 @@ HTML_TEMPLATE = """
                 
                 data = await response.json();
                 
+                // Log response
+                addDebugLog('DeepSeek API → Client', 'Status: ' + response.status + ' | Response received');
+                
                 if (data.error) {
+                    addDebugLog('Error', data.error);
                     addMessage('❌ Error: ' + data.error, 'error');
                 } else {
                     // Check if files were updated first (handles code-only responses)
                     if (data.files_updated && data.files_updated.length > 0) {
+                        addDebugLog('GitHub API', 'Files updated: ' + data.files_updated.join(', '));
                         addMessage('✅ Updated files: ' + data.files_updated.join(', '), 'success');
                         addMessage('🚀 Files pushed to GitHub. Railway will redeploy automatically...', 'success');
                         
@@ -723,6 +687,7 @@ HTML_TEMPLATE = """
             } catch (error) {
                 // Remove status message on error too
                 statusMsg.remove();
+                addDebugLog('Client Error', error.message);
                 addMessage('❌ Error: ' + error.message, 'error');
             }
             
@@ -746,6 +711,7 @@ HTML_TEMPLATE = """
                     // Clear chat UI
                     document.getElementById('chatMessages').innerHTML = '';
                     
+                    addDebugLog('Session Reset', 'New session started, script.py and history cleared');
                     addMessage('🔄 New session started. script.py and chat history cleared.', 'success');
                 } else {
                     addMessage('❌ Error: ' + data.error, 'error');
@@ -824,6 +790,11 @@ def get_file_from_github(filepath):
     
     try:
         response = requests.get(url, headers=headers, params={"ref": GITHUB_BRANCH})
+        debug_logs.put({
+            "type": "GitHub API Request",
+            "data": f"GET {filepath} | Status: {response.status_code}"
+        })
+        
         if response.status_code == 200:
             content_b64 = response.json().get("content", "")
             content = base64.b64decode(content_b64).decode('utf-8')
@@ -831,6 +802,10 @@ def get_file_from_github(filepath):
         return None
     except Exception as e:
         print(f"Error getting {filepath} from GitHub: {e}")
+        debug_logs.put({
+            "type": "GitHub API Error",
+            "data": f"Failed to get {filepath}: {str(e)}"
+        })
         return None
 
 
@@ -862,6 +837,11 @@ def update_github_file(filepath, content, commit_message):
         payload["sha"] = sha
     
     response = requests.put(url, json=payload, headers=headers)
+    debug_logs.put({
+        "type": "GitHub API Request",
+        "data": f"PUT {filepath} | Status: {response.status_code} | Message: {commit_message}"
+    })
+    
     response.raise_for_status()
     return response.json()
 
@@ -893,18 +873,13 @@ def call_deepseek_api(user_message, file_contents, script_output_text, chat_hist
     system_prompt = """You are a coding agent with the ability to create and edit files.
 
 IMPORTANT WORKFLOW:
-1. Before making ANY changes to files, you MUST explain what you plan to do
-2. Ask the user for explicit confirmation (e.g., "Should I proceed with these changes?")
-3. WAIT for user confirmation before providing JSON with file changes
-4. EXCEPTION: Only skip confirmation if user explicitly states "no confirmation required" or similar phrases
-5. If you need clarification or more information, ASK QUESTIONS - don't make assumptions
-6. Never assume what the user wants - always confirm before modifying files
-7. Wait for the user to confirm or provide more details
-8. Only after receiving confirmation and having all needed information, provide the file changes in JSON format
+1. Before making ANY changes, explain what you plan to do
+2. Ask the user for confirmation (e.g., "Should I proceed with these changes?")
+3. If you need clarification or more information, ASK QUESTIONS - don't make assumptions
+4. Wait for the user to confirm or provide more details
+5. Only after receiving confirmation and having all needed information, provide the file changes in JSON format
 
 You can have multi-turn conversations to gather requirements before providing code. It's better to ask questions than to make wrong assumptions.
-
-The chat history includes system messages showing file updates and deployment status - use this context to understand what has already been done.
 
 IMPORTANT: The main executable file is 'script.py' which will be run automatically. When you create or modify code, put it in script.py.
 
@@ -1045,12 +1020,30 @@ Current files in the repository:
         "max_tokens": 8000
     }
     
+    # Log the API call
+    debug_logs.put({
+        "type": "Client → DeepSeek API",
+        "data": f"Model: deepseek-coder | Messages: {len(messages)} | User: {user_message[:100]}..."
+    })
+    
     response = requests.post(url, json=payload, headers=headers)
+    
+    # Log the response
+    debug_logs.put({
+        "type": "DeepSeek API → Client",
+        "data": f"Status: {response.status_code} | Response length: {len(response.text)} chars"
+    })
+    
     response.raise_for_status()
     
     data = response.json()
     if "choices" in data and len(data["choices"]) > 0:
-        return data["choices"][0]["message"]["content"]
+        response_content = data["choices"][0]["message"]["content"]
+        debug_logs.put({
+            "type": "DeepSeek Response",
+            "data": f"Content: {response_content[:200]}..."
+        })
+        return response_content
     
     raise Exception("No valid response from DeepSeek")
 
@@ -1187,6 +1180,11 @@ def generate_tts_audio(text):
         if not clean_text:
             return None
         
+        debug_logs.put({
+            "type": "TTS Generation",
+            "data": f"Generating audio for: {clean_text[:100]}..."
+        })
+        
         # Generate speech
         tts = gTTS(text=clean_text, lang='en', slow=False)
         
@@ -1198,10 +1196,19 @@ def generate_tts_audio(text):
         # Convert to base64
         audio_base64 = base64.b64encode(audio_buffer.getvalue()).decode('utf-8')
         
+        debug_logs.put({
+            "type": "TTS Success",
+            "data": f"Audio generated: {len(audio_base64)} chars base64"
+        })
+        
         return f"data:audio/mp3;base64,{audio_base64}"
     
     except Exception as e:
         print(f"TTS Error: {e}")
+        debug_logs.put({
+            "type": "TTS Error",
+            "data": f"Failed to generate audio: {str(e)}"
+        })
         return None
 
 
@@ -1226,6 +1233,16 @@ def get_output():
     get_output.accumulated += ''.join(output_lines)
     
     return jsonify({"output": get_output.accumulated})
+
+
+@app.route('/get_debug_logs')
+def get_debug_logs():
+    """Get current debug logs."""
+    logs = []
+    while not debug_logs.empty():
+        logs.append(debug_logs.get())
+    
+    return jsonify({"logs": logs})
 
 
 @app.route('/generate', methods=['POST'])
@@ -1345,6 +1362,10 @@ def generate():
         })
         
     except Exception as e:
+        debug_logs.put({
+            "type": "Server Error",
+            "data": f"Exception in /generate: {str(e)}"
+        })
         return jsonify({"error": str(e)}), 500
 
 
@@ -1361,6 +1382,11 @@ def new_session():
         # Reset output
         if hasattr(get_output, 'accumulated'):
             get_output.accumulated = ""
+        
+        debug_logs.put({
+            "type": "Session Reset",
+            "data": "New session started - script.py cleared"
+        })
         
         # Note: Chat history is now managed client-side
         
