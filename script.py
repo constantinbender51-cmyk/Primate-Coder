@@ -10,7 +10,7 @@ import warnings
 import time
 warnings.filterwarnings('ignore')
 
-def fetch_crypto_data_chunked(symbol, hours_to_fetch=5000):
+def fetch_crypto_data_chunked(symbol, hours_to_fetch=10000):
     """Fetch OHLCV data for any cryptocurrency from Binance using chunking - HOURLY DATA"""
     client = Spot()
     
@@ -171,34 +171,6 @@ def add_polynomial_features(X):
     
     return X_poly
 
-def add_lagged_features_selected(X):
-    """Add lagged versions of SELECTED features with specific periods: [1, 3, 12] hours"""
-    X_lagged = X.copy()
-    
-    # Selected features for lagging
-    selected_features = [
-        'price_change', 'volume_ratio', 'volatility_24', 'volatility_48',
-        'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum', 'macd_histogram'
-    ]
-    
-    # Lag periods
-    lag_periods = [1, 3, 12]
-    
-    # Add lagged features for selected features
-    lagged_features_added = []
-    for feature in selected_features:
-        if feature in X.columns:
-            for lag in lag_periods:
-                lagged_feature_name = f"{feature}_lag_{lag}"
-                X_lagged[lagged_feature_name] = X[feature].shift(lag)
-                lagged_features_added.append(lagged_feature_name)
-    
-    # Drop rows with NaN values created by lagging (drop first 12 rows - maximum lag)
-    X_lagged = X_lagged.iloc[12:]
-    
-    return X_lagged, lagged_features_added
-
 def normalize_features(X):
     """Normalize features based on their value ranges"""
     X_normalized = X.copy()
@@ -231,15 +203,6 @@ def normalize_features(X):
         elif base_feature in positive_features:
             positive_features.append(feature)
     
-    # Add lagged features to appropriate categories
-    lagged_features = [col for col in X.columns if '_lag_' in col]
-    for feature in lagged_features:
-        base_feature = feature.split('_lag_')[0]
-        if base_feature in negative_features:
-            negative_features.append(feature)
-        elif base_feature in positive_features:
-            positive_features.append(feature)
-    
     # Normalize negative features to [-1, 1]
     for feature in negative_features:
         if feature in X.columns:
@@ -256,18 +219,18 @@ def normalize_features(X):
 
 def main():
     # Fetch Bitcoin data
-    print("Fetching 5,000 hours of Bitcoin data...")
-    btc_df = fetch_crypto_data_chunked('BTCUSDT', 5000)  # Changed to 5,000 hours
+    print("Fetching 10,000 hours of Bitcoin data...")
+    btc_df = fetch_crypto_data_chunked('BTCUSDT', 10000)  # Reduced to 10,000 hours
     
     # Fetch altcoin data
     print("\nFetching Ethereum data...")
-    eth_df = fetch_crypto_data_chunked('ETHUSDT', 5000)  # Changed to 5,000 hours
+    eth_df = fetch_crypto_data_chunked('ETHUSDT', 10000)
     
     print("\nFetching Ripple data...")
-    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 5000)  # Changed to 5,000 hours
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 10000)
     
     print("\nFetching Cardano data...")
-    ada_df = fetch_crypto_data_chunked('ADAUSDT', 5000)  # Changed to 5,000 hours
+    ada_df = fetch_crypto_data_chunked('ADAUSDT', 10000)
     
     # Create features with altcoin data
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
@@ -293,62 +256,36 @@ def main():
     X_with_poly = add_polynomial_features(X)
     squared_feature_cols = [col for col in X_with_poly.columns if col.endswith('_squared')]
     cubed_feature_cols = [col for col in X_with_poly.columns if col.endswith('_cubed')]
+    all_feature_cols = list(X.columns) + squared_feature_cols + cubed_feature_cols
     
     print(f"\nSquared features added: {squared_feature_cols}")
     print(f"Cubed features added: {cubed_feature_cols}")
+    print(f"Total features: {len(all_feature_cols)}")
     
-    # Add lagged features for SELECTED features with specific periods
-    X_with_lags, lagged_features_added = add_lagged_features_selected(X_with_poly)
-    
-    # Update target to match lagged features (drop first 12 rows - maximum lag)
-    y_lagged = y.iloc[12:]
-    
-    # Define selected features for reporting (same as in add_lagged_features_selected)
-    selected_features_for_report = [
-        'price_change', 'volume_ratio', 'volatility_24', 'volatility_48',
-        'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum', 'macd_histogram'
-    ]
-    
-    # Calculate feature counts
-    original_features = len(X.columns)
-    polynomial_features = len(squared_feature_cols) + len(cubed_feature_cols)
-    lagged_features = len(lagged_features_added)
-    total_features = original_features + polynomial_features + lagged_features
-    
-    print(f"\nLagged features added: {lagged_features} features")
-    print(f"  Selected features: {len(selected_features_for_report)} key features")
-    print(f"  Lag periods: [1, 3, 12] hours")
-    
-    print(f"\nTotal features: {total_features}")
-    print(f"  Original: {original_features}")
-    print(f"  Polynomial: {polynomial_features}")
-    print(f"  Lagged: {lagged_features}")
-    
-    # Print first 2 hours of non-lagged features for clarity
-    print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION - showing first 10 non-lagged features):")
+    # Print 2 hours of full features (before normalization)
+    print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION):")
     for i in range(2):
-        print(f"\nHour {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
-            if feature in X_with_lags.columns:
-                value = X_with_lags.iloc[i][feature]
+        print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
+        for feature in all_feature_cols:
+            if feature in X_with_poly.columns:
+                value = X_with_poly.iloc[i][feature]
                 print(f"  {feature}: {value:.6f}")
     
     # Normalize features
-    X_normalized = normalize_features(X_with_lags)
+    X_normalized = normalize_features(X_with_poly)
     
-    # Print first 2 hours of normalized features
-    print(f"\nFirst 2 hours of features (AFTER NORMALIZATION - showing first 10 non-lagged features):")
+    # Print 2 hours of normalized features
+    print(f"\nFirst 2 hours of features (AFTER NORMALIZATION):")
     for i in range(2):
-        print(f"\nHour {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
+        print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
+        for feature in all_feature_cols:
             if feature in X_normalized.columns:
                 value = X_normalized.iloc[i][feature]
                 print(f"  {feature}: {value:.6f}")
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
-        X_normalized, y_lagged, test_size=0.2, random_state=42, shuffle=False
+        X_normalized, y, test_size=0.2, random_state=42, shuffle=False
     )
     
     print(f"\n  Train samples: {len(X_train)}")
