@@ -195,7 +195,7 @@ def add_lagged_features_selected(X):
                 lagged_features_added.append(lagged_feature_name)
     
     # Drop rows with NaN values created by lagging (drop first 12 rows - maximum lag)
-    X_lagged = X_lagged.iloc[12:]
+    X_lagged = X_lagged.iloc[24:]
     
     return X_lagged, lagged_features_added
 
