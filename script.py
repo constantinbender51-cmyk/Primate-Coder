@@ -254,7 +254,7 @@ def normalize_features(X):
     
     return X_normalized
 
-def main():
+def main(holding_period=1):
     # Fetch Bitcoin data
     print("Fetching 2,500 hours of Bitcoin data...")
     btc_df = fetch_crypto_data_chunked('BTCUSDT', 2500)  # Changed to 2,500 hours
