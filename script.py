@@ -474,14 +474,20 @@ def main():
     num_trades = len([t for t in trades if t['action'] in ['BUY', 'SELL']])
     winning_trades = 0
     total_trade_return = 0
-    
     # Analyze individual trades
-    for i in range(0, len(trades) - 1, 2):
-        if i + 1 < len(trades):
-            buy_trade = trades[i]
-            sell_trade = trades[i + 1]
-            trade_return = (sell_trade['price'] - buy_trade['price']) / buy_trade['price'] * 100
-            total_trade_return += trade_return
+    trade_pairs = []
+    for i in range(len(trades)):
+        if trades[i]['action'] == 'BUY':
+            for j in range(i + 1, len(trades)):
+                if trades[j]['action'] == 'SELL':
+                    trade_pairs.append((trades[i], trades[j]))
+                    break
+    
+    for buy_trade, sell_trade in trade_pairs:
+        trade_return = (sell_trade['price'] - buy_trade['price']) / buy_trade['price'] * 100
+        total_trade_return += trade_return
+        if trade_return > 0:
+            winning_trades += 1
             if trade_return > 0:
                 winning_trades += 1
     
