@@ -118,82 +118,6 @@ HTML_TEMPLATE = """
             border: 1px solid #3a3a3a;
             margin: 10px;
         }
-        .debug-console {
-            display: none;
-            flex-direction: column;
-            height: 40%;
-            border-top: 1px solid #3a3a3a;
-            background: #0a0a0a;
-        }
-        .debug-console.active {
-            display: flex;
-        }
-        .debug-header {
-            background: #1a1a1a;
-            color: #FF176A;
-            padding: 10px 15px;
-            font-weight: 500;
-            border-bottom: 1px solid #3a3a3a;
-            font-size: 0.85em;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .debug-controls {
-            display: flex;
-            gap: 10px;
-        }
-        .debug-controls button {
-            background: #1a1a1a;
-            color: #888888;
-            border: 1px solid #3a3a3a;
-            padding: 4px 10px;
-            font-size: 0.75em;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .debug-controls button:hover {
-            border-color: #FF176A;
-            color: #FF176A;
-        }
-        .debug-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 15px;
-            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-            font-size: 0.75em;
-            color: #888888;
-            line-height: 1.6;
-        }
-        .debug-entry {
-            margin-bottom: 15px;
-            padding: 8px;
-            background: #1a1a1a;
-            border-left: 2px solid #3a3a3a;
-        }
-        .debug-entry.request {
-            border-left-color: #4a9eff;
-        }
-        .debug-entry.response {
-            border-left-color: #00ff88;
-        }
-        .debug-entry.error {
-            border-left-color: #ff4444;
-        }
-        .debug-timestamp {
-            color: #666666;
-            font-size: 0.9em;
-        }
-        .debug-label {
-            color: #FF176A;
-            font-weight: 500;
-        }
-        .debug-data {
-            margin-top: 5px;
-            color: #ffffff;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
         .chat-panel {
             flex: 1;
             min-width: 400px;
@@ -423,17 +347,6 @@ HTML_TEMPLATE = """
             <div class="output-panel">
                 <div class="output-header">📟 Script Output (script.py)</div>
                 <div class="output-content" id="outputContent">Waiting for script.py output...</div>
-                <div class="debug-console" id="debugConsole">
-                    <div class="debug-header">
-                        <span>🐛 Debug Console</span>
-                        <div class="debug-controls">
-                            <button onclick="toggleAutoScroll()">Auto-scroll: ON</button>
-                            <button onclick="copyDebugLog()">Copy</button>
-                            <button onclick="clearDebugLog()">Clear</button>
-                        </div>
-                    </div>
-                    <div class="debug-content" id="debugContent"></div>
-                </div>
             </div>
             <div class="chat-panel">
                 <div class="chat-header">
@@ -460,9 +373,7 @@ HTML_TEMPLATE = """
         let chatHistory = [];  // Client-side chat history storage
         let ttsEnabled = true; // TTS enabled by default
         let debugMode = false; // Debug mode disabled by default
-        let debugAutoScroll = true; // Debug console auto-scroll
         let currentAudio = null; // Track currently playing audio
-        let debugLogs = []; // Store all debug logs
         
         // Load TTS preference from localStorage
         const savedTTSPref = localStorage.getItem('primateTTSEnabled');
@@ -501,14 +412,6 @@ HTML_TEMPLATE = """
             debugMode = !debugMode;
             localStorage.setItem('primateDebugEnabled', debugMode);
             updateDebugButton();
-            
-            // Show/hide debug console
-            const debugConsole = document.getElementById('debugConsole');
-            if (debugMode) {
-                debugConsole.classList.add('active');
-            } else {
-                debugConsole.classList.remove('active');
-            }
         }
         
         function updateDebugButton() {
@@ -522,63 +425,25 @@ HTML_TEMPLATE = """
             }
         }
         
-        function addDebugEntry(type, data) {
-            if (!debugMode) return;
-            
+        function addDebugInfo(error, response, data) {
             const timestamp = new Date().toLocaleTimeString();
-            const debugContent = document.getElementById('debugContent');
+            const statusCode = response ? response.status : 'N/A';
+            const rawResponse = data ? JSON.stringify(data, null, 2) : 'No response data';
             
-            const entry = document.createElement('div');
-            entry.className = `debug-entry ${type}`;
-            
-            let icon = '→';
-            let label = 'REQUEST';
-            if (type === 'response') {
-                icon = '←';
-                label = 'RESPONSE';
-            } else if (type === 'error') {
-                icon = '✗';
-                label = 'ERROR';
-            }
-            
-            entry.innerHTML = `
-                <div class="debug-timestamp">${timestamp}</div>
-                <div class="debug-label">${icon} ${label}</div>
-                <div class="debug-data">${data}</div>
+            return `
+                <details class="debug-info">
+                    <summary>🐛 Debug Info (click to expand)</summary>
+                    <pre>━━━━━━━━━━━━━━━━━━━━━━━━━━
+Time: ${timestamp}
+Status: ${statusCode}
+Error: ${error}
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Raw Response:
+${rawResponse}
+━━━━━━━━━━━━━━━━━━━━━━━━━━</pre>
+                </details>
             `;
-            
-            debugContent.appendChild(entry);
-            
-            // Auto-scroll if enabled
-            if (debugAutoScroll) {
-                debugContent.scrollTop = debugContent.scrollHeight;
-            }
-            
-            // Store in memory
-            debugLogs.push({ timestamp, type, data });
-        }
-        
-        function toggleAutoScroll() {
-            debugAutoScroll = !debugAutoScroll;
-            const btn = event.target;
-            btn.textContent = `Auto-scroll: ${debugAutoScroll ? 'ON' : 'OFF'}`;
-        }
-        
-        function copyDebugLog() {
-            const logText = debugLogs.map(log => 
-                `[${log.timestamp}] ${log.type.toUpperCase()}\n${log.data}\n${'━'.repeat(50)}`
-            ).join('\n\n');
-            
-            navigator.clipboard.writeText(logText).then(() => {
-                alert('Debug log copied to clipboard!');
-            }).catch(err => {
-                console.error('Failed to copy:', err);
-            });
-        }
-        
-        function clearDebugLog() {
-            debugLogs = [];
-            document.getElementById('debugContent').innerHTML = '';
         }
         
         function toggleTTS() {
@@ -687,15 +552,6 @@ HTML_TEMPLATE = """
             
             const statusMsg = addMessage('<span class="loading"></span>Processing your request...', 'status');
             
-            const requestTime = new Date();
-            const requestData = {
-                message: message,
-                chat_history: chatHistory
-            };
-            
-            // Log request
-            addDebugEntry('request', `POST /generate\n${JSON.stringify(requestData, null, 2)}`);
-            
             let response;
             let data;
             try {
@@ -704,23 +560,23 @@ HTML_TEMPLATE = """
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(requestData)
+                    body: JSON.stringify({ 
+                        message: message,
+                        chat_history: chatHistory
+                    })
                 });
-                
-                const responseTime = new Date();
-                const duration = ((responseTime - requestTime) / 1000).toFixed(2);
-                
-                data = await response.json();
-                
-                // Log response
-                addDebugEntry('response', `Status: ${response.status} (${duration}s)\n${JSON.stringify(data, null, 2)}`);
                 
                 // Remove status message
                 statusMsg.remove();
                 
+                data = await response.json();
+                
                 if (data.error) {
-                    addDebugEntry('error', data.error);
-                    addMessage('❌ Error: ' + data.error, 'error');
+                    let errorMsg = '❌ Error: ' + data.error;
+                    if (debugMode) {
+                        errorMsg += addDebugInfo(data.error, response, data);
+                    }
+                    addMessage(errorMsg, 'error');
                 } else {
                     // Check if files were updated first (handles code-only responses)
                     if (data.files_updated && data.files_updated.length > 0) {
@@ -763,8 +619,11 @@ HTML_TEMPLATE = """
             } catch (error) {
                 // Remove status message on error too
                 statusMsg.remove();
-                addDebugEntry('error', `${error.message}\nResponse: ${response ? response.status : 'No response'}`);
-                addMessage('❌ Error: ' + error.message, 'error');
+                let errorMsg = '❌ Error: ' + error.message;
+                if (debugMode) {
+                    errorMsg += addDebugInfo(error.message, response, data);
+                }
+                addMessage(errorMsg, 'error');
             }
             
             btn.disabled = false;
