@@ -10,7 +10,7 @@ import warnings
 import time
 warnings.filterwarnings('ignore')
 
-def fetch_crypto_data_chunked(symbol, hours_to_fetch=10000):
+def fetch_crypto_data_chunked(symbol, hours_to_fetch=5000):
     """Fetch OHLCV data for any cryptocurrency from Binance using chunking - HOURLY DATA"""
     client = Spot()
     
@@ -172,7 +172,7 @@ def add_polynomial_features(X):
     return X_poly
 
 def add_lagged_features_selected(X):
-    """Add lagged versions of SELECTED features with specific periods: [2, 4, 8, 12, 24, 48] hours"""
+    """Add lagged versions of SELECTED features with specific periods: [1, 3, 12] hours"""
     X_lagged = X.copy()
     
     # Selected features for lagging
@@ -194,8 +194,8 @@ def add_lagged_features_selected(X):
                 X_lagged[lagged_feature_name] = X[feature].shift(lag)
                 lagged_features_added.append(lagged_feature_name)
     
-    # Drop rows with NaN values created by lagging (drop first 48 rows)
-    X_lagged = X_lagged.iloc[48:]
+    # Drop rows with NaN values created by lagging (drop first 12 rows - maximum lag)
+    X_lagged = X_lagged.iloc[12:]
     
     return X_lagged, lagged_features_added
 
@@ -256,18 +256,18 @@ def normalize_features(X):
 
 def main():
     # Fetch Bitcoin data
-    print("Fetching 10,000 hours of Bitcoin data...")
-    btc_df = fetch_crypto_data_chunked('BTCUSDT', 10000)  # Reduced to 10,000 hours
+    print("Fetching 5,000 hours of Bitcoin data...")
+    btc_df = fetch_crypto_data_chunked('BTCUSDT', 5000)  # Changed to 5,000 hours
     
     # Fetch altcoin data
     print("\nFetching Ethereum data...")
-    eth_df = fetch_crypto_data_chunked('ETHUSDT', 10000)
+    eth_df = fetch_crypto_data_chunked('ETHUSDT', 5000)  # Changed to 5,000 hours
     
     print("\nFetching Ripple data...")
-    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 10000)
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 5000)  # Changed to 5,000 hours
     
     print("\nFetching Cardano data...")
-    ada_df = fetch_crypto_data_chunked('ADAUSDT', 10000)
+    ada_df = fetch_crypto_data_chunked('ADAUSDT', 5000)  # Changed to 5,000 hours
     
     # Create features with altcoin data
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
@@ -300,8 +300,8 @@ def main():
     # Add lagged features for SELECTED features with specific periods
     X_with_lags, lagged_features_added = add_lagged_features_selected(X_with_poly)
     
-    # Update target to match lagged features (drop first 48 rows)
-    y_lagged = y.iloc[48:]
+    # Update target to match lagged features (drop first 12 rows - maximum lag)
+    y_lagged = y.iloc[12:]
     
     # Define selected features for reporting (same as in add_lagged_features_selected)
     selected_features_for_report = [
@@ -318,16 +318,17 @@ def main():
     
     print(f"\nLagged features added: {lagged_features} features")
     print(f"  Selected features: {len(selected_features_for_report)} key features")
-    print(f"  Lag periods: [2, 4, 8, 12, 24, 48] hours")
+    print(f"  Lag periods: [1, 3, 12] hours")
     
     print(f"\nTotal features: {total_features}")
     print(f"  Original: {original_features}")
     print(f"  Polynomial: {polynomial_features}")
     print(f"  Lagged: {lagged_features}")
+    
     # Print first 2 hours of non-lagged features for clarity
     print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
-        print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
+        print(f"\nHour {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
         for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_with_lags.columns:
                 value = X_with_lags.iloc[i][feature]
@@ -339,7 +340,7 @@ def main():
     # Print first 2 hours of normalized features
     print(f"\nFirst 2 hours of features (AFTER NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
-        print(f"\nHour {i+1} ({df.iloc[i+48]['date'].strftime('%Y-%m-%d %H:%M')}):")
+        print(f"\nHour {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
         for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_normalized.columns:
                 value = X_normalized.iloc[i][feature]
