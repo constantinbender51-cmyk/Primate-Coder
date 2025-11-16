@@ -734,6 +734,8 @@ def update_github_file(filepath, content, commit_message):
     sha = None
     if response.status_code == 200:
         sha = response.json().get("sha")
+        
+    print("🟣 DEBUG — Content before encode:", type(content), repr(content))
     
     # Encode content to base64
     content_b64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
