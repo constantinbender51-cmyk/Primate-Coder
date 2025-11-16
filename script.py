@@ -426,12 +426,18 @@ def main(holding_period=1):
         return np.mean(excess_returns) / np.std(excess_returns)
     
     def run_backtest(predictions, model_name, test_dates, test_prices, initial_balance=10000.0):
-        """Run backtesting simulation with N-hour holding period"""
+    def run_backtest(predictions, model_name, test_dates, test_prices, initial_balance=10000.0):
+        """Run backtesting simulation with N-hour holding period - CORRECTED VERSION"""
         balance = initial_balance
-        portfolio_values = []
+        portfolio_values = [balance]  # Start with initial balance
         returns = []
         stored_predictions = []
         stored_prices = []
+        
+        print(f"\nBacktesting with {holding_period}-hour holding period:")
+        print(f"  - Trading every {holding_period} hours")
+        print(f"  - Holding positions for {holding_period} hours")
+        print(f"  - Total test hours: {len(predictions)}")
         
         # Trading simulation with N-hour holding period
         for i in range(len(predictions)):
@@ -442,44 +448,43 @@ def main(holding_period=1):
             stored_predictions.append(current_prediction)
             stored_prices.append(current_price)
             
-            # Only trade every N hours (when we have a stored prediction from N hours ago)
-            if i >= holding_period:
+            # Only trade when we have a stored prediction from N hours ago AND it's a trading hour
+            if i >= holding_period and (i % holding_period == 0):
                 # Get prediction and price from N hours ago
                 prediction_n_hours_ago = stored_predictions[i - holding_period]
                 price_n_hours_ago = stored_prices[i - holding_period]
                 
                 # Calculate new balance based on prediction from N hours ago
                 if prediction_n_hours_ago == 1:  # N hours ago predicted UP
-                    balance = balance * (1 + (current_price / price_n_hours_ago - 1))
+                    balance = balance * (current_price / price_n_hours_ago)
                 else:  # N hours ago predicted DOWN
-                    balance = balance * (1 - (current_price / price_n_hours_ago - 1))
+                    balance = balance * (2 - current_price / price_n_hours_ago)
             
             # Track portfolio value at each step
             portfolio_values.append(balance)
             
             # Calculate daily returns
             if i > 0:
-                daily_return = (balance - portfolio_values[i-1]) / portfolio_values[i-1]
+                daily_return = (portfolio_values[i] - portfolio_values[i-1]) / portfolio_values[i-1]
                 returns.append(daily_return)
             
             # Print detailed information for first 20 hours
             if i < 20:
                 print(f"\nHour {i+1} ({test_dates[i]}):")
                 print(f"  Price: ${current_price:,.2f}")
-                if i >= holding_period:
+                if i >= holding_period and (i % holding_period == 0):
                     print(f"  Using prediction from hour {i - holding_period + 1}: {prediction_n_hours_ago} ({'UP' if prediction_n_hours_ago == 1 else 'DOWN'})")
                     print(f"  Entry price (hour {i - holding_period + 1}): ${price_n_hours_ago:,.2f}")
+                    print(f"  Current price (hour {i+1}): ${current_price:,.2f}")
                     print(f"  Price ratio (entry/current): {price_n_hours_ago/current_price:.6f}")
-                print(f"  Balance: ${balance:,.2f}")
-                
-                # Show action taken
-                if i >= holding_period:
                     if prediction_n_hours_ago == 1:
-                        print(f"  Action: LONG - Balance = (1 + {current_price/price_n_hours_ago - 1:.6f}) * previous balance")
-                        print(f"  Simplified: Balance = previous_balance × {current_price/price_n_hours_ago:.6f}")
+                        print(f"  Action: LONG - Balance = previous_balance × {current_price/price_n_hours_ago:.6f}")
                     else:
-                        print(f"  Action: SHORT - Balance = (1 - {current_price/price_n_hours_ago - 1:.6f}) * previous balance")
-                        print(f"  Simplified: Balance = previous_balance × {2 - current_price/price_n_hours_ago:.6f}")
+                        print(f"  Action: SHORT - Balance = previous_balance × {2 - current_price/price_n_hours_ago:.6f}")
+                else:
+                    print(f"  No trading this hour (holding period: {holding_period} hours)")
+                print(f"  Balance: ${balance:,.2f}")
+        
         final_balance = balance
         
         # Calculate performance metrics
@@ -498,7 +503,6 @@ def main(holding_period=1):
             'portfolio_values': portfolio_values,
             'returns': returns
         }
-    # Run backtest for all models
     backtest_results = {}
     
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
