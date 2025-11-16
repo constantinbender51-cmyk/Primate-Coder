@@ -435,9 +435,33 @@ def main():
         returns = []
         
         # Trading simulation
+        # Trading simulation
         for i in range(len(predictions)):
             current_price = test_prices[i]
             prediction = predictions[i]
+            
+            # Force close any existing position from previous hour
+            if position != 0:
+                if position > 0:  # Close long position
+                    balance = position * current_price
+                    trades.append({
+                        'date': test_dates[i],
+                        'action': 'SELL',
+                        'price': current_price,
+                        'position': 0.0,
+                        'balance': balance
+                    })
+                else:  # Close short position
+                    cost_to_cover = abs(position) * current_price
+                    balance = balance - cost_to_cover
+                    trades.append({
+                        'date': test_dates[i],
+                        'action': 'COVER',
+                        'price': current_price,
+                        'position': 0.0,
+                        'balance': balance
+                    })
+                position = 0.0
             
             # LONG ENTRY: Prediction = 1 (price will go up) + no position
             if prediction == 1 and position == 0:
@@ -467,55 +491,14 @@ def main():
                     'balance': balance
                 })
             
-            # EXIT LONG: Prediction = 0 (price will go down) + long position
-            elif prediction == 0 and position > 0:
-                # Sell entire long position
-                balance = position * current_price
-                trades.append({
-                    'date': test_dates[i],
-                    'action': 'SELL',
-                    'price': current_price,
-                    'position': 0.0,
-                    'balance': balance
-                })
-                position = 0.0
+            # Track portfolio value at each step
+            current_portfolio_value = balance + (position * current_price)
+            portfolio_values.append(current_portfolio_value)
             
-            # EXIT SHORT: Prediction = 1 (price will go up) + short position
-            elif prediction == 1 and position < 0:
-                # Cover short position (buy back BTC)
-                cost_to_cover = abs(position) * current_price
-                balance = balance - cost_to_cover  # Pay from collateral
-                trades.append({
-                    'date': test_dates[i],
-                    'action': 'COVER',
-                    'price': current_price,
-                    'position': 0.0,
-                    'balance': balance
-                })
-                position = 0.0
-            
-            # Force close all positions on last day
-            elif i == len(predictions) - 1 and position != 0:
-                if position > 0:  # Close long position
-                    balance = position * current_price
-                    trades.append({
-                        'date': test_dates[i],
-                        'action': 'SELL',
-                        'price': current_price,
-                        'position': 0.0,
-                        'balance': balance
-                    })
-                else:  # Close short position
-                    cost_to_cover = abs(position) * current_price
-                    balance = balance - cost_to_cover
-                    trades.append({
-                        'date': test_dates[i],
-                        'action': 'COVER',
-                        'price': current_price,
-                        'position': 0.0,
-                        'balance': balance
-                    })
-                position = 0.0
+            # Calculate daily returns
+            if i > 0:
+                daily_return = (current_portfolio_value - portfolio_values[i-1]) / portfolio_values[i-1]
+                returns.append(daily_return)
             
             # Track portfolio value at each step
             current_portfolio_value = balance + (position * current_price)
