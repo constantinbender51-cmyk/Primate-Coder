@@ -969,7 +969,7 @@ def extract_json_from_text(text):
             if brace_count == 0 and start_idx != -1:
                 json_str = text[start_idx:i+1]
                 try:
-                    obj = json.loads(json_str)
+                    obj = ensure_string(json.loads(json_str))
                     json_objects.append(obj)
                 except json.JSONDecodeError:
                     pass
@@ -977,6 +977,14 @@ def extract_json_from_text(text):
     
     return json_objects
 
+def ensure_string(value):
+    """
+    If `value` is a dict → convert to JSON string.
+    If `value` is already a string → return unchanged.
+    """
+    if isinstance(value, dict):
+        return json.dumps(value)
+    return value
 
 def remove_json_from_text(text):
     """Remove JSON objects and code fences from text to get plain text response."""
