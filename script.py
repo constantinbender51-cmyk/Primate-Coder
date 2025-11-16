@@ -432,46 +432,47 @@ def main():
         returns = []
         
         # Trading simulation
+        # Trading simulation
         for i in range(len(predictions)):
             current_price = test_prices[i]
             prediction = predictions[i]
             
-        # FIXED LOGIC: Use PREVIOUS period's prediction for CURRENT period's balance
-        if i > 0:  # Need previous price and previous prediction
-            previous_price = test_prices[i-1]
-            previous_prediction = predictions[i-1]  # Use the prediction from previous hour
+            # FIXED LOGIC: Use PREVIOUS period's prediction for CURRENT period's balance
+            if i > 0:  # Need previous price and previous prediction
+                previous_price = test_prices[i-1]
+                previous_prediction = predictions[i-1]  # Use the prediction from previous hour
+                
+                # Calculate new balance based on previous prediction and price ratio
+                if previous_prediction == 1:  # Previous hour predicted UP
+                    balance = balance * (1 + (current_price / previous_price - 1))
+                else:  # Previous hour predicted DOWN
+                    balance = balance * (1 - (current_price / previous_price - 1))
             
-            # Calculate new balance based on previous prediction and price ratio
-            # Calculate new balance based on previous prediction and price ratio
-            if previous_prediction == 1:  # Previous hour predicted UP
-                balance = balance * (1 + (current_price / previous_price - 1))
-            else:  # Previous hour predicted DOWN
-                balance = balance * (1 - (current_price / previous_price - 1))
-        
-        # Track portfolio value at each step
-        portfolio_values.append(balance)
-        
-        # Calculate daily returns
-        if i > 0:
-            daily_return = (balance - portfolio_values[i-1]) / portfolio_values[i-1]
-            returns.append(daily_return)
-        
-        # Print detailed information for first 20 hours
-        if i < 20:
-            print(f"\nHour {i+1} ({test_dates[i]}):")
-            print(f"  Price: ${current_price:,.2f}")
-            if i > 0:
-                print(f"  Using prediction from hour {i}: {previous_prediction} ({'UP' if previous_prediction == 1 else 'DOWN'})")
-                print(f"  Previous price (hour {i}): ${previous_price:,.2f}")
-                print(f"  Price ratio (prev/current): {previous_price/current_price:.6f}")
-            print(f"  Balance: ${balance:,.2f}")
+            # Track portfolio value at each step
+            portfolio_values.append(balance)
             
-            # Show action taken
+            # Calculate daily returns
             if i > 0:
-                if previous_prediction == 1:
-                    print(f"  Action: LONG - Balance = (1 + {current_price/previous_price - 1:.6f}) * previous balance")
-                else:
-                    print(f"  Action: SHORT - Balance = (1 - {current_price/previous_price - 1:.6f}) * previous balance")
+                daily_return = (balance - portfolio_values[i-1]) / portfolio_values[i-1]
+                returns.append(daily_return)
+            
+            # Print detailed information for first 20 hours
+            if i < 20:
+                print(f"\nHour {i+1} ({test_dates[i]}):")
+                print(f"  Price: ${current_price:,.2f}")
+                if i > 0:
+                    print(f"  Using prediction from hour {i}: {previous_prediction} ({'UP' if previous_prediction == 1 else 'DOWN'})")
+                    print(f"  Previous price (hour {i}): ${previous_price:,.2f}")
+                    print(f"  Price ratio (prev/current): {previous_price/current_price:.6f}")
+                print(f"  Balance: ${balance:,.2f}")
+                
+                # Show action taken
+                if i > 0:
+                    if previous_prediction == 1:
+                        print(f"  Action: LONG - Balance = (1 + {current_price/previous_price - 1:.6f}) * previous balance")
+                    else:
+                        print(f"  Action: SHORT - Balance = (1 - {current_price/previous_price - 1:.6f}) * previous balance")
+        
         # Calculate final portfolio value
         final_balance = balance
         
@@ -491,7 +492,6 @@ def main():
             'portfolio_values': portfolio_values,
             'returns': returns
         }
-    
     # Run backtest for all models
     backtest_results = {}
     
