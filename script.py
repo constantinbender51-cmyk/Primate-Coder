@@ -436,41 +436,41 @@ def main():
             current_price = test_prices[i]
             prediction = predictions[i]
             
-            # SIMPLIFIED TRADING: Just calculate balance based on prediction accuracy
-            if i > 0:  # Need previous price to calculate price change
-                price_change_pct = (current_price - test_prices[i-1]) / test_prices[i-1]
-                
-                if prediction == 1:  # Predicted UP
-                    # If correct: balance increases by price change
-                    # If wrong: balance decreases by price change
-                    balance = balance * (1 + price_change_pct)
-                else:  # Predicted DOWN
-                    # If correct: balance increases when price drops
-                    # If wrong: balance decreases when price rises
-                    balance = balance * (1 - price_change_pct)
+        # FIXED LOGIC: Use PREVIOUS period's prediction for CURRENT period's balance
+        if i > 0:  # Need previous price and previous prediction
+            previous_price = test_prices[i-1]
+            previous_prediction = predictions[i-1]  # Use the prediction from previous hour
             
-            # Track portfolio value at each step
-            portfolio_values.append(balance)
-            
-            # Calculate daily returns
-            if i > 0:
-                daily_return = (balance - portfolio_values[i-1]) / portfolio_values[i-1]
-                returns.append(daily_return)
-            
-            # Print detailed information for first 20 hours
-            if i < 20:
-                print(f"\nHour {i+1} ({test_dates[i]}):")
-                print(f"  Price: ${current_price:,.2f}, Prediction: {prediction} ({'UP' if prediction == 1 else 'DOWN'})")
-                print(f"  Balance: ${balance:,.2f}")
-                
-                # Show action taken
-                if i > 0:
-                    price_change_pct = (current_price - test_prices[i-1]) / test_prices[i-1]
-                    if prediction == 1:
-                        print(f"  Action: LONG - Balance updated by {price_change_pct:+.4f}")
-                    else:
-                        print(f"  Action: SHORT - Balance updated by {-price_change_pct:+.4f}")
+            # Calculate new balance based on previous prediction and price ratio
+            if previous_prediction == 1:  # Previous hour predicted UP
+                balance = balance * (1 + previous_price / current_price)
+            else:  # Previous hour predicted DOWN
+                balance = balance * (1 + previous_price / current_price)
         
+        # Track portfolio value at each step
+        portfolio_values.append(balance)
+        
+        # Calculate daily returns
+        if i > 0:
+            daily_return = (balance - portfolio_values[i-1]) / portfolio_values[i-1]
+            returns.append(daily_return)
+        
+        # Print detailed information for first 20 hours
+        if i < 20:
+            print(f"\nHour {i+1} ({test_dates[i]}):")
+            print(f"  Price: ${current_price:,.2f}")
+            if i > 0:
+                print(f"  Using prediction from hour {i}: {previous_prediction} ({'UP' if previous_prediction == 1 else 'DOWN'})")
+                print(f"  Previous price (hour {i}): ${previous_price:,.2f}")
+                print(f"  Price ratio (prev/current): {previous_price/current_price:.6f}")
+            print(f"  Balance: ${balance:,.2f}")
+            
+            # Show action taken
+            if i > 0:
+                if previous_prediction == 1:
+                    print(f"  Action: LONG - Balance = (1 + {previous_price/current_price:.6f}) * previous balance")
+                else:
+                    print(f"  Action: SHORT - Balance = (1 + {previous_price/current_price:.6f}) * previous balance")
         # Calculate final portfolio value
         final_balance = balance
         
