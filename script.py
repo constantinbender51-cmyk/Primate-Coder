@@ -138,8 +138,8 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     df['altcoin_momentum'] = (df['eth_price_change'] + df['xrp_price_change'] + df['ada_price_change']) / 3
     df['altcoin_volume_strength'] = (df['eth_volume_ratio'] + df['xrp_volume_ratio'] + df['ada_volume_ratio']) / 3
     
-    # Target: Next hour price direction (1 = up, 0 = down)
-    df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
+    # Target: Next N-hour price direction (1 = up, 0 = down)
+    df['target'] = (df['close'].shift(-holding_period) > df['close']).astype(int)
     
     # Drop NaN values
     df = df.dropna()
