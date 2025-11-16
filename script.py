@@ -522,13 +522,13 @@ def main():
             # Calculate daily returns
             if i > 0:
                 daily_return = (current_portfolio_value - portfolio_values[i-1]) / portfolio_values[i-1]
-                returns.append(daily_return)
-        
         # Calculate final portfolio value
         if position > 0:  # Long position
             final_balance = position * test_prices[-1]
         elif position < 0:  # Short position
-            final_balance = balance + (abs(position) * test_prices[-1])
+            final_balance = balance  # Remaining collateral after covering
+        else:  # No position
+            final_balance = balance
         else:  # No position
             final_balance = balance
         
