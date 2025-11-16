@@ -171,23 +171,31 @@ def add_polynomial_features(X):
     
     return X_poly
 
-def add_lagged_features_all(X, lookback_hours=10):
-    """Add lagged versions of ALL features with specified lookback window"""
+def add_lagged_features_selected(X):
+    """Add lagged versions of SELECTED features with specific periods: [2, 4, 8, 12, 24, 48] hours"""
     X_lagged = X.copy()
     
-    # Get all feature names
-    all_features = list(X.columns)
+    # Selected features for lagging
+    selected_features = [
+        'price_change', 'volume_ratio', 'volatility_24', 'volatility_48',
+        'eth_price_change', 'xrp_price_change', 'ada_price_change',
+        'altcoin_momentum', 'macd_histogram'
+    ]
     
-    # Add lagged features for ALL features
+    # Lag periods
+    lag_periods = [2, 4, 8, 12, 24, 48]
+    
+    # Add lagged features for selected features
     lagged_features_added = []
-    for feature in all_features:
-        for lag in range(1, lookback_hours + 1):  # t-1 to t-10
-            lagged_feature_name = f"{feature}_lag_{lag}"
-            X_lagged[lagged_feature_name] = X[feature].shift(lag)
-            lagged_features_added.append(lagged_feature_name)
+    for feature in selected_features:
+        if feature in X.columns:
+            for lag in lag_periods:
+                lagged_feature_name = f"{feature}_lag_{lag}"
+                X_lagged[lagged_feature_name] = X[feature].shift(lag)
+                lagged_features_added.append(lagged_feature_name)
     
-    # Drop rows with NaN values created by lagging
-    X_lagged = X_lagged.iloc[lookback_hours:]
+    # Drop rows with NaN values created by lagging (drop first 48 rows)
+    X_lagged = X_lagged.iloc[48:]
     
     return X_lagged, lagged_features_added
 
@@ -289,11 +297,11 @@ def main():
     print(f"\nSquared features added: {squared_feature_cols}")
     print(f"Cubed features added: {cubed_feature_cols}")
     
-    # Add lagged features with 10-hour lookback for ALL features
-    X_with_lags, lagged_features_added = add_lagged_features_all(X_with_poly, lookback_hours=10)
+    # Add lagged features for SELECTED features with specific periods
+    X_with_lags, lagged_features_added = add_lagged_features_selected(X_with_poly)
     
-    # Update target to match lagged features (drop first 10 rows)
-    y_lagged = y.iloc[10:]
+    # Update target to match lagged features (drop first 48 rows)
+    y_lagged = y.iloc[48:]
     
     # Calculate feature counts
     original_features = len(X.columns)
@@ -302,8 +310,8 @@ def main():
     total_features = original_features + polynomial_features + lagged_features
     
     print(f"\nLagged features added: {lagged_features} features")
-    print(f"  Lookback window: 10 hours (t-1 to t-10)")
-    print(f"  ALL features lagged: {original_features + polynomial_features} total features")
+    print(f"  Selected features: {len(selected_features)} key features")
+    print(f"  Lag periods: [2, 4, 8, 12, 24, 48] hours")
     
     print(f"\nTotal features: {total_features}")
     print(f"  Original: {original_features}")
@@ -325,7 +333,7 @@ def main():
     # Print first 2 hours of normalized features
     print(f"\nFirst 2 hours of features (AFTER NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
-        print(f"\nHour {i+1} ({df.iloc[i+10]['date'].strftime('%Y-%m-%d %H:%M')}):")
+        print(f"\nHour {i+1} ({df.iloc[i+48]['date'].strftime('%Y-%m-%d %H:%M')}):")
         for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_normalized.columns:
                 value = X_normalized.iloc[i][feature]
