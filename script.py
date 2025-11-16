@@ -301,7 +301,7 @@ def main():
     X_with_lags, lagged_features_added = add_lagged_features_selected(X_with_poly)
     
     # Update target to match lagged features (drop first 12 rows - maximum lag)
-    y_lagged = y.iloc[12:]
+    y_lagged = y.iloc[24:]
     
     # Define selected features for reporting (same as in add_lagged_features_selected)
     selected_features_for_report = [
