@@ -578,7 +578,29 @@ ${rawResponse}
                     }
                     addMessage(errorMsg, 'error');
                 } else {
-                    if (data.deepseek_response) {
+                    // Check if files were updated first (handles code-only responses)
+                    if (data.files_updated && data.files_updated.length > 0) {
+                        addMessage('✅ Updated files: ' + data.files_updated.join(', '), 'success');
+                        addMessage('🚀 Files pushed to GitHub. Railway will redeploy automatically...', 'success');
+                        
+                        // Show DeepSeek response if it exists
+                        if (data.deepseek_response) {
+                            addMessage('🤖 DeepSeek: ' + data.deepseek_response, 'assistant');
+                            
+                            // Add assistant response to chat history
+                            chatHistory.push({
+                                role: 'assistant',
+                                content: data.deepseek_response
+                            });
+                            saveChatHistory();
+                            
+                            // Play TTS audio if available
+                            if (data.audio && ttsEnabled) {
+                                playAudio(data.audio);
+                            }
+                        }
+                    } else if (data.deepseek_response) {
+                        // No files updated, but DeepSeek responded (questions/clarifications)
                         addMessage('🤖 DeepSeek: ' + data.deepseek_response, 'assistant');
                         
                         // Add assistant response to chat history
@@ -592,14 +614,6 @@ ${rawResponse}
                         if (data.audio && ttsEnabled) {
                             playAudio(data.audio);
                         }
-                    } else if (data.files_updated && data.files_updated.length > 0) {
-                        // If only files were updated with no text response, show a message
-                        addMessage('🤖 DeepSeek: Files updated as requested.', 'assistant');
-                    }
-                    
-                    if (data.files_updated && data.files_updated.length > 0) {
-                        addMessage('✅ Updated files: ' + data.files_updated.join(', '), 'success');
-                        addMessage('🚀 Files pushed to GitHub. Railway will redeploy automatically...', 'success');
                     }
                 }
             } catch (error) {
