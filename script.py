@@ -417,8 +417,10 @@ def main():
     gb_predictions = results['Gradient Boosting']['predictions']
     
     # Get actual prices for the test period
-    test_dates = df.iloc[-len(y_test):]['date'].values
-    test_prices = df.iloc[-len(y_test):]['close'].values
+    # Get actual prices for the test period (adjust for lagged data)
+    test_start_idx = len(df) - len(y_test) - 24  # Account for 24-hour lag
+    test_dates = df.iloc[test_start_idx:test_start_idx + len(y_test)]['date'].values
+    test_prices = df.iloc[test_start_idx:test_start_idx + len(y_test)]['close'].values
     
     # Initialize trading parameters
     initial_balance = 10000.0  # $10,000 starting capital
