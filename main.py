@@ -837,6 +837,21 @@ To create or edit files, include JSON objects in your response with this format:
   "style.css": "css content here"
 }
 
+or this:
+{
+  "file": "filename.py",
+  "operation": ...
+}
+{
+  "file": "requirements.py",
+  "operation": ...
+}
+{
+  "file": "style.py",
+  "operation": ...
+}
+
+
 You can create any files needed (script.py, requirements.txt, index.html, style.css, etc.).
 
 When updating requirements.txt, only include additional packages needed by script.py. Do not include flask, requests, or gtts as they are already available.
