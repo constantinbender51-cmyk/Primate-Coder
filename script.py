@@ -435,7 +435,6 @@ def main():
         returns = []
         
         # Trading simulation
-        # Trading simulation
         for i in range(len(predictions)):
             current_price = test_prices[i]
             prediction = predictions[i]
@@ -500,14 +499,18 @@ def main():
                 daily_return = (current_portfolio_value - portfolio_values[i-1]) / portfolio_values[i-1]
                 returns.append(daily_return)
             
-            # Track portfolio value at each step
-            current_portfolio_value = balance + (position * current_price)
-            portfolio_values.append(current_portfolio_value)
-            
-            # Calculate daily returns
-            if i > 0:
-                daily_return = (current_portfolio_value - portfolio_values[i-1]) / portfolio_values[i-1]
-                returns.append(daily_return)
+            # Print detailed information for first 20 hours
+            if i < 20:
+                print(f"\nHour {i+1} ({test_dates[i]}):")
+                print(f"  Price: ${current_price:,.2f}, Prediction: {prediction} ({'UP' if prediction == 1 else 'DOWN'})")
+                print(f"  Position: {position:.6f} BTC ({'LONG' if position > 0 else 'SHORT' if position < 0 else 'CASH'})")
+                print(f"  Balance: ${balance:,.2f}")
+                print(f"  Portfolio Value: ${current_portfolio_value:,.2f}")
+                
+                # Show action taken
+                if i < len(trades):
+                    last_trade = trades[-1]
+                    print(f"  Action: {last_trade['action']} {abs(last_trade['position']):.4f} BTC at ${last_trade['price']:,.2f}")
         
         # Calculate final portfolio value
         if position > 0:  # Long position
@@ -515,7 +518,6 @@ def main():
         elif position < 0:  # Short position
             final_balance = balance  # Remaining collateral after covering
         else:  # No position
-            final_balance = balance
             final_balance = balance
         
         # Calculate performance metrics
@@ -585,6 +587,7 @@ def main():
             'portfolio_values': portfolio_values,
             'returns': returns
         }
+    
     # Run backtest for all models
     backtest_results = {}
     
@@ -598,6 +601,7 @@ def main():
             predictions = results[name]['predictions']
         
         # Run backtest
+        print(f"\nDetailed Hourly Breakdown for {name}:")
         result = run_backtest(predictions, name, test_dates, test_prices)
         backtest_results[name] = result
         
@@ -627,7 +631,6 @@ def main():
             print(f"  {trade['date']}: {trade['action']} at ${trade['price']:,.2f}")
             if i >= 9:
                 break
-    
     # Compare all models
     print("\n=== MODEL COMPARISON SUMMARY ===")
     print("\nPerformance Comparison:")
