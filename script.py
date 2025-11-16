@@ -427,9 +427,9 @@ def main():
         return np.mean(excess_returns) / np.std(excess_returns)
     
     def run_backtest(predictions, model_name, test_dates, test_prices, initial_balance=10000.0):
-        """Run backtesting simulation for a given model"""
+        """Run backtesting simulation for a given model with SHORT SELLING capability"""
         balance = initial_balance
-        position = 0.0  # BTC position (0 = no position)
+        position = 0.0  # BTC position (>0 = long, <0 = short, 0 = no position)
         trades = []
         portfolio_values = []
         returns = []
@@ -439,7 +439,7 @@ def main():
             current_price = test_prices[i]
             prediction = predictions[i]
             
-            # Buy signal (prediction = 1 = price will go up)
+            # LONG ENTRY: Prediction = 1 (price will go up) + no position
             if prediction == 1 and position == 0:
                 # Buy with 100% of balance
                 position = balance / current_price
@@ -452,9 +452,22 @@ def main():
                     'balance': balance
                 })
             
-            # Sell signal (prediction = 0 = price will go down) OR last day
-            elif (prediction == 0 and position > 0) or (i == len(predictions) - 1 and position > 0):
-                # Sell entire position
+            # SHORT ENTRY: Prediction = 0 (price will go down) + no position
+            elif prediction == 0 and position == 0:
+                # Short sell (borrow and sell BTC) - negative position
+                position = -balance / current_price
+                balance = balance * 2  # Double cash (from sale + original)
+                trades.append({
+                    'date': test_dates[i],
+                    'action': 'SHORT',
+                    'price': current_price,
+                    'position': position,
+                    'balance': balance
+                })
+            
+            # EXIT LONG: Prediction = 0 (price will go down) + long position
+            elif prediction == 0 and position > 0:
+                # Sell entire long position
                 balance = position * current_price
                 trades.append({
                     'date': test_dates[i],
@@ -463,6 +476,41 @@ def main():
                     'position': 0.0,
                     'balance': balance
                 })
+                position = 0.0
+            
+            # EXIT SHORT: Prediction = 1 (price will go up) + short position
+            elif prediction == 1 and position < 0:
+                # Cover short position (buy back BTC)
+                balance = balance + (abs(position) * current_price)
+                trades.append({
+                    'date': test_dates[i],
+                    'action': 'COVER',
+                    'price': current_price,
+                    'position': 0.0,
+                    'balance': balance
+                })
+                position = 0.0
+            
+            # Force close all positions on last day
+            elif i == len(predictions) - 1 and position != 0:
+                if position > 0:  # Close long position
+                    balance = position * current_price
+                    trades.append({
+                        'date': test_dates[i],
+                        'action': 'SELL',
+                        'price': current_price,
+                        'position': 0.0,
+                        'balance': balance
+                    })
+                else:  # Close short position
+                    balance = balance + (abs(position) * current_price)
+                    trades.append({
+                        'date': test_dates[i],
+                        'action': 'COVER',
+                        'price': current_price,
+                        'position': 0.0,
+                        'balance': balance
+                    })
                 position = 0.0
             
             # Track portfolio value at each step
@@ -475,9 +523,11 @@ def main():
                 returns.append(daily_return)
         
         # Calculate final portfolio value
-        if position > 0:
+        if position > 0:  # Long position
             final_balance = position * test_prices[-1]
-        else:
+        elif position < 0:  # Short position
+            final_balance = balance + (abs(position) * test_prices[-1])
+        else:  # No position
             final_balance = balance
         
         # Calculate performance metrics
@@ -485,26 +535,45 @@ def main():
         buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
         
         # Calculate additional metrics
-        num_trades = len([t for t in trades if t['action'] in ['BUY', 'SELL']])
+        num_trades = len([t for t in trades if t['action'] in ['BUY', 'SELL', 'SHORT', 'COVER']])
         
         # Analyze individual trades
         winning_trades = 0
         total_trade_return = 0
         trade_pairs = []
         
-        # Improved trade pairing logic
-        buy_trades = [t for t in trades if t['action'] == 'BUY']
-        sell_trades = [t for t in trades if t['action'] == 'SELL']
+        # Improved trade pairing logic for both long and short trades
+        long_trades = [t for t in trades if t['action'] == 'BUY']
+        short_trades = [t for t in trades if t['action'] == 'SHORT']
+        exit_trades = [t for t in trades if t['action'] in ['SELL', 'COVER']]
         
-        # Pair consecutive BUY/SELL trades
-        for i in range(min(len(buy_trades), len(sell_trades))):
-            buy_trade = buy_trades[i]
-            sell_trade = sell_trades[i]
-            trade_return = (sell_trade['price'] - buy_trade['price']) / buy_trade['price'] * 100
-            total_trade_return += trade_return
-            if trade_return > 0:
-                winning_trades += 1
-            trade_pairs.append((buy_trade, sell_trade, trade_return))
+        # Pair consecutive trades
+        trade_sequence = []
+        for trade in trades:
+            if trade['action'] in ['BUY', 'SHORT']:
+                trade_sequence.append(('entry', trade))
+            elif trade['action'] in ['SELL', 'COVER']:
+                trade_sequence.append(('exit', trade))
+        
+        # Calculate trade returns
+        i = 0
+        while i < len(trade_sequence) - 1:
+            if trade_sequence[i][0] == 'entry' and trade_sequence[i+1][0] == 'exit':
+                entry_trade = trade_sequence[i][1]
+                exit_trade = trade_sequence[i+1][1]
+                
+                if entry_trade['action'] == 'BUY':  # Long trade
+                    trade_return = (exit_trade['price'] - entry_trade['price']) / entry_trade['price'] * 100
+                else:  # Short trade
+                    trade_return = (entry_trade['price'] - exit_trade['price']) / entry_trade['price'] * 100
+                
+                total_trade_return += trade_return
+                if trade_return > 0:
+                    winning_trades += 1
+                trade_pairs.append((entry_trade, exit_trade, trade_return))
+                i += 2
+            else:
+                i += 1
         
         # Calculate win rate and average trade return
         num_completed_trades = len(trade_pairs)
@@ -528,7 +597,6 @@ def main():
             'portfolio_values': portfolio_values,
             'returns': returns
         }
-    
     # Run backtest for all models
     backtest_results = {}
     
