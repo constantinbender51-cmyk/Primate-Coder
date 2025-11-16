@@ -474,6 +474,7 @@ HTML_TEMPLATE = """
                     <div class="header-left">
                         <span>💬 Chat with DeepSeek</span>
                         <button id="ttsToggle" class="btn active" onclick="toggleTTS()">🔊 TTS On</button>
+                        <button id="debugToggle" class="btn" onclick="toggleDebug()">🐛 Debug Off</button>
                     </div>
                     <button id="newSessionBtn" class="btn" onclick="startNewSession()">🔄 Start New Session</button>
                 </div>
