@@ -87,7 +87,7 @@ def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
     
     return macd_line, signal_line, macd_histogram
 
-def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
+def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period=1):
     """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - HOURLY ADJUSTED"""
     df = btc_df.copy()
     
