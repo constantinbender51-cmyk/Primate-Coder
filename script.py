@@ -476,6 +476,7 @@ def main():
     total_trade_return = 0
     trade_pairs = []
     
+    # Pair BUY and SELL trades
     for i in range(len(trades)):
         if trades[i]['action'] == 'BUY':
             for j in range(i + 1, len(trades)):
@@ -486,11 +487,13 @@ def main():
                     total_trade_return += trade_return
                     if trade_return > 0:
                         winning_trades += 1
-                    trade_pairs.append((trades[i], trades[j]))
+                    trade_pairs.append((trades[i], trades[j], trade_return))
                     break
     
-    avg_trade_return = total_trade_return / len(trade_pairs) if trade_pairs else 0
-    win_rate = (winning_trades / len(trade_pairs)) * 100 if trade_pairs else 0
+    # Calculate win rate and average trade return
+    num_completed_trades = len(trade_pairs)
+    avg_trade_return = total_trade_return / num_completed_trades if num_completed_trades > 0 else 0
+    win_rate = (winning_trades / num_completed_trades) * 100 if num_completed_trades > 0 else 0
     
     print(f"\nTrading Simulation Results:")
     print(f"  Initial Balance: ${initial_balance:,.2f}")
@@ -498,6 +501,7 @@ def main():
     print(f"  Total Return: {total_return:+.2f}%")
     print(f"  Buy & Hold Return: {buy_hold_return:+.2f}%")
     print(f"  Number of Trades: {num_trades}")
+    print(f"  Completed Trade Pairs: {num_completed_trades}")
     print(f"  Win Rate: {win_rate:.1f}%")
     print(f"  Average Trade Return: {avg_trade_return:+.2f}%")
     
