@@ -68,6 +68,25 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=10000):
     
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 
+def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
+    """Calculate MACD indicator"""
+    df_copy = df.copy()
+    
+    # Calculate EMAs
+    ema_fast = df_copy['close'].ewm(span=fast_period, adjust=False).mean()
+    ema_slow = df_copy['close'].ewm(span=slow_period, adjust=False).mean()
+    
+    # Calculate MACD line
+    macd_line = ema_fast - ema_slow
+    
+    # Calculate Signal line
+    signal_line = macd_line.ewm(span=signal_period, adjust=False).mean()
+    
+    # Calculate MACD Histogram (MACD - Signal)
+    macd_histogram = macd_line - signal_line
+    
+    return macd_line, signal_line, macd_histogram
+
 def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - HOURLY ADJUSTED"""
     df = btc_df.copy()
@@ -77,52 +96,47 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     df['high_low_ratio'] = df['high'] / df['low']
     df['close_open_ratio'] = df['close'] / df['open']
     
-    # Moving averages (adjusted for hourly data - 96h window)
-    df['sma_96'] = df['close'].rolling(96).mean()  # 96 hours = 4 days
+    # Moving averages (adjusted for hourly data - 24h and 48h windows)
+    df['sma_24'] = df['close'].rolling(24).mean()  # 24 hours = 1 day
+    df['sma_48'] = df['close'].rolling(48).mean()  # 48 hours = 2 days
     
     # Price relative to moving averages (derivatives)
-    df['price_vs_sma96'] = df['close'] / df['sma_96']
+    df['price_vs_sma24'] = df['close'] / df['sma_24']
+    df['price_vs_sma48'] = df['close'] / df['sma_48']
     
-    # Volatility (adjusted for hourly data - 96h window)
-    df['volatility_96'] = df['price_change'].rolling(96).std()
+    # Volatility (adjusted for hourly data)
+    df['volatility_24'] = df['price_change'].rolling(24).std()
+    df['volatility_48'] = df['price_change'].rolling(48).std()
     
     # Volume features (derivatives only)
-    df['volume_sma_96'] = df['volume'].rolling(96).mean()
-    df['volume_ratio'] = df['volume'] / df['volume_sma_96']
+    df['volume_sma_24'] = df['volume'].rolling(24).mean()
+    df['volume_ratio'] = df['volume'] / df['volume_sma_24']
+    
+    # MACD features for Bitcoin
+    macd_line, signal_line, macd_histogram = calculate_macd(df)
+    df['macd_line'] = macd_line
+    df['macd_signal'] = signal_line
+    df['macd_histogram'] = macd_histogram
     
     # Add altcoin features (derivatives only)
     # Ethereum features
     df['eth_price_change'] = eth_df['close'].pct_change()
-    df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(96).mean()
+    df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(24).mean()
     df['btc_eth_ratio'] = df['close'] / eth_df['close']  # BTC dominance vs ETH
     
     # Ripple features
     df['xrp_price_change'] = xrp_df['close'].pct_change()
-    df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(96).mean()
+    df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(24).mean()
     df['btc_xrp_ratio'] = df['close'] / xrp_df['close']  # BTC dominance vs XRP
     
     # Cardano features
     df['ada_price_change'] = ada_df['close'].pct_change()
-    df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(96).mean()
+    df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(24).mean()
     df['btc_ada_ratio'] = df['close'] / ada_df['close']  # BTC dominance vs ADA
     
     # Altcoin momentum indicators
     df['altcoin_momentum'] = (df['eth_price_change'] + df['xrp_price_change'] + df['ada_price_change']) / 3
     df['altcoin_volume_strength'] = (df['eth_volume_ratio'] + df['xrp_volume_ratio'] + df['ada_volume_ratio']) / 3
-    
-    # Add lagged features with 96-hour lookback window
-    lag_periods = [1, 4, 12, 24, 48, 96]  # 1h, 4h, 12h, 24h, 48h, 96h lags
-    
-    # Key features to create lags for
-    lag_features = [
-        'price_change', 'volume_ratio', 'volatility_96',
-        'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum'
-    ]
-    
-    for feature in lag_features:
-        for lag in lag_periods:
-            df[f'{feature}_lag_{lag}'] = df[feature].shift(lag)
     
     # Target: Next hour price direction (1 = up, 0 = down)
     df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
@@ -138,9 +152,9 @@ def add_polynomial_features(X):
     
     # Select key features for polynomial expansion
     features_for_poly = [
-        'price_change', 'volatility_96', 
+        'price_change', 'volatility_24', 'volatility_48', 
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum'
+        'altcoin_momentum', 'macd_histogram'
     ]
     
     # Add squared features
@@ -164,28 +178,20 @@ def normalize_features(X):
     # Features that can be negative (normalize to [-1, 1])
     negative_features = [
         'price_change', 'eth_price_change', 'xrp_price_change', 'ada_price_change', 
-        'altcoin_momentum'
+        'altcoin_momentum', 'macd_line', 'macd_signal', 'macd_histogram'
     ]
-    
-    # Add lagged negative features
-    lag_negative_features = [col for col in X.columns if any(f'{feature}_lag_' in col for feature in negative_features)]
-    negative_features.extend(lag_negative_features)
     
     # Features that are always positive (normalize to [0, 1])
     positive_features = [
         'high_low_ratio', 'close_open_ratio',
-        'sma_96', 'price_vs_sma96',
-        'volatility_96',
-        'volume_sma_96', 'volume_ratio',
+        'sma_24', 'sma_48', 'price_vs_sma24', 'price_vs_sma48',
+        'volatility_24', 'volatility_48',
+        'volume_sma_24', 'volume_ratio',
         'eth_volume_ratio', 'btc_eth_ratio',
         'xrp_volume_ratio', 'btc_xrp_ratio',
         'ada_volume_ratio', 'btc_ada_ratio',
         'altcoin_volume_strength'
     ]
-    
-    # Add lagged positive features
-    lag_positive_features = [col for col in X.columns if any(f'{feature}_lag_' in col for feature in ['volume_ratio', 'volatility_96'])]
-    positive_features.extend(lag_positive_features)
     
     # Add polynomial features to appropriate categories
     poly_features = [col for col in X.columns if col.endswith('_squared') or col.endswith('_cubed')]
@@ -244,11 +250,7 @@ def main():
     X = df[feature_cols]
     y = df['target']
     
-    print(f"\nOriginal feature columns (DERIVATIVES ONLY): {[col for col in feature_cols if not col.endswith('_lag_')]}")
-    
-    # Count lagged features
-    lagged_features = [col for col in feature_cols if col.endswith('_lag_')]
-    print(f"Lagged features added: {len(lagged_features)} features with 96-hour lookback window")
+    print(f"\nOriginal feature columns (DERIVATIVES ONLY): {feature_cols}")
     
     # Add polynomial features (squared and cubed)
     X_with_poly = add_polynomial_features(X)
@@ -264,13 +266,10 @@ def main():
     print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION):")
     for i in range(2):
         print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        # Show only non-lagged features for clarity
-        non_lag_features = [col for col in all_feature_cols if not col.endswith('_lag_')]
-        for feature in non_lag_features[:10]:  # Show first 10 non-lagged features
+        for feature in all_feature_cols:
             if feature in X_with_poly.columns:
                 value = X_with_poly.iloc[i][feature]
                 print(f"  {feature}: {value:.6f}")
-        print(f"  ... and {len([col for col in all_feature_cols if col.endswith('_lag_')])} lagged features")
     
     # Normalize features
     X_normalized = normalize_features(X_with_poly)
@@ -279,13 +278,10 @@ def main():
     print(f"\nFirst 2 hours of features (AFTER NORMALIZATION):")
     for i in range(2):
         print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        # Show only non-lagged features for clarity
-        non_lag_features = [col for col in all_feature_cols if not col.endswith('_lag_')]
-        for feature in non_lag_features[:10]:  # Show first 10 non-lagged features
+        for feature in all_feature_cols:
             if feature in X_normalized.columns:
                 value = X_normalized.iloc[i][feature]
                 print(f"  {feature}: {value:.6f}")
-        print(f"  ... and {len([col for col in all_feature_cols if col.endswith('_lag_')])} lagged features")
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
