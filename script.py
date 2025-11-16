@@ -303,6 +303,13 @@ def main():
     # Update target to match lagged features (drop first 48 rows)
     y_lagged = y.iloc[48:]
     
+    # Define selected features for reporting (same as in add_lagged_features_selected)
+    selected_features_for_report = [
+        'price_change', 'volume_ratio', 'volatility_24', 'volatility_48',
+        'eth_price_change', 'xrp_price_change', 'ada_price_change',
+        'altcoin_momentum', 'macd_histogram'
+    ]
+    
     # Calculate feature counts
     original_features = len(X.columns)
     polynomial_features = len(squared_feature_cols) + len(cubed_feature_cols)
@@ -310,14 +317,13 @@ def main():
     total_features = original_features + polynomial_features + lagged_features
     
     print(f"\nLagged features added: {lagged_features} features")
-    print(f"  Selected features: {len(selected_features)} key features")
+    print(f"  Selected features: {len(selected_features_for_report)} key features")
     print(f"  Lag periods: [2, 4, 8, 12, 24, 48] hours")
     
     print(f"\nTotal features: {total_features}")
     print(f"  Original: {original_features}")
     print(f"  Polynomial: {polynomial_features}")
     print(f"  Lagged: {lagged_features}")
-    
     # Print first 2 hours of non-lagged features for clarity
     print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
