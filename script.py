@@ -369,6 +369,16 @@ def main():
             'model': RandomForestClassifier(n_estimators=1000, random_state=42),
             'params': 'n_estimators=1000, max_depth=None'
         },
+    # Initialize classification models with parameters
+    models = {
+        'Logistic Regression': {
+            'model': LogisticRegression(random_state=42, max_iter=5000),
+            'params': 'C=1.0, max_iter=5000'
+        },
+        'Random Forest': {
+            'model': RandomForestClassifier(n_estimators=1000, random_state=42),
+            'params': 'n_estimators=1000, max_depth=None'
+        },
         'Gradient Boosting': {
             'model': GradientBoostingClassifier(n_estimators=1000, learning_rate=0.05, random_state=42),
             'params': 'n_estimators=1000, learning_rate=0.05'
@@ -398,7 +408,7 @@ def main():
         # Calculate metrics
         accuracy = accuracy_score(y_test, y_pred)
         f1 = f1_score(y_test, y_pred)
-        results[name] = {'accuracy': accuracy, 'f1_score': f1}
+        results[name] = {'accuracy': accuracy, 'f1_score': f1, 'model': model, 'predictions': y_pred}
         
         print(f"{name}:")
         print(f"  Accuracy: {accuracy:.4f}")
@@ -407,6 +417,106 @@ def main():
     # Find best model by F1 score
     best_model = max(results, key=lambda x: results[x]['f1_score'])
     print(f"\nBest Model: {best_model}")
-
-if __name__ == "__main__":
-    main()
+    
+    # Backtesting simulation for Gradient Boosting
+    print("\n=== GRADIENT BOOSTING BACKTESTING SIMULATION ===")
+    
+    # Get gradient boosting model and predictions
+    gb_model = results['Gradient Boosting']['model']
+    gb_predictions = results['Gradient Boosting']['predictions']
+    
+    # Get actual prices for the test period
+    test_dates = df.iloc[-len(y_test):]['date'].values
+    test_prices = df.iloc[-len(y_test):]['close'].values
+    
+    # Initialize trading parameters
+    initial_balance = 10000.0  # $10,000 starting capital
+    balance = initial_balance
+    position = 0.0  # BTC position (0 = no position)
+    trades = []
+    
+    # Trading simulation
+    for i in range(len(gb_predictions)):
+        current_price = test_prices[i]
+        prediction = gb_predictions[i]
+        
+        # Buy signal (prediction = 1 = price will go up)
+        if prediction == 1 and position == 0:
+            # Buy with 100% of balance
+            position = balance / current_price
+            balance = 0.0
+            trades.append({
+                'date': test_dates[i],
+                'action': 'BUY',
+                'price': current_price,
+                'position': position,
+                'balance': balance
+            })
+        
+        # Sell signal (prediction = 0 = price will go down) OR last day
+        elif (prediction == 0 and position > 0) or (i == len(gb_predictions) - 1 and position > 0):
+            # Sell entire position
+            balance = position * current_price
+            trades.append({
+                'date': test_dates[i],
+                'action': 'SELL',
+                'price': current_price,
+                'position': 0.0,
+                'balance': balance
+            })
+            position = 0.0
+    
+    # Calculate final portfolio value
+    if position > 0:
+        # If still holding position at end, sell at last price
+        final_balance = position * test_prices[-1]
+    else:
+        final_balance = balance
+    
+    # Calculate performance metrics
+    total_return = (final_balance - initial_balance) / initial_balance * 100
+    buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
+    
+    # Calculate additional metrics
+    num_trades = len([t for t in trades if t['action'] in ['BUY', 'SELL']])
+    winning_trades = 0
+    total_trade_return = 0
+    
+    # Analyze individual trades
+    for i in range(0, len(trades) - 1, 2):
+        if i + 1 < len(trades):
+            buy_trade = trades[i]
+            sell_trade = trades[i + 1]
+            trade_return = (sell_trade['price'] - buy_trade['price']) / buy_trade['price'] * 100
+            total_trade_return += trade_return
+            if trade_return > 0:
+                winning_trades += 1
+    
+    avg_trade_return = total_trade_return / (num_trades // 2) if num_trades > 0 else 0
+    win_rate = (winning_trades / (num_trades // 2)) * 100 if num_trades > 0 else 0
+    
+    print(f"\nTrading Simulation Results:")
+    print(f"  Initial Balance: ${initial_balance:,.2f}")
+    print(f"  Final Balance: ${final_balance:,.2f}")
+    print(f"  Total Return: {total_return:+.2f}%")
+    print(f"  Buy & Hold Return: {buy_hold_return:+.2f}%")
+    print(f"  Number of Trades: {num_trades}")
+    print(f"  Win Rate: {win_rate:.1f}%")
+    print(f"  Average Trade Return: {avg_trade_return:+.2f}%")
+    
+    # Compare strategy vs buy & hold
+    if total_return > buy_hold_return:
+        outperformance = total_return - buy_hold_return
+        print(f"  Strategy Outperformance: +{outperformance:.2f}% vs Buy & Hold")
+    else:
+        underperformance = buy_hold_return - total_return
+        print(f"  Strategy Underperformance: -{underperformance:.2f}% vs Buy & Hold")
+    
+    # Show first few trades for transparency
+    print(f"\nFirst 5 Trades:")
+    for i, trade in enumerate(trades[:10]):
+        print(f"  {trade['date']}: {trade['action']} at ${trade['price']:,.2f}")
+        if i >= 9:
+            break
+    
+    print("\n=== BACKTESTING COMPLETE ===")
