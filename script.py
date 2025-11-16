@@ -360,15 +360,6 @@ def main():
     X_test_scaled = scaler.transform(X_test)
     
     # Initialize classification models with parameters
-    models = {
-        'Logistic Regression': {
-            'model': LogisticRegression(random_state=42, max_iter=5000),
-            'params': 'C=1.0, max_iter=5000'
-        },
-        'Random Forest': {
-            'model': RandomForestClassifier(n_estimators=1000, random_state=42),
-            'params': 'n_estimators=1000, max_depth=None'
-        },
     # Initialize classification models with parameters
     models = {
         'Logistic Regression': {
