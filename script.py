@@ -110,6 +110,20 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     df['altcoin_momentum'] = (df['eth_price_change'] + df['xrp_price_change'] + df['ada_price_change']) / 3
     df['altcoin_volume_strength'] = (df['eth_volume_ratio'] + df['xrp_volume_ratio'] + df['ada_volume_ratio']) / 3
     
+    # Add lagged features with 96-hour lookback window
+    lag_periods = [1, 4, 12, 24, 48, 96]  # 1h, 4h, 12h, 24h, 48h, 96h lags
+    
+    # Key features to create lags for
+    lag_features = [
+        'price_change', 'volume_ratio', 'volatility_96',
+        'eth_price_change', 'xrp_price_change', 'ada_price_change',
+        'altcoin_momentum'
+    ]
+    
+    for feature in lag_features:
+        for lag in lag_periods:
+            df[f'{feature}_lag_{lag}'] = df[feature].shift(lag)
+    
     # Target: Next hour price direction (1 = up, 0 = down)
     df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
     
@@ -153,6 +167,10 @@ def normalize_features(X):
         'altcoin_momentum'
     ]
     
+    # Add lagged negative features
+    lag_negative_features = [col for col in X.columns if any(f'{feature}_lag_' in col for feature in negative_features)]
+    negative_features.extend(lag_negative_features)
+    
     # Features that are always positive (normalize to [0, 1])
     positive_features = [
         'high_low_ratio', 'close_open_ratio',
@@ -164,6 +182,10 @@ def normalize_features(X):
         'ada_volume_ratio', 'btc_ada_ratio',
         'altcoin_volume_strength'
     ]
+    
+    # Add lagged positive features
+    lag_positive_features = [col for col in X.columns if any(f'{feature}_lag_' in col for feature in ['volume_ratio', 'volatility_96'])]
+    positive_features.extend(lag_positive_features)
     
     # Add polynomial features to appropriate categories
     poly_features = [col for col in X.columns if col.endswith('_squared') or col.endswith('_cubed')]
@@ -222,7 +244,11 @@ def main():
     X = df[feature_cols]
     y = df['target']
     
-    print(f"\nOriginal feature columns (DERIVATIVES ONLY): {feature_cols}")
+    print(f"\nOriginal feature columns (DERIVATIVES ONLY): {[col for col in feature_cols if not col.endswith('_lag_')]}")
+    
+    # Count lagged features
+    lagged_features = [col for col in feature_cols if col.endswith('_lag_')]
+    print(f"Lagged features added: {len(lagged_features)} features with 96-hour lookback window")
     
     # Add polynomial features (squared and cubed)
     X_with_poly = add_polynomial_features(X)
@@ -238,10 +264,13 @@ def main():
     print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION):")
     for i in range(2):
         print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        for feature in all_feature_cols:
+        # Show only non-lagged features for clarity
+        non_lag_features = [col for col in all_feature_cols if not col.endswith('_lag_')]
+        for feature in non_lag_features[:10]:  # Show first 10 non-lagged features
             if feature in X_with_poly.columns:
                 value = X_with_poly.iloc[i][feature]
                 print(f"  {feature}: {value:.6f}")
+        print(f"  ... and {len([col for col in all_feature_cols if col.endswith('_lag_')])} lagged features")
     
     # Normalize features
     X_normalized = normalize_features(X_with_poly)
@@ -250,10 +279,13 @@ def main():
     print(f"\nFirst 2 hours of features (AFTER NORMALIZATION):")
     for i in range(2):
         print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        for feature in all_feature_cols:
+        # Show only non-lagged features for clarity
+        non_lag_features = [col for col in all_feature_cols if not col.endswith('_lag_')]
+        for feature in non_lag_features[:10]:  # Show first 10 non-lagged features
             if feature in X_normalized.columns:
                 value = X_normalized.iloc[i][feature]
                 print(f"  {feature}: {value:.6f}")
+        print(f"  ... and {len([col for col in all_feature_cols if col.endswith('_lag_')])} lagged features")
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
