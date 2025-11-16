@@ -555,6 +555,9 @@ HTML_TEMPLATE = """
                         // Parse markdown for assistant messages
                         const htmlContent = marked.parse(msg.content);
                         addMessage('🤖 DeepSeek: ' + htmlContent, 'assistant', false);
+                    } else if (msg.role === 'system') {
+                        // Restore system messages
+                        addMessage(msg.content, 'success', false);
                     }
                 });
             } catch (e) {
@@ -727,13 +730,25 @@ HTML_TEMPLATE = """
             msg.dataset.type = type; // Store type for easy identification
             chatMessages.appendChild(msg);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Save system messages to chat history for DeepSeek context
+            if (saveToHistory && (type === 'success' || type === 'error')) {
+                // Remove emoji and extract text for cleaner history
+                const textContent = content.replace(/<[^>]*>/g, '').replace(/[✅❌🚀]/g, '').trim();
+                chatHistory.push({
+                    role: 'system',
+                    content: textContent
+                });
+                saveChatHistory();
+            }
+            
             return msg; // Return the element so we can remove it later
         }
         
         function saveChatHistory() {
-            // Limit to last 20 messages to avoid localStorage limits
-            if (chatHistory.length > 20) {
-                chatHistory = chatHistory.slice(-20);
+            // Limit to last 30 messages to avoid localStorage limits and token limits
+            if (chatHistory.length > 30) {
+                chatHistory = chatHistory.slice(-30);
             }
             localStorage.setItem('primateChatHistory', JSON.stringify(chatHistory));
         }
@@ -1010,13 +1025,18 @@ def call_deepseek_api(user_message, file_contents, script_output_text, chat_hist
     system_prompt = """You are a coding agent with the ability to create and edit files.
 
 IMPORTANT WORKFLOW:
-1. Before making ANY changes, explain what you plan to do
-2. Ask the user for confirmation (e.g., "Should I proceed with these changes?")
-3. If you need clarification or more information, ASK QUESTIONS - don't make assumptions
-4. Wait for the user to confirm or provide more details
-5. Only after receiving confirmation and having all needed information, provide the file changes in JSON format
+1. Before making ANY changes to files, you MUST explain what you plan to do
+2. Ask the user for explicit confirmation (e.g., "Should I proceed with these changes?")
+3. WAIT for user confirmation before providing JSON with file changes
+4. EXCEPTION: Only skip confirmation if user explicitly states "no confirmation required" or similar phrases
+5. If you need clarification or more information, ASK QUESTIONS - don't make assumptions
+6. Never assume what the user wants - always confirm before modifying files
+7. Wait for the user to confirm or provide more details
+8. Only after receiving confirmation and having all needed information, provide the file changes in JSON format
 
 You can have multi-turn conversations to gather requirements before providing code. It's better to ask questions than to make wrong assumptions.
+
+The chat history includes system messages showing file updates and deployment status - use this context to understand what has already been done.
 
 IMPORTANT: The main executable file is 'script.py' which will be run automatically. When you create or modify code, put it in script.py.
 
