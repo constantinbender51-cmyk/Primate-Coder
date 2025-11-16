@@ -360,7 +360,6 @@ def main():
     X_test_scaled = scaler.transform(X_test)
     
     # Initialize classification models with parameters
-    # Initialize classification models with parameters
     models = {
         'Logistic Regression': {
             'model': LogisticRegression(random_state=42, max_iter=5000),
@@ -427,10 +426,8 @@ def main():
         return np.mean(excess_returns) / np.std(excess_returns)
     
     def run_backtest(predictions, model_name, test_dates, test_prices, initial_balance=10000.0):
-        """Run backtesting simulation for a given model with SHORT SELLING capability"""
+        """Run backtesting simulation with SIMPLIFIED balance calculation"""
         balance = initial_balance
-        position = 0.0  # BTC position (>0 = long, <0 = short, 0 = no position)
-        trades = []
         portfolio_values = []
         returns = []
         
@@ -439,136 +436,47 @@ def main():
             current_price = test_prices[i]
             prediction = predictions[i]
             
-            # Force close any existing position from previous hour
-            if position != 0:
-                if position > 0:  # Close long position
-                    balance = position * current_price
-                    trades.append({
-                        'date': test_dates[i],
-                        'action': 'SELL',
-                        'price': current_price,
-                        'position': 0.0,
-                        'balance': balance
-                    })
-                else:  # Close short position
-                    cost_to_cover = abs(position) * current_price
-                    balance = balance - cost_to_cover
-                    trades.append({
-                        'date': test_dates[i],
-                        'action': 'COVER',
-                        'price': current_price,
-                        'position': 0.0,
-                        'balance': balance
-                    })
-                position = 0.0
-            
-            # LONG ENTRY: Prediction = 1 (price will go up) + no position
-            if prediction == 1 and position == 0:
-                # Buy with 100% of balance
-                position = balance / current_price
-                balance = 0.0
-                trades.append({
-                    'date': test_dates[i],
-                    'action': 'BUY',
-                    'price': current_price,
-                    'position': position,
-                    'balance': balance
-                })
-            
-            # SHORT ENTRY: Prediction = 0 (price will go down) + no position
-            elif prediction == 0 and position == 0:
-                # Short sell: borrow BTC, sell it, receive cash
-                btc_borrowed = balance / current_price
-                position = -btc_borrowed  # Negative position = short
-                cash_from_sale = btc_borrowed * current_price  # Cash received from selling borrowed BTC
-                balance = balance + cash_from_sale  # Original cash + sale proceeds
-                trades.append({
-                    'date': test_dates[i],
-                    'action': 'SHORT',
-                    'price': current_price,
-                    'position': position,
-                    'balance': balance
-                })
+            # SIMPLIFIED TRADING: Just calculate balance based on prediction accuracy
+            if i > 0:  # Need previous price to calculate price change
+                price_change_pct = (current_price - test_prices[i-1]) / test_prices[i-1]
+                
+                if prediction == 1:  # Predicted UP
+                    # If correct: balance increases by price change
+                    # If wrong: balance decreases by price change
+                    balance = balance * (1 + price_change_pct)
+                else:  # Predicted DOWN
+                    # If correct: balance increases when price drops
+                    # If wrong: balance decreases when price rises
+                    balance = balance * (1 - price_change_pct)
             
             # Track portfolio value at each step
-            current_portfolio_value = balance + (position * current_price)
-            portfolio_values.append(current_portfolio_value)
+            portfolio_values.append(balance)
             
             # Calculate daily returns
             if i > 0:
-                daily_return = (current_portfolio_value - portfolio_values[i-1]) / portfolio_values[i-1]
+                daily_return = (balance - portfolio_values[i-1]) / portfolio_values[i-1]
                 returns.append(daily_return)
             
             # Print detailed information for first 20 hours
             if i < 20:
                 print(f"\nHour {i+1} ({test_dates[i]}):")
                 print(f"  Price: ${current_price:,.2f}, Prediction: {prediction} ({'UP' if prediction == 1 else 'DOWN'})")
-                print(f"  Position: {position:.6f} BTC ({'LONG' if position > 0 else 'SHORT' if position < 0 else 'CASH'})")
                 print(f"  Balance: ${balance:,.2f}")
-                print(f"  Portfolio Value: ${current_portfolio_value:,.2f}")
                 
                 # Show action taken
-                if i < len(trades):
-                    last_trade = trades[-1]
-                    print(f"  Action: {last_trade['action']} {abs(last_trade['position']):.4f} BTC at ${last_trade['price']:,.2f}")
+                if i > 0:
+                    price_change_pct = (current_price - test_prices[i-1]) / test_prices[i-1]
+                    if prediction == 1:
+                        print(f"  Action: LONG - Balance updated by {price_change_pct:+.4f}")
+                    else:
+                        print(f"  Action: SHORT - Balance updated by {-price_change_pct:+.4f}")
         
         # Calculate final portfolio value
-        if position > 0:  # Long position
-            final_balance = position * test_prices[-1]
-        elif position < 0:  # Short position
-            final_balance = balance  # Remaining collateral after covering
-        else:  # No position
-            final_balance = balance
+        final_balance = balance
         
         # Calculate performance metrics
         total_return = (final_balance - initial_balance) / initial_balance * 100
         buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
-        
-        # Calculate additional metrics
-        num_trades = len([t for t in trades if t['action'] in ['BUY', 'SELL', 'SHORT', 'COVER']])
-        
-        # Analyze individual trades
-        winning_trades = 0
-        total_trade_return = 0
-        trade_pairs = []
-        
-        # Improved trade pairing logic for both long and short trades
-        long_trades = [t for t in trades if t['action'] == 'BUY']
-        short_trades = [t for t in trades if t['action'] == 'SHORT']
-        exit_trades = [t for t in trades if t['action'] in ['SELL', 'COVER']]
-        
-        # Pair consecutive trades
-        trade_sequence = []
-        for trade in trades:
-            if trade['action'] in ['BUY', 'SHORT']:
-                trade_sequence.append(('entry', trade))
-            elif trade['action'] in ['SELL', 'COVER']:
-                trade_sequence.append(('exit', trade))
-        
-        # Calculate trade returns
-        i = 0
-        while i < len(trade_sequence) - 1:
-            if trade_sequence[i][0] == 'entry' and trade_sequence[i+1][0] == 'exit':
-                entry_trade = trade_sequence[i][1]
-                exit_trade = trade_sequence[i+1][1]
-                
-                if entry_trade['action'] == 'BUY':  # Long trade
-                    trade_return = (exit_trade['price'] - entry_trade['price']) / entry_trade['price'] * 100
-                else:  # Short trade
-                    trade_return = (entry_trade['price'] - exit_trade['price']) / entry_trade['price'] * 100
-                
-                total_trade_return += trade_return
-                if trade_return > 0:
-                    winning_trades += 1
-                trade_pairs.append((entry_trade, exit_trade, trade_return))
-                i += 2
-            else:
-                i += 1
-        
-        # Calculate win rate and average trade return
-        num_completed_trades = len(trade_pairs)
-        avg_trade_return = total_trade_return / num_completed_trades if num_completed_trades > 0 else 0
-        win_rate = (winning_trades / num_completed_trades) * 100 if num_completed_trades > 0 else 0
         
         # Calculate Sharpe ratio
         sharpe_ratio = calculate_sharpe_ratio(returns) if returns else 0.0
@@ -578,12 +486,7 @@ def main():
             'final_balance': final_balance,
             'total_return': total_return,
             'buy_hold_return': buy_hold_return,
-            'num_trades': num_trades,
-            'num_completed_trades': num_completed_trades,
-            'win_rate': win_rate,
-            'avg_trade_return': avg_trade_return,
             'sharpe_ratio': sharpe_ratio,
-            'trades': trades,
             'portfolio_values': portfolio_values,
             'returns': returns
         }
@@ -611,10 +514,6 @@ def main():
         print(f"  Final Balance: ${result['final_balance']:,.2f}")
         print(f"  Total Return: {result['total_return']:+.2f}%")
         print(f"  Buy & Hold Return: {result['buy_hold_return']:+.2f}%")
-        print(f"  Number of Trades: {result['num_trades']}")
-        print(f"  Completed Trade Pairs: {result['num_completed_trades']}")
-        print(f"  Win Rate: {result['win_rate']:.1f}%")
-        print(f"  Average Trade Return: {result['avg_trade_return']:+.2f}%")
         print(f"  Sharpe Ratio: {result['sharpe_ratio']:.4f}")
         
         # Compare strategy vs buy & hold
@@ -624,22 +523,16 @@ def main():
         else:
             underperformance = result['buy_hold_return'] - result['total_return']
             print(f"  Strategy Underperformance: -{underperformance:.2f}% vs Buy & Hold")
-        
-        # Show first few trades for transparency
-        print(f"\nFirst 5 Trades:")
-        for i, trade in enumerate(result['trades'][:10]):
-            print(f"  {trade['date']}: {trade['action']} at ${trade['price']:,.2f}")
-            if i >= 9:
-                break
+    
     # Compare all models
     print("\n=== MODEL COMPARISON SUMMARY ===")
     print("\nPerformance Comparison:")
-    print(f"{'Model':<20} {'Total Return':<12} {'Sharpe Ratio':<12} {'Win Rate':<10} {'Trades':<8}")
-    print("-" * 65)
+    print(f"{'Model':<20} {'Total Return':<12} {'Sharpe Ratio':<12}")
+    print("-" * 45)
     
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
         result = backtest_results[name]
-        print(f"{name:<20} {result['total_return']:>+10.2f}% {result['sharpe_ratio']:>11.4f} {result['win_rate']:>9.1f}% {result['num_trades']:>7}")
+        print(f"{name:<20} {result['total_return']:>+10.2f}% {result['sharpe_ratio']:>11.4f}")
     
     # Find best model by Sharpe ratio
     best_sharpe_model = max(backtest_results.keys(), 
