@@ -696,6 +696,27 @@ CRITICAL - DEPENDENCY MANAGEMENT:
 - If you use packages like numpy, pandas, beautifulsoup4, selenium, pillow, opencv-python, matplotlib, scikit-learn, etc., you MUST add them to requirements.txt
 - Format: one package per line, optionally with version (e.g., "numpy==1.24.0" or just "numpy")
 
+FILE EDITING - TWO FORMATS:
+
+For SMALL files (<100 lines) or NEW files, use FULL CONTENT format:
+{
+  "filename.py": "complete file content here"
+}
+
+For LARGE files (>100 lines) with edits, use LINE RANGE format:
+{
+  "file": "script.py",
+  "operation": "replace_lines",
+  "start_line": 45,
+  "end_line": 67,
+  "content": "new code here"
+}
+
+Line range format allows you to edit specific sections without resending entire files.
+- start_line and end_line are inclusive (1-indexed)
+- All lines from start_line to end_line will be replaced with content
+- Use this for targeted edits in large files
+
 To create or edit files, include JSON objects in your response with this format:
 {
   "filename.py": "file content here",
@@ -719,8 +740,17 @@ Current files in the repository:
         "Content-Type": "application/json"
     }
     
-    # Include file contents in the user message
-    context = "\n\n".join([f"=== {name} ===\n{content}" for name, content in file_contents.items()])
+    # Include file contents in the user message with line numbers
+    context_parts = []
+    for name, content in file_contents.items():
+        lines = content.split('\n')
+        if len(lines) > 50:  # Add line numbers for larger files
+            numbered_content = '\n'.join([f"{i+1}: {line}" for i, line in enumerate(lines)])
+            context_parts.append(f"=== {name} (with line numbers) ===\n{numbered_content}")
+        else:
+            context_parts.append(f"=== {name} ===\n{content}")
+    
+    context = "\n\n".join(context_parts)
     full_message = f"{context}\n\n=== User Request ===\n{user_message}"
     
     # Build messages array with chat history
@@ -747,6 +777,32 @@ Current files in the repository:
         return data["choices"][0]["message"]["content"]
     
     raise Exception("No valid response from DeepSeek")
+
+
+def apply_line_edit(filename, start_line, end_line, new_content):
+    """Apply a line-based edit to a file."""
+    try:
+        # Get current file content from GitHub
+        current_content = get_file_from_github(filename)
+        if current_content is None:
+            raise Exception(f"File {filename} not found")
+        
+        # Split into lines
+        lines = current_content.split('\n')
+        
+        # Validate line numbers
+        if start_line < 1 or end_line > len(lines) or start_line > end_line:
+            raise Exception(f"Invalid line range: {start_line}-{end_line} (file has {len(lines)} lines)")
+        
+        # Replace lines (convert to 0-indexed)
+        new_lines = new_content.split('\n') if new_content else []
+        lines[start_line-1:end_line] = new_lines
+        
+        # Join back together
+        return '\n'.join(lines)
+    
+    except Exception as e:
+        raise Exception(f"Error applying line edit: {str(e)}")
 
 
 def extract_json_from_text(text):
@@ -913,17 +969,43 @@ def generate():
         # Update files on GitHub
         files_updated = []
         for json_obj in json_objects:
-            for filename, content in json_obj.items():
-                # Special handling for requirements.txt
-                if filename == "requirements.txt":
-                    content = merge_requirements(content)
+            # Check if this is a line-based edit or full file
+            if "operation" in json_obj and json_obj["operation"] == "replace_lines":
+                # Line-based edit
+                filename = json_obj.get("file")
+                start_line = json_obj.get("start_line")
+                end_line = json_obj.get("end_line")
+                content = json_obj.get("content", "")
                 
-                update_github_file(filename, content, f"Update {filename} via DeepSeek")
-                files_updated.append(filename)
+                if not filename or start_line is None or end_line is None:
+                    continue
+                
+                # Apply line edit
+                updated_content = apply_line_edit(filename, start_line, end_line, content)
+                
+                # Handle requirements.txt merging
+                if filename == "requirements.txt":
+                    updated_content = merge_requirements(updated_content)
+                
+                update_github_file(filename, updated_content, f"Update {filename} lines {start_line}-{end_line} via DeepSeek")
+                files_updated.append(f"{filename} (lines {start_line}-{end_line})")
                 
                 # Add to tracked files if new
                 if filename not in tracked_files:
                     tracked_files.append(filename)
+            else:
+                # Full file format
+                for filename, content in json_obj.items():
+                    # Special handling for requirements.txt
+                    if filename == "requirements.txt":
+                        content = merge_requirements(content)
+                    
+                    update_github_file(filename, content, f"Update {filename} via DeepSeek")
+                    files_updated.append(filename)
+                    
+                    # Add to tracked files if new
+                    if filename not in tracked_files:
+                        tracked_files.append(filename)
         
         return jsonify({
             "success": True,
