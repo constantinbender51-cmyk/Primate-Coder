@@ -481,7 +481,8 @@ def main():
             # EXIT SHORT: Prediction = 1 (price will go up) + short position
             elif prediction == 1 and position < 0:
                 # Cover short position (buy back BTC)
-                balance = balance + (abs(position) * current_price)
+                cost_to_cover = abs(position) * current_price
+                balance = balance - cost_to_cover  # Pay from collateral
                 trades.append({
                     'date': test_dates[i],
                     'action': 'COVER',
