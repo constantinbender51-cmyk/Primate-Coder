@@ -469,9 +469,9 @@ def main():
             # Show action taken
             if i > 0:
                 if previous_prediction == 1:
-                    print(f"  Action: LONG - Balance = (1 + {previous_price/current_price:.6f}) * previous balance")
+                    print(f"  Action: LONG - Balance = (1 + {current_price/previous_price - 1:.6f}) * previous balance")
                 else:
-                    print(f"  Action: SHORT - Balance = (1 + {previous_price/current_price:.6f}) * previous balance")
+                    print(f"  Action: SHORT - Balance = (1 - {current_price/previous_price - 1:.6f}) * previous balance")
         # Calculate final portfolio value
         final_balance = balance
         
