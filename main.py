@@ -45,37 +45,37 @@ HTML_TEMPLATE = """
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-            background: #fafafa;
+            background: #2a2a2a;
             min-height: 100vh;
             padding: 20px;
         }
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            border: 1px solid #e8e8e8;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
             display: flex;
             flex-direction: column;
             height: 90vh;
         }
         .header {
-            background: #ffffff;
-            color: #1a1a1a;
+            background: #1a1a1a;
+            color: #ffffff;
             padding: 20px 30px;
             text-align: center;
-            border-bottom: 1px solid #e8e8e8;
+            border-bottom: 1px solid #3a3a3a;
         }
         .header h1 {
             font-size: 1.5em;
             margin-bottom: 5px;
             font-weight: 500;
-            color: #1a1a1a;
+            color: #ffffff;
         }
         .header h1 .highlight {
-            color: #4a9eff;
+            color: #FF176A;
         }
         .header p {
-            color: #666666;
+            color: #888888;
             font-size: 0.85em;
             font-weight: 300;
         }
@@ -91,16 +91,16 @@ HTML_TEMPLATE = """
             min-width: 400px;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid #e8e8e8;
-            background: #ffffff;
+            border-right: 1px solid #3a3a3a;
+            background: #1a1a1a;
             overflow: hidden;
         }
         .output-header {
-            background: #ffffff;
-            color: #1a1a1a;
+            background: #1a1a1a;
+            color: #ffffff;
             padding: 15px;
             font-weight: 400;
-            border-bottom: 1px solid #e8e8e8;
+            border-bottom: 1px solid #3a3a3a;
             font-size: 0.9em;
         }
         .output-content {
@@ -110,12 +110,12 @@ HTML_TEMPLATE = """
             padding: 15px;
             font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
             font-size: 0.85em;
-            color: #4a9eff;
+            color: #FF176A;
             white-space: pre-wrap;
             word-wrap: break-word;
             min-height: 0;
-            background: #f0f0f0;
-            border: 1px solid #e8e8e8;
+            background: #0a0a0a;
+            border: 1px solid #3a3a3a;
             margin: 10px;
         }
         .chat-panel {
@@ -123,19 +123,19 @@ HTML_TEMPLATE = """
             min-width: 400px;
             display: flex;
             flex-direction: column;
-            background: #ffffff;
+            background: #1a1a1a;
             overflow: hidden;
         }
         .chat-header {
-            background: #ffffff;
+            background: #1a1a1a;
             padding: 15px;
             font-weight: 400;
-            border-bottom: 1px solid #e8e8e8;
+            border-bottom: 1px solid #3a3a3a;
             display: flex;
             justify-content: space-between;
             align-items: center;
             font-size: 0.9em;
-            color: #1a1a1a;
+            color: #ffffff;
         }
         .header-left {
             display: flex;
@@ -143,34 +143,74 @@ HTML_TEMPLATE = """
             gap: 15px;
         }
         #ttsToggle {
-            background: #ffffff;
-            color: #666666;
-            border: 1px solid #d0d0d0;
+            background: #1a1a1a;
+            color: #888888;
+            border: 1px solid #3a3a3a;
             font-size: 0.85em;
             padding: 6px 12px;
             cursor: pointer;
             transition: all 0.2s;
         }
         #ttsToggle:hover {
-            border-color: #888888;
-            color: #888888;
+            border-color: #FF176A;
+            color: #FF176A;
         }
         #ttsToggle.active {
-            background: #888888;
-            color: white;
-            border-color: #888888;
+            background: #FF176A;
+            color: #ffffff;
+            border-color: #FF176A;
+        }
+        #debugToggle {
+            background: #1a1a1a;
+            color: #888888;
+            border: 1px solid #3a3a3a;
+            font-size: 0.85em;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #debugToggle:hover {
+            border-color: #FF176A;
+            color: #FF176A;
+        }
+        #debugToggle.active {
+            background: #FF176A;
+            color: #ffffff;
+            border-color: #FF176A;
+        }
+        .debug-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #0a0a0a;
+            border: 1px solid #3a3a3a;
+            border-left: 3px solid #FF176A;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.8em;
+            color: #888888;
+            cursor: pointer;
+        }
+        .debug-info summary {
+            font-weight: 500;
+            color: #FF176A;
+            user-select: none;
+        }
+        .debug-info pre {
+            margin-top: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #ffffff;
         }
         .chat-messages {
             flex: 1;
             overflow-y: auto;
             padding: 20px;
             min-height: 0;
-            background: #ffffff;
+            background: #1a1a1a;
         }
         .message {
             margin-bottom: 15px;
             padding: 12px 15px;
-            border: 1px solid #e8e8e8;
+            border: 1px solid #3a3a3a;
             animation: fadeIn 0.3s;
             font-size: 0.9em;
             line-height: 1.6;
@@ -189,32 +229,32 @@ HTML_TEMPLATE = """
             background: #ffffff;
             color: #1a1a1a;
             margin-right: 20%;
-            border-color: #888888;
+            border-color: #3a3a3a;
         }
         .status-message {
-            background: #ffffff;
+            background: #1a1a1a;
             color: #888888;
             text-align: center;
             font-size: 0.85em;
-            border-color: #e8e8e8;
+            border-color: #3a3a3a;
             font-style: italic;
         }
         .error-message {
-            background: #fff5f5;
-            color: #666666;
-            border-color: #d0d0d0;
+            background: #2a1a1a;
+            color: #888888;
+            border-color: #3a3a3a;
             border-left-width: 3px;
         }
         .success-message {
-            background: #f8f9fa;
-            color: #666666;
-            border-color: #d0d0d0;
+            background: #1a2a1a;
+            color: #888888;
+            border-color: #3a3a3a;
             border-left-width: 3px;
         }
         .chat-input-area {
             padding: 20px;
-            background: white;
-            border-top: 1px solid #e8e8e8;
+            background: #1a1a1a;
+            border-top: 1px solid #3a3a3a;
         }
         .input-wrapper {
             display: flex;
@@ -223,37 +263,37 @@ HTML_TEMPLATE = """
         #userInput {
             flex: 1;
             padding: 12px;
-            border: 1px solid #d0d0d0;
+            border: 1px solid #3a3a3a;
             font-size: 0.9em;
             resize: vertical;
             min-height: 50px;
             font-family: inherit;
-            background: #ffffff;
-            color: #1a1a1a;
+            background: #0a0a0a;
+            color: #ffffff;
             transition: border-color 0.2s;
         }
         #userInput:focus {
             outline: none;
-            border-color: #888888;
+            border-color: #FF176A;
         }
         .btn {
             padding: 12px 24px;
-            border: 1px solid #d0d0d0;
+            border: 1px solid #3a3a3a;
             font-size: 0.9em;
             font-weight: 400;
             cursor: pointer;
             transition: all 0.2s;
-            background: #ffffff;
-            color: #1a1a1a;
+            background: #1a1a1a;
+            color: #ffffff;
         }
         .btn:hover {
-            border-color: #888888;
-            color: #888888;
+            border-color: #FF176A;
+            color: #FF176A;
         }
         .btn:disabled {
-            background: #f5f5f5;
-            color: #cccccc;
-            border-color: #e8e8e8;
+            background: #0a0a0a;
+            color: #3a3a3a;
+            border-color: #3a3a3a;
             cursor: not-allowed;
         }
         #sendBtn {
@@ -267,26 +307,26 @@ HTML_TEMPLATE = """
             color: #1a1a1a;
         }
         #sendBtn:disabled {
-            background: #e8e8e8;
-            border-color: #e8e8e8;
+            background: #3a3a3a;
+            border-color: #3a3a3a;
         }
         #newSessionBtn {
-            background: #ffffff;
-            color: #666666;
-            border-color: #d0d0d0;
+            background: #1a1a1a;
+            color: #888888;
+            border-color: #3a3a3a;
             font-size: 0.85em;
             padding: 8px 16px;
         }
         #newSessionBtn:hover {
-            border-color: #888888;
-            color: #1a1a1a;
+            border-color: #FF176A;
+            color: #FF176A;
         }
         .loading {
             display: inline-block;
             width: 12px;
             height: 12px;
-            border: 1px solid #e8e8e8;
-            border-top: 1px solid #888888;
+            border: 1px solid #3a3a3a;
+            border-top: 1px solid #FF176A;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-right: 8px;
@@ -313,6 +353,7 @@ HTML_TEMPLATE = """
                     <div class="header-left">
                         <span>💬 Chat with DeepSeek</span>
                         <button id="ttsToggle" class="btn active" onclick="toggleTTS()">🔊 TTS On</button>
+                        <button id="debugToggle" class="btn" onclick="toggleDebug()">🐛 Debug Off</button>
                     </div>
                     <button id="newSessionBtn" class="btn" onclick="startNewSession()">🔄 Start New Session</button>
                 </div>
@@ -331,6 +372,7 @@ HTML_TEMPLATE = """
         let shouldAutoScroll = true;
         let chatHistory = [];  // Client-side chat history storage
         let ttsEnabled = true; // TTS enabled by default
+        let debugMode = false; // Debug mode disabled by default
         let currentAudio = null; // Track currently playing audio
         
         // Load TTS preference from localStorage
@@ -338,6 +380,13 @@ HTML_TEMPLATE = """
         if (savedTTSPref !== null) {
             ttsEnabled = savedTTSPref === 'true';
             updateTTSButton();
+        }
+        
+        // Load Debug preference from localStorage
+        const savedDebugPref = localStorage.getItem('primateDebugEnabled');
+        if (savedDebugPref !== null) {
+            debugMode = savedDebugPref === 'true';
+            updateDebugButton();
         }
         
         // Load chat history from localStorage on page load
@@ -357,6 +406,44 @@ HTML_TEMPLATE = """
                 console.error('Error loading chat history:', e);
                 chatHistory = [];
             }
+        }
+        
+        function toggleDebug() {
+            debugMode = !debugMode;
+            localStorage.setItem('primateDebugEnabled', debugMode);
+            updateDebugButton();
+        }
+        
+        function updateDebugButton() {
+            const btn = document.getElementById('debugToggle');
+            if (debugMode) {
+                btn.textContent = '🐛 Debug On';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '🐛 Debug Off';
+                btn.classList.remove('active');
+            }
+        }
+        
+        function addDebugInfo(error, response, data) {
+            const timestamp = new Date().toLocaleTimeString();
+            const statusCode = response ? response.status : 'N/A';
+            const rawResponse = data ? JSON.stringify(data, null, 2) : 'No response data';
+            
+            return `
+                <details class="debug-info">
+                    <summary>🐛 Debug Info (click to expand)</summary>
+                    <pre>━━━━━━━━━━━━━━━━━━━━━━━━━━
+Time: ${timestamp}
+Status: ${statusCode}
+Error: ${error}
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Raw Response:
+${rawResponse}
+━━━━━━━━━━━━━━━━━━━━━━━━━━</pre>
+                </details>
+            `;
         }
         
         function toggleTTS() {
@@ -465,8 +552,10 @@ HTML_TEMPLATE = """
             
             const statusMsg = addMessage('<span class="loading"></span>Processing your request...', 'status');
             
+            let response;
+            let data;
             try {
-                const response = await fetch('/generate', {
+                response = await fetch('/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -480,10 +569,14 @@ HTML_TEMPLATE = """
                 // Remove status message
                 statusMsg.remove();
                 
-                const data = await response.json();
+                data = await response.json();
                 
                 if (data.error) {
-                    addMessage('❌ Error: ' + data.error, 'error');
+                    let errorMsg = '❌ Error: ' + data.error;
+                    if (debugMode) {
+                        errorMsg += addDebugInfo(data.error, response, data);
+                    }
+                    addMessage(errorMsg, 'error');
                 } else {
                     if (data.deepseek_response) {
                         addMessage('🤖 DeepSeek: ' + data.deepseek_response, 'assistant');
@@ -512,7 +605,11 @@ HTML_TEMPLATE = """
             } catch (error) {
                 // Remove status message on error too
                 statusMsg.remove();
-                addMessage('❌ Error: ' + error.message, 'error');
+                let errorMsg = '❌ Error: ' + error.message;
+                if (debugMode) {
+                    errorMsg += addDebugInfo(error.message, response, data);
+                }
+                addMessage(errorMsg, 'error');
             }
             
             btn.disabled = false;
@@ -684,8 +781,11 @@ def call_deepseek_api(user_message, file_contents, script_output_text, chat_hist
 IMPORTANT WORKFLOW:
 1. Before making ANY changes, explain what you plan to do
 2. Ask the user for confirmation (e.g., "Should I proceed with these changes?")
-3. Wait for the user to confirm (they might say "yes", "confirm", "go ahead", or provide modifications)
-4. Only after receiving confirmation, provide the file changes in JSON format
+3. If you need clarification or more information, ASK QUESTIONS - don't make assumptions
+4. Wait for the user to confirm or provide more details
+5. Only after receiving confirmation and having all needed information, provide the file changes in JSON format
+
+You can have multi-turn conversations to gather requirements before providing code. It's better to ask questions than to make wrong assumptions.
 
 IMPORTANT: The main executable file is 'script.py' which will be run automatically. When you create or modify code, put it in script.py.
 
@@ -696,7 +796,7 @@ CRITICAL - DEPENDENCY MANAGEMENT:
 - If you use packages like numpy, pandas, beautifulsoup4, selenium, pillow, opencv-python, matplotlib, scikit-learn, etc., you MUST add them to requirements.txt
 - Format: one package per line, optionally with version (e.g., "numpy==1.24.0" or just "numpy")
 
-FILE EDITING - TWO FORMATS:
+FILE EDITING - THREE FORMATS:
 
 For SMALL files (<100 lines) or NEW files, use FULL CONTENT format:
 {
@@ -712,10 +812,21 @@ For LARGE files (>100 lines) with edits, use LINE RANGE format:
   "content": "new code here"
 }
 
+For INSERTING code at a specific line, use INSERT format:
+{
+  "file": "script.py",
+  "operation": "insert_at_line",
+  "line": 45,
+  "content": "new code to insert"
+}
+
 Line range format allows you to edit specific sections without resending entire files.
+Insert format adds new code at specified line without replacing existing code.
 - start_line and end_line are inclusive (1-indexed)
+- line number is where content will be inserted (1-indexed)
 - All lines from start_line to end_line will be replaced with content
-- Use this for targeted edits in large files
+- Use line range for targeted edits in large files
+- Use insert for adding new code without replacing existing lines
 
 To create or edit files, include JSON objects in your response with this format:
 {
@@ -805,6 +916,32 @@ def apply_line_edit(filename, start_line, end_line, new_content):
         raise Exception(f"Error applying line edit: {str(e)}")
 
 
+def insert_at_line(filename, line_number, new_content):
+    """Insert content at a specific line in a file."""
+    try:
+        # Get current file content from GitHub
+        current_content = get_file_from_github(filename)
+        if current_content is None:
+            raise Exception(f"File {filename} not found")
+        
+        # Split into lines
+        lines = current_content.split('\n')
+        
+        # Validate line number
+        if line_number < 1 or line_number > len(lines) + 1:
+            raise Exception(f"Invalid line number: {line_number} (file has {len(lines)} lines)")
+        
+        # Insert content at line (convert to 0-indexed)
+        new_lines = new_content.split('\n') if new_content else []
+        lines[line_number-1:line_number-1] = new_lines
+        
+        # Join back together
+        return '\n'.join(lines)
+    
+    except Exception as e:
+        raise Exception(f"Error inserting at line: {str(e)}")
+
+
 def extract_json_from_text(text):
     """Extract all JSON objects from text."""
     json_objects = []
@@ -831,7 +968,7 @@ def extract_json_from_text(text):
 
 
 def remove_json_from_text(text):
-    """Remove JSON objects from text to get plain text response."""
+    """Remove JSON objects and code fences from text to get plain text response."""
     result = text
     brace_count = 0
     start_idx = -1
@@ -856,6 +993,10 @@ def remove_json_from_text(text):
     # Remove ranges in reverse order
     for start, end in reversed(ranges_to_remove):
         result = result[:start] + result[end:]
+    
+    # Remove code fences (```json, ```python, ```, etc.)
+    result = re.sub(r'```[\w]*\n?', '', result)
+    result = re.sub(r'```', '', result)
     
     return result.strip()
 
@@ -969,26 +1110,50 @@ def generate():
         # Update files on GitHub
         files_updated = []
         for json_obj in json_objects:
-            # Check if this is a line-based edit or full file
-            if "operation" in json_obj and json_obj["operation"] == "replace_lines":
-                # Line-based edit
+            # Check if this is a line-based operation
+            if "operation" in json_obj:
                 filename = json_obj.get("file")
-                start_line = json_obj.get("start_line")
-                end_line = json_obj.get("end_line")
-                content = json_obj.get("content", "")
+                operation = json_obj.get("operation")
                 
-                if not filename or start_line is None or end_line is None:
+                if not filename:
                     continue
                 
-                # Apply line edit
-                updated_content = apply_line_edit(filename, start_line, end_line, content)
-                
-                # Handle requirements.txt merging
-                if filename == "requirements.txt":
-                    updated_content = merge_requirements(updated_content)
-                
-                update_github_file(filename, updated_content, f"Update {filename} lines {start_line}-{end_line} via DeepSeek")
-                files_updated.append(f"{filename} (lines {start_line}-{end_line})")
+                if operation == "replace_lines":
+                    # Line-based edit
+                    start_line = json_obj.get("start_line")
+                    end_line = json_obj.get("end_line")
+                    content = json_obj.get("content", "")
+                    
+                    if start_line is None or end_line is None:
+                        continue
+                    
+                    # Apply line edit
+                    updated_content = apply_line_edit(filename, start_line, end_line, content)
+                    
+                    # Handle requirements.txt merging
+                    if filename == "requirements.txt":
+                        updated_content = merge_requirements(updated_content)
+                    
+                    update_github_file(filename, updated_content, f"Update {filename} lines {start_line}-{end_line} via DeepSeek")
+                    files_updated.append(f"{filename} (lines {start_line}-{end_line})")
+                    
+                elif operation == "insert_at_line":
+                    # Insert at line
+                    line_number = json_obj.get("line")
+                    content = json_obj.get("content", "")
+                    
+                    if line_number is None:
+                        continue
+                    
+                    # Apply insert
+                    updated_content = insert_at_line(filename, line_number, content)
+                    
+                    # Handle requirements.txt merging
+                    if filename == "requirements.txt":
+                        updated_content = merge_requirements(updated_content)
+                    
+                    update_github_file(filename, updated_content, f"Insert at line {line_number} in {filename} via DeepSeek")
+                    files_updated.append(f"{filename} (inserted at line {line_number})")
                 
                 # Add to tracked files if new
                 if filename not in tracked_files:
