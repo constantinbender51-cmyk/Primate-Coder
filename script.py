@@ -546,7 +546,7 @@ def main():
         
         # Print results
         print(f"\nTrading Simulation Results:")
-        print(f"  Initial Balance: ${initial_balance:,.2f}")
+        print(f"  Initial Balance: ${10000:,.2f}")
         print(f"  Final Balance: ${result['final_balance']:,.2f}")
         print(f"  Total Return: {result['total_return']:+.2f}%")
         print(f"  Buy & Hold Return: {result['buy_hold_return']:+.2f}%")
