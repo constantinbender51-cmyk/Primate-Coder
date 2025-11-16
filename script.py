@@ -1,1 +1,1 @@
-{"file": "script.py", "operation": "replace_lines", "start_line": 343, "end_line": 343, "content": "        print(f\"\\nHour {i+1} ({df.iloc[i+24]['date'].strftime('%Y-%m-%d %H:%M')}):\")"}
+{"file": "script.py", "operation": "replace_lines", "start_line": 319, "end_line": 319, "content": "    print(f\"\\nLagged features added: {lagged_features} features\")"}
