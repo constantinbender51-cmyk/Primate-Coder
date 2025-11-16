@@ -738,7 +738,7 @@ def update_github_file(filepath, content, commit_message):
     print("🟣 DEBUG — Content before encode:", type(content), repr(content))
     
     # Encode content to base64
-    content_b64 = base64.b64encode(ensure_string(content).encode('utf-8')).decode('utf-8')
+    content_b64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
     
     payload = {
         "message": commit_message,
@@ -772,14 +772,6 @@ def list_repo_files():
         print(f"Error listing repo files: {e}")
         return []
 
-def ensure_string(value):
-    """
-    If `value` is a dict → convert to JSON string.
-    If `value` is already a string → return unchanged.
-    """
-    if isinstance(value, dict):
-        return json.dumps(value)
-    return value
 
 # ==================== DEEPSEEK API ====================
 
