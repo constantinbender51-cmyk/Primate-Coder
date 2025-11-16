@@ -360,7 +360,7 @@ def main():
     X_test_scaled = scaler.transform(X_test)
     
     # Initialize classification models with parameters
-    models = {
+    # Initialize classification models with parameters
         'Logistic Regression': {
             'model': LogisticRegression(random_state=42, max_iter=5000),
             'params': 'C=1.0, max_iter=5000'
