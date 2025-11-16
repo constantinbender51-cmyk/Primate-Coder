@@ -236,6 +236,24 @@ HTML_TEMPLATE = """
             color: #ffffff;
             border-color: #FF176A;
         }
+        #debugToggle {
+            background: #1a1a1a;
+            color: #888888;
+            border: 1px solid #3a3a3a;
+            font-size: 0.85em;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #debugToggle:hover {
+            border-color: #FF176A;
+            color: #FF176A;
+        }
+        #debugToggle.active {
+            background: #FF176A;
+            color: #ffffff;
+            border-color: #FF176A;
+        }
         .debug-info {
             margin-top: 10px;
             padding: 10px;
