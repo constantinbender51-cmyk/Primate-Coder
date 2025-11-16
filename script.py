@@ -442,10 +442,11 @@ def main():
             previous_prediction = predictions[i-1]  # Use the prediction from previous hour
             
             # Calculate new balance based on previous prediction and price ratio
+            # Calculate new balance based on previous prediction and price ratio
             if previous_prediction == 1:  # Previous hour predicted UP
-                balance = balance * (1 + previous_price / current_price)
+                balance = balance * (1 + (current_price / previous_price - 1))
             else:  # Previous hour predicted DOWN
-                balance = balance * (1 + previous_price / current_price)
+                balance = balance * (1 - (current_price / previous_price - 1))
         
         # Track portfolio value at each step
         portfolio_values.append(balance)
