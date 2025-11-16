@@ -502,15 +502,16 @@ def main():
                         'price': current_price,
                         'position': 0.0,
                         'balance': balance
-                    })
                 else:  # Close short position
-                    balance = balance + (abs(position) * current_price)
+                    cost_to_cover = abs(position) * current_price
+                    balance = balance - cost_to_cover
                     trades.append({
                         'date': test_dates[i],
                         'action': 'COVER',
                         'price': current_price,
                         'position': 0.0,
                         'balance': balance
+                    })
                     })
                 position = 0.0
             
