@@ -408,118 +408,187 @@ def main():
     best_model = max(results, key=lambda x: results[x]['f1_score'])
     print(f"\nBest Model: {best_model}")
     
-    # Backtesting simulation for Gradient Boosting
-    print("\n=== GRADIENT BOOSTING BACKTESTING SIMULATION ===")
+    # Backtesting simulation for ALL models
+    print("\n=== BACKTESTING SIMULATION FOR ALL MODELS ===")
     
-    # Get gradient boosting model and predictions
-    gb_model = results['Gradient Boosting']['model']
-    gb_predictions = results['Gradient Boosting']['predictions']
-    
-    # Get actual prices for the test period (corrected data alignment)
-    # The test data starts after the lag period (12 hours) and train/test split
+    # Get test data for all models
     test_start_idx = len(y_lagged) - len(y_test) + 12  # Correct alignment
     test_dates = df.iloc[test_start_idx:test_start_idx + len(y_test)]['date'].values
     test_prices = df.iloc[test_start_idx:test_start_idx + len(y_test)]['close'].values
     
-    # Initialize trading parameters
-    initial_balance = 10000.0  # $10,000 starting capital
-    balance = initial_balance
-    position = 0.0  # BTC position (0 = no position)
-    trades = []
+    def calculate_sharpe_ratio(returns, risk_free_rate=0.0):
+        """Calculate Sharpe ratio for a series of returns"""
+        if len(returns) == 0:
+            return 0.0
+        excess_returns = np.array(returns) - risk_free_rate
+        if np.std(excess_returns) == 0:
+            return 0.0
+        return np.mean(excess_returns) / np.std(excess_returns)
     
-    # Trading simulation
-    for i in range(len(gb_predictions)):
-        current_price = test_prices[i]
-        prediction = gb_predictions[i]
+    def run_backtest(predictions, model_name, test_dates, test_prices, initial_balance=10000.0):
+        """Run backtesting simulation for a given model"""
+        balance = initial_balance
+        position = 0.0  # BTC position (0 = no position)
+        trades = []
+        portfolio_values = []
+        returns = []
         
-        # Buy signal (prediction = 1 = price will go up)
-        if prediction == 1 and position == 0:
-            # Buy with 100% of balance
-            position = balance / current_price
-            balance = 0.0
-            trades.append({
-                'date': test_dates[i],
-                'action': 'BUY',
-                'price': current_price,
-                'position': position,
-                'balance': balance
-            })
+        # Trading simulation
+        for i in range(len(predictions)):
+            current_price = test_prices[i]
+            prediction = predictions[i]
+            
+            # Buy signal (prediction = 1 = price will go up)
+            if prediction == 1 and position == 0:
+                # Buy with 100% of balance
+                position = balance / current_price
+                balance = 0.0
+                trades.append({
+                    'date': test_dates[i],
+                    'action': 'BUY',
+                    'price': current_price,
+                    'position': position,
+                    'balance': balance
+                })
+            
+            # Sell signal (prediction = 0 = price will go down) OR last day
+            elif (prediction == 0 and position > 0) or (i == len(predictions) - 1 and position > 0):
+                # Sell entire position
+                balance = position * current_price
+                trades.append({
+                    'date': test_dates[i],
+                    'action': 'SELL',
+                    'price': current_price,
+                    'position': 0.0,
+                    'balance': balance
+                })
+                position = 0.0
+            
+            # Track portfolio value at each step
+            current_portfolio_value = balance + (position * current_price)
+            portfolio_values.append(current_portfolio_value)
+            
+            # Calculate daily returns
+            if i > 0:
+                daily_return = (current_portfolio_value - portfolio_values[i-1]) / portfolio_values[i-1]
+                returns.append(daily_return)
         
-        # Sell signal (prediction = 0 = price will go down) OR last day
-        elif (prediction == 0 and position > 0) or (i == len(gb_predictions) - 1 and position > 0):
-            # Sell entire position
-            balance = position * current_price
-            trades.append({
-                'date': test_dates[i],
-                'action': 'SELL',
-                'price': current_price,
-                'position': 0.0,
-                'balance': balance
-            })
-            position = 0.0
+        # Calculate final portfolio value
+        if position > 0:
+            final_balance = position * test_prices[-1]
+        else:
+            final_balance = balance
+        
+        # Calculate performance metrics
+        total_return = (final_balance - initial_balance) / initial_balance * 100
+        buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
+        
+        # Calculate additional metrics
+        num_trades = len([t for t in trades if t['action'] in ['BUY', 'SELL']])
+        
+        # Analyze individual trades
+        winning_trades = 0
+        total_trade_return = 0
+        trade_pairs = []
+        
+        # Improved trade pairing logic
+        buy_trades = [t for t in trades if t['action'] == 'BUY']
+        sell_trades = [t for t in trades if t['action'] == 'SELL']
+        
+        # Pair consecutive BUY/SELL trades
+        for i in range(min(len(buy_trades), len(sell_trades))):
+            buy_trade = buy_trades[i]
+            sell_trade = sell_trades[i]
+            trade_return = (sell_trade['price'] - buy_trade['price']) / buy_trade['price'] * 100
+            total_trade_return += trade_return
+            if trade_return > 0:
+                winning_trades += 1
+            trade_pairs.append((buy_trade, sell_trade, trade_return))
+        
+        # Calculate win rate and average trade return
+        num_completed_trades = len(trade_pairs)
+        avg_trade_return = total_trade_return / num_completed_trades if num_completed_trades > 0 else 0
+        win_rate = (winning_trades / num_completed_trades) * 100 if num_completed_trades > 0 else 0
+        
+        # Calculate Sharpe ratio
+        sharpe_ratio = calculate_sharpe_ratio(returns) if returns else 0.0
+        
+        return {
+            'model_name': model_name,
+            'final_balance': final_balance,
+            'total_return': total_return,
+            'buy_hold_return': buy_hold_return,
+            'num_trades': num_trades,
+            'num_completed_trades': num_completed_trades,
+            'win_rate': win_rate,
+            'avg_trade_return': avg_trade_return,
+            'sharpe_ratio': sharpe_ratio,
+            'trades': trades,
+            'portfolio_values': portfolio_values,
+            'returns': returns
+        }
     
-    # Calculate final portfolio value
-    if position > 0:
-        # If still holding position at end, sell at last price
-        final_balance = position * test_prices[-1]
-    else:
-        final_balance = balance
+    # Run backtest for all models
+    backtest_results = {}
     
-    # Calculate performance metrics
-    total_return = (final_balance - initial_balance) / initial_balance * 100
-    buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
+    for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
+        print(f"\n=== {name.upper()} BACKTESTING SIMULATION ===")
+        
+        # Get model predictions
+        if name == 'Logistic Regression':
+            predictions = results[name]['predictions']
+        else:
+            predictions = results[name]['predictions']
+        
+        # Run backtest
+        result = run_backtest(predictions, name, test_dates, test_prices)
+        backtest_results[name] = result
+        
+        # Print results
+        print(f"\nTrading Simulation Results:")
+        print(f"  Initial Balance: ${initial_balance:,.2f}")
+        print(f"  Final Balance: ${result['final_balance']:,.2f}")
+        print(f"  Total Return: {result['total_return']:+.2f}%")
+        print(f"  Buy & Hold Return: {result['buy_hold_return']:+.2f}%")
+        print(f"  Number of Trades: {result['num_trades']}")
+        print(f"  Completed Trade Pairs: {result['num_completed_trades']}")
+        print(f"  Win Rate: {result['win_rate']:.1f}%")
+        print(f"  Average Trade Return: {result['avg_trade_return']:+.2f}%")
+        print(f"  Sharpe Ratio: {result['sharpe_ratio']:.4f}")
+        
+        # Compare strategy vs buy & hold
+        if result['total_return'] > result['buy_hold_return']:
+            outperformance = result['total_return'] - result['buy_hold_return']
+            print(f"  Strategy Outperformance: +{outperformance:.2f}% vs Buy & Hold")
+        else:
+            underperformance = result['buy_hold_return'] - result['total_return']
+            print(f"  Strategy Underperformance: -{underperformance:.2f}% vs Buy & Hold")
+        
+        # Show first few trades for transparency
+        print(f"\nFirst 5 Trades:")
+        for i, trade in enumerate(result['trades'][:10]):
+            print(f"  {trade['date']}: {trade['action']} at ${trade['price']:,.2f}")
+            if i >= 9:
+                break
     
-    # Calculate additional metrics
-    num_trades = len([t for t in trades if t['action'] in ['BUY', 'SELL']])
+    # Compare all models
+    print("\n=== MODEL COMPARISON SUMMARY ===")
+    print("\nPerformance Comparison:")
+    print(f"{'Model':<20} {'Total Return':<12} {'Sharpe Ratio':<12} {'Win Rate':<10} {'Trades':<8}")
+    print("-" * 65)
     
-    # Analyze individual trades with improved logic
-    winning_trades = 0
-    total_trade_return = 0
-    trade_pairs = []
+    for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
+        result = backtest_results[name]
+        print(f"{name:<20} {result['total_return']:>+10.2f}% {result['sharpe_ratio']:>11.4f} {result['win_rate']:>9.1f}% {result['num_trades']:>7}")
     
-    # Improved trade pairing logic
-    buy_trades = [t for t in trades if t['action'] == 'BUY']
-    sell_trades = [t for t in trades if t['action'] == 'SELL']
+    # Find best model by Sharpe ratio
+    best_sharpe_model = max(backtest_results.keys(), 
+                           key=lambda x: backtest_results[x]['sharpe_ratio'])
+    best_return_model = max(backtest_results.keys(), 
+                           key=lambda x: backtest_results[x]['total_return'])
     
-    # Pair consecutive BUY/SELL trades
-    for i in range(min(len(buy_trades), len(sell_trades))):
-        buy_trade = buy_trades[i]
-        sell_trade = sell_trades[i]
-        trade_return = (sell_trade['price'] - buy_trade['price']) / buy_trade['price'] * 100
-        total_trade_return += trade_return
-        if trade_return > 0:
-            winning_trades += 1
-        trade_pairs.append((buy_trade, sell_trade, trade_return))
-    
-    # Calculate win rate and average trade return
-    num_completed_trades = len(trade_pairs)
-    avg_trade_return = total_trade_return / num_completed_trades if num_completed_trades > 0 else 0
-    win_rate = (winning_trades / num_completed_trades) * 100 if num_completed_trades > 0 else 0
-    
-    print(f"\nTrading Simulation Results:")
-    print(f"  Initial Balance: ${initial_balance:,.2f}")
-    print(f"  Final Balance: ${final_balance:,.2f}")
-    print(f"  Total Return: {total_return:+.2f}%")
-    print(f"  Buy & Hold Return: {buy_hold_return:+.2f}%")
-    print(f"  Number of Trades: {num_trades}")
-    print(f"  Completed Trade Pairs: {num_completed_trades}")
-    print(f"  Win Rate: {win_rate:.1f}%")
-    print(f"  Average Trade Return: {avg_trade_return:+.2f}%")
-    
-    # Compare strategy vs buy & hold
-    if total_return > buy_hold_return:
-        outperformance = total_return - buy_hold_return
-        print(f"  Strategy Outperformance: +{outperformance:.2f}% vs Buy & Hold")
-    else:
-        underperformance = buy_hold_return - total_return
-        print(f"  Strategy Underperformance: -{underperformance:.2f}% vs Buy & Hold")
-    
-    # Show first few trades for transparency
-    print(f"\nFirst 5 Trades:")
-    for i, trade in enumerate(trades[:10]):
-        print(f"  {trade['date']}: {trade['action']} at ${trade['price']:,.2f}")
-        if i >= 9:
-            break
+    print(f"\nBest Model by Sharpe Ratio: {best_sharpe_model} ({backtest_results[best_sharpe_model]['sharpe_ratio']:.4f})")
+    print(f"Best Model by Total Return: {best_return_model} ({backtest_results[best_return_model]['total_return']:+.2f}%)")
     
     print("\n=== BACKTESTING COMPLETE ===")
 
