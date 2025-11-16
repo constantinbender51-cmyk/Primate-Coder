@@ -1,1 +1,1 @@
-{"file": "script.py", "operation": "replace_lines", "start_line": 198, "end_line": 198, "content": "    X_lagged = X_lagged.iloc[24:]"}
+{"file": "script.py", "operation": "replace_lines", "start_line": 304, "end_line": 304, "content": "    y_lagged = y.iloc[24:]"}
