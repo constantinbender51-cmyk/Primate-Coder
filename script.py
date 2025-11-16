@@ -10,7 +10,7 @@ import warnings
 import time
 warnings.filterwarnings('ignore')
 
-def fetch_crypto_data_chunked(symbol, hours_to_fetch=5000):
+def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500):
     """Fetch OHLCV data for any cryptocurrency from Binance using chunking - HOURLY DATA"""
     client = Spot()
     
@@ -172,18 +172,18 @@ def add_polynomial_features(X):
     return X_poly
 
 def add_lagged_features_selected(X):
-    """Add lagged versions of SELECTED features with specific periods: [1, 3, 12, 24] hours"""
+    """Add lagged versions of SELECTED features with specific periods: [1, 3, 12] hours"""
     X_lagged = X.copy()
     
-    # Selected features for lagging
+    # Selected features for lagging - added price_change and price_vs_sma24
     selected_features = [
-        'price_change', 'volume_ratio', 'volatility_24', 'volatility_48',
+        'price_change', 'price_vs_sma24', 'volume_ratio', 'volatility_24', 'volatility_48',
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
         'altcoin_momentum', 'macd_histogram'
     ]
     
-    # Lag periods
-    lag_periods = [1, 3, 12, 24]
+    # Lag periods - removed 24
+    lag_periods = [1, 3, 12]
     
     # Add lagged features for selected features
     lagged_features_added = []
@@ -194,8 +194,8 @@ def add_lagged_features_selected(X):
                 X_lagged[lagged_feature_name] = X[feature].shift(lag)
                 lagged_features_added.append(lagged_feature_name)
     
-    # Drop rows with NaN values created by lagging (drop first 24 rows - maximum lag)
-    X_lagged = X_lagged.iloc[24:]
+    # Drop rows with NaN values created by lagging (drop first 12 rows - maximum lag)
+    X_lagged = X_lagged.iloc[12:]
     
     return X_lagged, lagged_features_added
 
@@ -256,18 +256,18 @@ def normalize_features(X):
 
 def main():
     # Fetch Bitcoin data
-    print("Fetching 5,000 hours of Bitcoin data...")
-    btc_df = fetch_crypto_data_chunked('BTCUSDT', 5000)  # Changed to 5,000 hours
+    print("Fetching 2,500 hours of Bitcoin data...")
+    btc_df = fetch_crypto_data_chunked('BTCUSDT', 2500)  # Changed to 2,500 hours
     
     # Fetch altcoin data
     print("\nFetching Ethereum data...")
-    eth_df = fetch_crypto_data_chunked('ETHUSDT', 5000)  # Changed to 5,000 hours
+    eth_df = fetch_crypto_data_chunked('ETHUSDT', 2500)  # Changed to 2,500 hours
     
     print("\nFetching Ripple data...")
-    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 5000)  # Changed to 5,000 hours
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 2500)  # Changed to 2,500 hours
     
     print("\nFetching Cardano data...")
-    ada_df = fetch_crypto_data_chunked('ADAUSDT', 5000)  # Changed to 5,000 hours
+    ada_df = fetch_crypto_data_chunked('ADAUSDT', 2500)  # Changed to 2,500 hours
     
     # Create features with altcoin data
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
@@ -300,12 +300,12 @@ def main():
     # Add lagged features for SELECTED features with specific periods
     X_with_lags, lagged_features_added = add_lagged_features_selected(X_with_poly)
     
-    # Update target to match lagged features (drop first 24 rows - maximum lag)
-    y_lagged = y.iloc[24:]
+    # Update target to match lagged features (drop first 12 rows - maximum lag)
+    y_lagged = y.iloc[12:]
     
     # Define selected features for reporting (same as in add_lagged_features_selected)
     selected_features_for_report = [
-        'price_change', 'volume_ratio', 'volatility_24', 'volatility_48',
+        'price_change', 'price_vs_sma24', 'volume_ratio', 'volatility_24', 'volatility_48',
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
         'altcoin_momentum', 'macd_histogram'
     ]
@@ -318,7 +318,7 @@ def main():
     
     print(f"\nLagged features added: {lagged_features} features")
     print(f"  Selected features: {len(selected_features_for_report)} key features")
-    print(f"  Lag periods: [1, 3, 12, 24] hours")
+    print(f"  Lag periods: [1, 3, 12] hours")
     
     print(f"\nTotal features: {total_features}")
     print(f"  Original: {original_features}")
@@ -328,7 +328,7 @@ def main():
     # Print first 2 hours of non-lagged features for clarity
     print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
-        print(f"\nHour {i+1} ({df.iloc[i+24]['date'].strftime('%Y-%m-%d %H:%M')}):")
+        print(f"\nHour {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
         for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_with_lags.columns:
                 value = X_with_lags.iloc[i][feature]
@@ -340,7 +340,7 @@ def main():
     # Print first 2 hours of normalized features
     print(f"\nFirst 2 hours of features (AFTER NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
-        print(f"\nHour {i+1} ({df.iloc[i+24]['date'].strftime('%Y-%m-%d %H:%M')}):")
+        print(f"\nHour {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
         for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_normalized.columns:
                 value = X_normalized.iloc[i][feature]
@@ -366,12 +366,12 @@ def main():
             'params': 'C=1.0, max_iter=5000'
         },
         'Random Forest': {
-            'model': RandomForestClassifier(n_estimators=1000, random_state=42),
-            'params': 'n_estimators=1000, max_depth=None'
+            'model': RandomForestClassifier(n_estimators=700, random_state=42),  # Changed to 700
+            'params': 'n_estimators=700, max_depth=None'
         },
         'Gradient Boosting': {
-            'model': GradientBoostingClassifier(n_estimators=1000, learning_rate=0.05, random_state=42),
-            'params': 'n_estimators=1000, learning_rate=0.05'
+            'model': GradientBoostingClassifier(n_estimators=700, learning_rate=0.05, random_state=42),  # Changed to 700
+            'params': 'n_estimators=700, learning_rate=0.05'
         }
     }
     
@@ -415,8 +415,9 @@ def main():
     gb_model = results['Gradient Boosting']['model']
     gb_predictions = results['Gradient Boosting']['predictions']
     
-    # Get actual prices for the test period (adjust for lagged data)
-    test_start_idx = len(df) - len(y_test) - 24  # Account for 24-hour lag
+    # Get actual prices for the test period (corrected data alignment)
+    # The test data starts after the lag period (12 hours) and train/test split
+    test_start_idx = len(y_lagged) - len(y_test) + 12  # Correct alignment
     test_dates = df.iloc[test_start_idx:test_start_idx + len(y_test)]['date'].values
     test_prices = df.iloc[test_start_idx:test_start_idx + len(y_test)]['close'].values
     
@@ -471,24 +472,24 @@ def main():
     # Calculate additional metrics
     num_trades = len([t for t in trades if t['action'] in ['BUY', 'SELL']])
     
-    # Analyze individual trades
+    # Analyze individual trades with improved logic
     winning_trades = 0
     total_trade_return = 0
     trade_pairs = []
     
-    # Pair BUY and SELL trades
-    for i in range(len(trades)):
-        if trades[i]['action'] == 'BUY':
-            for j in range(i + 1, len(trades)):
-                if trades[j]['action'] == 'SELL':
-                    buy_price = trades[i]['price']
-                    sell_price = trades[j]['price']
-                    trade_return = (sell_price - buy_price) / buy_price * 100
-                    total_trade_return += trade_return
-                    if trade_return > 0:
-                        winning_trades += 1
-                    trade_pairs.append((trades[i], trades[j], trade_return))
-                    break
+    # Improved trade pairing logic
+    buy_trades = [t for t in trades if t['action'] == 'BUY']
+    sell_trades = [t for t in trades if t['action'] == 'SELL']
+    
+    # Pair consecutive BUY/SELL trades
+    for i in range(min(len(buy_trades), len(sell_trades))):
+        buy_trade = buy_trades[i]
+        sell_trade = sell_trades[i]
+        trade_return = (sell_trade['price'] - buy_trade['price']) / buy_trade['price'] * 100
+        total_trade_return += trade_return
+        if trade_return > 0:
+            winning_trades += 1
+        trade_pairs.append((buy_trade, sell_trade, trade_return))
     
     # Calculate win rate and average trade return
     num_completed_trades = len(trade_pairs)
