@@ -928,6 +928,12 @@ def apply_line_edit(filename, start_line, end_line, new_content):
 
 def insert_at_line(filename, line_number, new_content):
     """Insert content at a specific line in a file."""
+    print(f"🔍 apply_line_edit DEBUG:")
+    print(f"   filename: {filename}")
+    print(f"   start_line: {start_line} (type: {type(start_line)})")
+    print(f"   end_line: {end_line} (type: {type(end_line)})")
+    print(f"   new_content length: {len(new_content) if new_content else 0}")
+    print(f"   new_content preview: {repr(new_content[:100]) if new_content else 'None'}")
     try:
         # Get current file content from GitHub
         current_content = get_file_from_github(filename)
@@ -940,7 +946,10 @@ def insert_at_line(filename, line_number, new_content):
         # Validate line number
         if line_number < 1 or line_number > len(lines) + 1:
             raise Exception(f"Invalid line number: {line_number} (file has {len(lines)} lines)")
-        
+
+        print(f"✂️ Line operation:")
+        print(f"   Replacing lines {start_line}-{end_line} with {len(new_lines)} new lines")
+        print(f"   Original lines being replaced: {lines[start_line-1:end_line] if start_line-1 < len(lines) else 'OUT_OF_RANGE'}")
         # Insert content at line (convert to 0-indexed)
         new_lines = new_content.split('\n') if new_content else []
         lines[line_number-1:line_number-1] = new_lines
