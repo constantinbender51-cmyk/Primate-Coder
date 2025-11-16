@@ -1144,7 +1144,9 @@ def generate():
                 print("✗ 'operation' key NOT found")
         
             # Check if this is a line-based operation
-            if "operation" in json_obj:
+    
+            if json_obj.get("operation") is not None:
+    
                 filename = json_obj.get("file")
                 operation = json_obj.get("operation")
                 
