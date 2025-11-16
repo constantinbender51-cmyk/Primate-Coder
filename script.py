@@ -502,6 +502,7 @@ def main():
                         'price': current_price,
                         'position': 0.0,
                         'balance': balance
+                    })
                 else:  # Close short position
                     cost_to_cover = abs(position) * current_price
                     balance = balance - cost_to_cover
@@ -512,7 +513,6 @@ def main():
                         'position': 0.0,
                         'balance': balance
                     })
-                    })
                 position = 0.0
             
             # Track portfolio value at each step
@@ -522,6 +522,8 @@ def main():
             # Calculate daily returns
             if i > 0:
                 daily_return = (current_portfolio_value - portfolio_values[i-1]) / portfolio_values[i-1]
+                returns.append(daily_return)
+        
         # Calculate final portfolio value
         if position > 0:  # Long position
             final_balance = position * test_prices[-1]
@@ -529,7 +531,6 @@ def main():
             final_balance = balance  # Remaining collateral after covering
         else:  # No position
             final_balance = balance
-        else:  # No position
             final_balance = balance
         
         # Calculate performance metrics
