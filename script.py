@@ -361,6 +361,7 @@ def main():
     
     # Initialize classification models with parameters
     # Initialize classification models with parameters
+    models = {
         'Logistic Regression': {
             'model': LogisticRegression(random_state=42, max_iter=5000),
             'params': 'C=1.0, max_iter=5000'
