@@ -270,6 +270,7 @@ def main(holding_period=1):
     ada_df = fetch_crypto_data_chunked('ADAUSDT', 2500)  # Changed to 2,500 hours
     
     # Create features with altcoin data
+    df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period)
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
     
     # Dataset information
