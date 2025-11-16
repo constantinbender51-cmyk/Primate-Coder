@@ -37,7 +37,6 @@ HTML_TEMPLATE = """
 <html>
 <head>
     <title>Primate Coder</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
     <style>
         * {
             margin: 0;
