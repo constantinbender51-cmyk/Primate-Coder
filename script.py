@@ -483,8 +483,8 @@ def main():
                     trade_pairs.append((trades[i], trades[j]))
                     break
     
-    for buy_trade, sell_trade in trade_pairs:
-        trade_return = (sell_trade['price'] - buy_trade['price']) / buy_trade['price'] * 100
+    avg_trade_return = total_trade_return / len(trade_pairs) if trade_pairs else 0
+    win_rate = (winning_trades / len(trade_pairs)) * 100 if trade_pairs else 0
         total_trade_return += trade_return
         if trade_return > 0:
             winning_trades += 1
