@@ -318,7 +318,7 @@ def main():
     
     print(f"\nLagged features added: {lagged_features} features")
     print(f"  Selected features: {len(selected_features_for_report)} key features")
-    print(f"  Lag periods: [1, 3, 12] hours")
+    print(f"  Lag periods: [1, 3, 12, 24] hours")
     
     print(f"\nTotal features: {total_features}")
     print(f"  Original: {original_features}")
