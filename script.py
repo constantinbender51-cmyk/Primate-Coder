@@ -375,7 +375,7 @@ def main(holding_period=1):
             'params': 'n_estimators=700, learning_rate=0.05'
         }
     }
-    
+    print(f"\nModel Hyperparameters (Holding Period: {holding_period} hours):")
     # Print model hyperparameters
     print(f"\nModel Hyperparameters:")
     for name, model_info in models.items():
