@@ -118,6 +118,82 @@ HTML_TEMPLATE = """
             border: 1px solid #3a3a3a;
             margin: 10px;
         }
+        .debug-console {
+            display: none;
+            flex-direction: column;
+            height: 40%;
+            border-top: 1px solid #3a3a3a;
+            background: #0a0a0a;
+        }
+        .debug-console.active {
+            display: flex;
+        }
+        .debug-header {
+            background: #1a1a1a;
+            color: #FF176A;
+            padding: 10px 15px;
+            font-weight: 500;
+            border-bottom: 1px solid #3a3a3a;
+            font-size: 0.85em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .debug-controls {
+            display: flex;
+            gap: 10px;
+        }
+        .debug-controls button {
+            background: #1a1a1a;
+            color: #888888;
+            border: 1px solid #3a3a3a;
+            padding: 4px 10px;
+            font-size: 0.75em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .debug-controls button:hover {
+            border-color: #FF176A;
+            color: #FF176A;
+        }
+        .debug-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 15px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.75em;
+            color: #888888;
+            line-height: 1.6;
+        }
+        .debug-entry {
+            margin-bottom: 15px;
+            padding: 8px;
+            background: #1a1a1a;
+            border-left: 2px solid #3a3a3a;
+        }
+        .debug-entry.request {
+            border-left-color: #4a9eff;
+        }
+        .debug-entry.response {
+            border-left-color: #00ff88;
+        }
+        .debug-entry.error {
+            border-left-color: #ff4444;
+        }
+        .debug-timestamp {
+            color: #666666;
+            font-size: 0.9em;
+        }
+        .debug-label {
+            color: #FF176A;
+            font-weight: 500;
+        }
+        .debug-data {
+            margin-top: 5px;
+            color: #ffffff;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
         .chat-panel {
             flex: 1;
             min-width: 400px;
@@ -230,69 +306,6 @@ HTML_TEMPLATE = """
             color: #1a1a1a;
             margin-right: 20%;
             border-color: #3a3a3a;
-        }
-        .assistant-message h1,
-        .assistant-message h2,
-        .assistant-message h3,
-        .assistant-message h4 {
-            margin: 10px 0 5px 0;
-            font-weight: 600;
-        }
-        .assistant-message h1 { font-size: 1.3em; }
-        .assistant-message h2 { font-size: 1.2em; }
-        .assistant-message h3 { font-size: 1.1em; }
-        .assistant-message h4 { font-size: 1em; }
-        .assistant-message p {
-            margin: 8px 0;
-        }
-        .assistant-message code {
-            background: #f5f5f5;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-            font-size: 0.9em;
-            color: #FF176A;
-        }
-        .assistant-message pre {
-            background: #0a0a0a;
-            padding: 12px;
-            border-radius: 4px;
-            overflow-x: auto;
-            margin: 10px 0;
-            border: 1px solid #3a3a3a;
-        }
-        .assistant-message pre code {
-            background: transparent;
-            padding: 0;
-            color: #FF176A;
-            font-size: 0.85em;
-        }
-        .assistant-message ul,
-        .assistant-message ol {
-            margin: 8px 0;
-            padding-left: 25px;
-        }
-        .assistant-message li {
-            margin: 4px 0;
-        }
-        .assistant-message a {
-            color: #FF176A;
-            text-decoration: underline;
-        }
-        .assistant-message a:hover {
-            color: #ff3388;
-        }
-        .assistant-message blockquote {
-            border-left: 3px solid #FF176A;
-            padding-left: 15px;
-            margin: 10px 0;
-            color: #666666;
-        }
-        .assistant-message strong {
-            font-weight: 600;
-        }
-        .assistant-message em {
-            font-style: italic;
         }
         .status-message {
             background: #1a1a1a;
@@ -476,9 +489,6 @@ HTML_TEMPLATE = """
                         addMessage(msg.content, 'user', false);
                     } else if (msg.role === 'assistant') {
                         addMessage('🤖 DeepSeek: ' + msg.content, 'assistant', false);
-                    } else if (msg.role === 'system') {
-                        // Restore system messages
-                        addMessage(msg.content, 'success', false);
                     }
                 });
             } catch (e) {
@@ -645,25 +655,13 @@ HTML_TEMPLATE = """
             msg.dataset.type = type; // Store type for easy identification
             chatMessages.appendChild(msg);
             chatMessages.scrollTop = chatMessages.scrollHeight;
-            
-            // Save system messages to chat history for DeepSeek context
-            if (saveToHistory && (type === 'success' || type === 'error')) {
-                // Remove emoji and extract text for cleaner history
-                const textContent = content.replace(/<[^>]*>/g, '').replace(/[✅❌🚀]/g, '').trim();
-                chatHistory.push({
-                    role: 'system',
-                    content: textContent
-                });
-                saveChatHistory();
-            }
-            
             return msg; // Return the element so we can remove it later
         }
         
         function saveChatHistory() {
-            // Limit to last 30 messages to avoid localStorage limits and token limits
-            if (chatHistory.length > 30) {
-                chatHistory = chatHistory.slice(-30);
+            // Limit to last 20 messages to avoid localStorage limits
+            if (chatHistory.length > 20) {
+                chatHistory = chatHistory.slice(-20);
             }
             localStorage.setItem('primateChatHistory', JSON.stringify(chatHistory));
         }
@@ -936,18 +934,13 @@ def call_deepseek_api(user_message, file_contents, script_output_text, chat_hist
     system_prompt = """You are a coding agent with the ability to create and edit files.
 
 IMPORTANT WORKFLOW:
-1. Before making ANY changes to files, you MUST explain what you plan to do
-2. Ask the user for explicit confirmation (e.g., "Should I proceed with these changes?")
-3. WAIT for user confirmation before providing JSON with file changes
-4. EXCEPTION: Only skip confirmation if user explicitly states "no confirmation required" or similar phrases
-5. If you need clarification or more information, ASK QUESTIONS - don't make assumptions
-6. Never assume what the user wants - always confirm before modifying files
-7. Wait for the user to confirm or provide more details
-8. Only after receiving confirmation and having all needed information, provide the file changes in JSON format
+1. Before making ANY changes, explain what you plan to do
+2. Ask the user for confirmation (e.g., "Should I proceed with these changes?")
+3. If you need clarification or more information, ASK QUESTIONS - don't make assumptions
+4. Wait for the user to confirm or provide more details
+5. Only after receiving confirmation and having all needed information, provide the file changes in JSON format
 
 You can have multi-turn conversations to gather requirements before providing code. It's better to ask questions than to make wrong assumptions.
-
-The chat history includes system messages showing file updates and deployment status - use this context to understand what has already been done.
 
 IMPORTANT: The main executable file is 'script.py' which will be run automatically. When you create or modify code, put it in script.py.
 
