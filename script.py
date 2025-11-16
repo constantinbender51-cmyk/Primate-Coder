@@ -454,9 +454,11 @@ def main():
             
             # SHORT ENTRY: Prediction = 0 (price will go down) + no position
             elif prediction == 0 and position == 0:
-                # Short sell (borrow and sell BTC) - negative position
-                position = -balance / current_price
-                balance = balance  # Cash remains as collateral (NOT doubled!)
+                # Short sell: borrow BTC, sell it, receive cash
+                btc_borrowed = balance / current_price
+                position = -btc_borrowed  # Negative position = short
+                cash_from_sale = btc_borrowed * current_price  # Cash received from selling borrowed BTC
+                balance = balance + cash_from_sale  # Original cash + sale proceeds
                 trades.append({
                     'date': test_dates[i],
                     'action': 'SHORT',
