@@ -542,18 +542,22 @@ def main(holding_period=1):
     print("-" * 45)
     
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
-        result = backtest_results[name]
-        print(f"{name:<20} {result['total_return']:>+10.2f}% {result['sharpe_ratio']:>11.4f}")
-    
     # Find best model by Sharpe ratio
     best_sharpe_model = max(backtest_results.keys(), 
                            key=lambda x: backtest_results[x]['sharpe_ratio'])
-if __name__ == "__main__":
-    # Change this parameter to set the holding period (1, 2, 3, etc.)
-    main(holding_period=2)  # Set to 2 for 2-hour holding period
+    
+    # Find best model by Total Return
+    best_return_model = max(backtest_results.keys(),
+                           key=lambda x: backtest_results[x]['total_return'])
     
     print(f"\nBest Model by Sharpe Ratio: {best_sharpe_model} ({backtest_results[best_sharpe_model]['sharpe_ratio']:.4f})")
     print(f"Best Model by Total Return: {best_return_model} ({backtest_results[best_return_model]['total_return']:+.2f}%)")
+    
+    print("\n=== BACKTESTING COMPLETE ===")
+
+if __name__ == "__main__":
+    # Change this parameter to set the holding period (1, 2, 3, etc.)
+    main(holding_period=2)  # Set to 2 for 2-hour holding period
     
     print("\n=== BACKTESTING COMPLETE ===")
 
