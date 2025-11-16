@@ -183,7 +183,7 @@ def add_lagged_features_selected(X):
     ]
     
     # Lag periods
-    lag_periods = [2, 4, 8, 12, 24, 48]
+    lag_periods = [1, 3, 12]
     
     # Add lagged features for selected features
     lagged_features_added = []
