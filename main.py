@@ -734,8 +734,6 @@ def update_github_file(filepath, content, commit_message):
     sha = None
     if response.status_code == 200:
         sha = response.json().get("sha")
-        
-    print("🟣 DEBUG — Content before encode:", type(content), repr(content))
     
     # Encode content to base64
     content_b64 = base64.b64encode(content.encode('utf-8')).decode('utf-8')
@@ -800,12 +798,40 @@ CRITICAL - DEPENDENCY MANAGEMENT:
 
 FILE EDITING - THREE FORMATS:
 
+CRITICAL - JSON STRUCTURE:
+Each JSON object must be a TOP-LEVEL object, NOT nested inside filename keys.
+
+❌ WRONG - Do NOT nest operations inside filename keys:
+{
+  "script.py": {
+    "file": "script.py",
+    "operation": "replace_lines",
+    "start_line": 10,
+    "end_line": 20,
+    "content": "code"
+  }
+}
+
+✅ CORRECT - Operations are top-level objects:
+{
+  "file": "script.py",
+  "operation": "replace_lines",
+  "start_line": 10,
+  "end_line": 20,
+  "content": "new code"
+}
+
+✅ CORRECT - Full file format (filename is the key):
+{
+  "script.py": "full file content here"
+}
+
 For SMALL files (<100 lines) or NEW files, use FULL CONTENT format:
 {
   "filename.py": "complete file content here"
 }
 
-For LARGE files (>100 lines) with edits, use LINE RANGE format:
+For LARGE files (>100 lines) with edits, use LINE RANGE format (top-level object):
 {
   "file": "script.py",
   "operation": "replace_lines",
@@ -814,12 +840,30 @@ For LARGE files (>100 lines) with edits, use LINE RANGE format:
   "content": "new code here"
 }
 
-For INSERTING code at a specific line, use INSERT format:
+For INSERTING code at a specific line, use INSERT format (top-level object):
 {
   "file": "script.py",
   "operation": "insert_at_line",
   "line": 45,
   "content": "new code to insert"
+}
+
+For MULTIPLE file operations, use SEPARATE JSON objects:
+{
+  "file": "script.py",
+  "operation": "replace_lines",
+  "start_line": 10,
+  "end_line": 15,
+  "content": "code"
+}
+{
+  "file": "utils.py",
+  "operation": "insert_at_line",
+  "line": 5,
+  "content": "import math"
+}
+{
+  "requirements.txt": "numpy\npandas"
 }
 
 Line range format allows you to edit specific sections without resending entire files.
@@ -836,21 +880,6 @@ To create or edit files, include JSON objects in your response with this format:
   "requirements.txt": "package1\\npackage2",
   "style.css": "css content here"
 }
-
-or this:
-{
-  "file": "filename.py",
-  "operation": ...
-}
-{
-  "file": "requirements.py",
-  "operation": ...
-}
-{
-  "file": "style.py",
-  "operation": ...
-}
-
 
 You can create any files needed (script.py, requirements.txt, index.html, style.css, etc.).
 
@@ -935,12 +964,6 @@ def apply_line_edit(filename, start_line, end_line, new_content):
 
 def insert_at_line(filename, line_number, new_content):
     """Insert content at a specific line in a file."""
-    print(f"🔍 apply_line_edit DEBUG:")
-    print(f"   filename: {filename}")
-    print(f"   start_line: {start_line} (type: {type(start_line)})")
-    print(f"   end_line: {end_line} (type: {type(end_line)})")
-    print(f"   new_content length: {len(new_content) if new_content else 0}")
-    print(f"   new_content preview: {repr(new_content[:100]) if new_content else 'None'}")
     try:
         # Get current file content from GitHub
         current_content = get_file_from_github(filename)
@@ -953,10 +976,7 @@ def insert_at_line(filename, line_number, new_content):
         # Validate line number
         if line_number < 1 or line_number > len(lines) + 1:
             raise Exception(f"Invalid line number: {line_number} (file has {len(lines)} lines)")
-
-        print(f"✂️ Line operation:")
-        print(f"   Replacing lines {start_line}-{end_line} with {len(new_lines)} new lines")
-        print(f"   Original lines being replaced: {lines[start_line-1:end_line] if start_line-1 < len(lines) else 'OUT_OF_RANGE'}")
+        
         # Insert content at line (convert to 0-indexed)
         new_lines = new_content.split('\n') if new_content else []
         lines[line_number-1:line_number-1] = new_lines
@@ -992,14 +1012,6 @@ def extract_json_from_text(text):
     
     return json_objects
 
-def ensure_string(value):
-    """
-    If `value` is a dict → convert to JSON string.
-    If `value` is already a string → return unchanged.
-    """
-    if isinstance(value, dict):
-        return json.dumps(value)
-    return value
 
 def remove_json_from_text(text):
     """Remove JSON objects and code fences from text to get plain text response."""
@@ -1144,24 +1156,8 @@ def generate():
         # Update files on GitHub
         files_updated = []
         for json_obj in json_objects:
-            # Print the entire object to see its structure
-            print("Full JSON object:", json_obj)
-            print("Type:", type(json_obj))
-    
-            # Check all keys in the object
-            print("All keys:", json_obj.keys() if isinstance(json_obj, dict) else "Not a dict")
-    
-            # Check if "operation" exists (case-sensitive)
-            if "operation" in json_obj:
-                print("✓ 'operation' key found!")
-                # Your operation logic here
-            else:
-                print("✗ 'operation' key NOT found")
-        
             # Check if this is a line-based operation
-    
-            if json_obj.get("operation") is not None:
-    
+            if "operation" in json_obj:
                 filename = json_obj.get("file")
                 operation = json_obj.get("operation")
                 
