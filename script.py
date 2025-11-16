@@ -432,7 +432,6 @@ def main():
         returns = []
         
         # Trading simulation
-        # Trading simulation
         for i in range(len(predictions)):
             current_price = test_prices[i]
             prediction = predictions[i]
@@ -472,7 +471,6 @@ def main():
                         print(f"  Action: LONG - Balance = (1 + {current_price/previous_price - 1:.6f}) * previous balance")
                     else:
                         print(f"  Action: SHORT - Balance = (1 - {current_price/previous_price - 1:.6f}) * previous balance")
-        
         # Calculate final portfolio value
         final_balance = balance
         
