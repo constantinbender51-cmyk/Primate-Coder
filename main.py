@@ -118,82 +118,6 @@ HTML_TEMPLATE = """
             border: 1px solid #3a3a3a;
             margin: 10px;
         }
-        .debug-console {
-            display: none;
-            flex-direction: column;
-            height: 40%;
-            border-top: 1px solid #3a3a3a;
-            background: #0a0a0a;
-        }
-        .debug-console.active {
-            display: flex;
-        }
-        .debug-header {
-            background: #1a1a1a;
-            color: #FF176A;
-            padding: 10px 15px;
-            font-weight: 500;
-            border-bottom: 1px solid #3a3a3a;
-            font-size: 0.85em;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .debug-controls {
-            display: flex;
-            gap: 10px;
-        }
-        .debug-controls button {
-            background: #1a1a1a;
-            color: #888888;
-            border: 1px solid #3a3a3a;
-            padding: 4px 10px;
-            font-size: 0.75em;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .debug-controls button:hover {
-            border-color: #FF176A;
-            color: #FF176A;
-        }
-        .debug-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px 15px;
-            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-            font-size: 0.75em;
-            color: #888888;
-            line-height: 1.6;
-        }
-        .debug-entry {
-            margin-bottom: 15px;
-            padding: 8px;
-            background: #1a1a1a;
-            border-left: 2px solid #3a3a3a;
-        }
-        .debug-entry.request {
-            border-left-color: #4a9eff;
-        }
-        .debug-entry.response {
-            border-left-color: #00ff88;
-        }
-        .debug-entry.error {
-            border-left-color: #ff4444;
-        }
-        .debug-timestamp {
-            color: #666666;
-            font-size: 0.9em;
-        }
-        .debug-label {
-            color: #FF176A;
-            font-weight: 500;
-        }
-        .debug-data {
-            margin-top: 5px;
-            color: #ffffff;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
         .chat-panel {
             flex: 1;
             min-width: 400px;
@@ -551,9 +475,7 @@ HTML_TEMPLATE = """
                     if (msg.role === 'user') {
                         addMessage(msg.content, 'user', false);
                     } else if (msg.role === 'assistant') {
-                        // Parse markdown for assistant messages
-                        const htmlContent = marked.parse(msg.content);
-                        addMessage('🤖 DeepSeek: ' + htmlContent, 'assistant', false);
+                        addMessage('🤖 DeepSeek: ' + msg.content, 'assistant', false);
                     } else if (msg.role === 'system') {
                         // Restore system messages
                         addMessage(msg.content, 'success', false);
@@ -564,12 +486,6 @@ HTML_TEMPLATE = """
                 chatHistory = [];
             }
         }
-        
-        // Configure marked.js options
-        marked.setOptions({
-            breaks: true,  // Convert \n to <br>
-            gfm: true,     // GitHub Flavored Markdown
-        });
         
         function toggleDebug() {
             debugMode = !debugMode;
@@ -815,9 +731,7 @@ HTML_TEMPLATE = """
                         
                         // Show DeepSeek response if it exists
                         if (data.deepseek_response) {
-                            // Parse markdown
-                            const htmlContent = marked.parse(data.deepseek_response);
-                            addMessage('🤖 DeepSeek: ' + htmlContent, 'assistant');
+                            addMessage('🤖 DeepSeek: ' + data.deepseek_response, 'assistant');
                             
                             // Add assistant response to chat history
                             chatHistory.push({
@@ -833,9 +747,7 @@ HTML_TEMPLATE = """
                         }
                     } else if (data.deepseek_response) {
                         // No files updated, but DeepSeek responded (questions/clarifications)
-                        // Parse markdown
-                        const htmlContent = marked.parse(data.deepseek_response);
-                        addMessage('🤖 DeepSeek: ' + htmlContent, 'assistant');
+                        addMessage('🤖 DeepSeek: ' + data.deepseek_response, 'assistant');
                         
                         // Add assistant response to chat history
                         chatHistory.push({
