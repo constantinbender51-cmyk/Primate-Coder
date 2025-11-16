@@ -360,7 +360,6 @@ def main():
     X_test_scaled = scaler.transform(X_test)
     
     # Initialize classification models with parameters
-    # Initialize classification models with parameters
     models = {
         'Logistic Regression': {
             'model': LogisticRegression(random_state=42, max_iter=5000),
@@ -416,7 +415,6 @@ def main():
     gb_model = results['Gradient Boosting']['model']
     gb_predictions = results['Gradient Boosting']['predictions']
     
-    # Get actual prices for the test period
     # Get actual prices for the test period (adjust for lagged data)
     test_start_idx = len(df) - len(y_test) - 24  # Account for 24-hour lag
     test_dates = df.iloc[test_start_idx:test_start_idx + len(y_test)]['date'].values
@@ -472,27 +470,30 @@ def main():
     
     # Calculate additional metrics
     num_trades = len([t for t in trades if t['action'] in ['BUY', 'SELL']])
+    
+    # Analyze individual trades
     winning_trades = 0
     total_trade_return = 0
-    # Analyze individual trades
     trade_pairs = []
+    
+    # Pair BUY and SELL trades
     for i in range(len(trades)):
         if trades[i]['action'] == 'BUY':
             for j in range(i + 1, len(trades)):
                 if trades[j]['action'] == 'SELL':
-                    trade_pairs.append((trades[i], trades[j]))
+                    buy_price = trades[i]['price']
+                    sell_price = trades[j]['price']
+                    trade_return = (sell_price - buy_price) / buy_price * 100
+                    total_trade_return += trade_return
+                    if trade_return > 0:
+                        winning_trades += 1
+                    trade_pairs.append((trades[i], trades[j], trade_return))
                     break
     
-    avg_trade_return = total_trade_return / len(trade_pairs) if trade_pairs else 0
-    win_rate = (winning_trades / len(trade_pairs)) * 100 if trade_pairs else 0
-        total_trade_return += trade_return
-        if trade_return > 0:
-            winning_trades += 1
-            if trade_return > 0:
-                winning_trades += 1
-    
-    avg_trade_return = total_trade_return / (num_trades // 2) if num_trades > 0 else 0
-    win_rate = (winning_trades / (num_trades // 2)) * 100 if num_trades > 0 else 0
+    # Calculate win rate and average trade return
+    num_completed_trades = len(trade_pairs)
+    avg_trade_return = total_trade_return / num_completed_trades if num_completed_trades > 0 else 0
+    win_rate = (winning_trades / num_completed_trades) * 100 if num_completed_trades > 0 else 0
     
     print(f"\nTrading Simulation Results:")
     print(f"  Initial Balance: ${initial_balance:,.2f}")
@@ -500,6 +501,7 @@ def main():
     print(f"  Total Return: {total_return:+.2f}%")
     print(f"  Buy & Hold Return: {buy_hold_return:+.2f}%")
     print(f"  Number of Trades: {num_trades}")
+    print(f"  Completed Trade Pairs: {num_completed_trades}")
     print(f"  Win Rate: {win_rate:.1f}%")
     print(f"  Average Trade Return: {avg_trade_return:+.2f}%")
     
@@ -519,3 +521,6 @@ def main():
             break
     
     print("\n=== BACKTESTING COMPLETE ===")
+
+if __name__ == "__main__":
+    main()
