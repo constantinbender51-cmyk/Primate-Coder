@@ -328,7 +328,7 @@ def main():
     # Print first 2 hours of non-lagged features for clarity
     print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
-        print(f"\nHour {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
+        print(f"\nHour {i+1} ({df.iloc[i+24]['date'].strftime('%Y-%m-%d %H:%M')}):")
         for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_with_lags.columns:
                 value = X_with_lags.iloc[i][feature]
