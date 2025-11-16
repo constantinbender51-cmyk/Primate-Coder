@@ -172,7 +172,7 @@ def add_polynomial_features(X):
     return X_poly
 
 def add_lagged_features_selected(X):
-    """Add lagged versions of SELECTED features with specific periods: [1, 3, 12] hours"""
+    """Add lagged versions of SELECTED features with specific periods: [1, 3, 12, 24] hours"""
     X_lagged = X.copy()
     
     # Selected features for lagging
@@ -194,7 +194,7 @@ def add_lagged_features_selected(X):
                 X_lagged[lagged_feature_name] = X[feature].shift(lag)
                 lagged_features_added.append(lagged_feature_name)
     
-    # Drop rows with NaN values created by lagging (drop first 12 rows - maximum lag)
+    # Drop rows with NaN values created by lagging (drop first 24 rows - maximum lag)
     X_lagged = X_lagged.iloc[24:]
     
     return X_lagged, lagged_features_added
@@ -300,7 +300,7 @@ def main():
     # Add lagged features for SELECTED features with specific periods
     X_with_lags, lagged_features_added = add_lagged_features_selected(X_with_poly)
     
-    # Update target to match lagged features (drop first 12 rows - maximum lag)
+    # Update target to match lagged features (drop first 24 rows - maximum lag)
     y_lagged = y.iloc[24:]
     
     # Define selected features for reporting (same as in add_lagged_features_selected)
@@ -476,7 +476,6 @@ def main():
     total_trade_return = 0
     trade_pairs = []
     
-    # Pair BUY and SELL trades
     for i in range(len(trades)):
         if trades[i]['action'] == 'BUY':
             for j in range(i + 1, len(trades)):
@@ -487,13 +486,11 @@ def main():
                     total_trade_return += trade_return
                     if trade_return > 0:
                         winning_trades += 1
-                    trade_pairs.append((trades[i], trades[j], trade_return))
+                    trade_pairs.append((trades[i], trades[j]))
                     break
     
-    # Calculate win rate and average trade return
-    num_completed_trades = len(trade_pairs)
-    avg_trade_return = total_trade_return / num_completed_trades if num_completed_trades > 0 else 0
-    win_rate = (winning_trades / num_completed_trades) * 100 if num_completed_trades > 0 else 0
+    avg_trade_return = total_trade_return / len(trade_pairs) if trade_pairs else 0
+    win_rate = (winning_trades / len(trade_pairs)) * 100 if trade_pairs else 0
     
     print(f"\nTrading Simulation Results:")
     print(f"  Initial Balance: ${initial_balance:,.2f}")
@@ -501,7 +498,6 @@ def main():
     print(f"  Total Return: {total_return:+.2f}%")
     print(f"  Buy & Hold Return: {buy_hold_return:+.2f}%")
     print(f"  Number of Trades: {num_trades}")
-    print(f"  Completed Trade Pairs: {num_completed_trades}")
     print(f"  Win Rate: {win_rate:.1f}%")
     print(f"  Average Trade Return: {avg_trade_return:+.2f}%")
     
