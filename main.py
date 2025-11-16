@@ -969,7 +969,7 @@ def extract_json_from_text(text):
             if brace_count == 0 and start_idx != -1:
                 json_str = text[start_idx:i+1]
                 try:
-                    obj = ensure_string(json.loads(json_str))
+                    obj = json.loads(json_str)
                     json_objects.append(obj)
                 except json.JSONDecodeError:
                     pass
@@ -1129,6 +1129,20 @@ def generate():
         # Update files on GitHub
         files_updated = []
         for json_obj in json_objects:
+            # Print the entire object to see its structure
+            print("Full JSON object:", json_obj)
+            print("Type:", type(json_obj))
+    
+            # Check all keys in the object
+            print("All keys:", json_obj.keys() if isinstance(json_obj, dict) else "Not a dict")
+    
+            # Check if "operation" exists (case-sensitive)
+            if "operation" in json_obj:
+                print("✓ 'operation' key found!")
+                # Your operation logic here
+            else:
+                print("✗ 'operation' key NOT found")
+        
             # Check if this is a line-based operation
             if "operation" in json_obj:
                 filename = json_obj.get("file")
