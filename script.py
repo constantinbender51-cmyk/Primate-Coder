@@ -171,28 +171,20 @@ def add_polynomial_features(X):
     
     return X_poly
 
-def add_lagged_features(X, lookback_hours=96):
-    """Add lagged versions of key features with specified lookback window"""
+def add_lagged_features_all(X, lookback_hours=10):
+    """Add lagged versions of ALL features with specified lookback window"""
     X_lagged = X.copy()
     
-    # Define lag periods (1h, 4h, 12h, 24h, 48h, 96h)
-    lag_periods = [1, 4, 12, 24, 48, 96]
+    # Get all feature names
+    all_features = list(X.columns)
     
-    # Select key features for lagging
-    features_for_lagging = [
-        'price_change', 'volume_ratio', 'volatility_24', 'volatility_48',
-        'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum', 'macd_histogram'
-    ]
-    
-    # Add lagged features
+    # Add lagged features for ALL features
     lagged_features_added = []
-    for feature in features_for_lagging:
-        if feature in X.columns:
-            for lag in lag_periods:
-                lagged_feature_name = f"{feature}_lag_{lag}"
-                X_lagged[lagged_feature_name] = X[feature].shift(lag)
-                lagged_features_added.append(lagged_feature_name)
+    for feature in all_features:
+        for lag in range(1, lookback_hours + 1):  # t-1 to t-10
+            lagged_feature_name = f"{feature}_lag_{lag}"
+            X_lagged[lagged_feature_name] = X[feature].shift(lag)
+            lagged_features_added.append(lagged_feature_name)
     
     # Drop rows with NaN values created by lagging
     X_lagged = X_lagged.iloc[lookback_hours:]
@@ -232,7 +224,7 @@ def normalize_features(X):
             positive_features.append(feature)
     
     # Add lagged features to appropriate categories
-    lagged_features = [col for col in X.columns if col.endswith('_lag_')]
+    lagged_features = [col for col in X.columns if '_lag_' in col]
     for feature in lagged_features:
         base_feature = feature.split('_lag_')[0]
         if base_feature in negative_features:
@@ -297,27 +289,32 @@ def main():
     print(f"\nSquared features added: {squared_feature_cols}")
     print(f"Cubed features added: {cubed_feature_cols}")
     
-    # Add lagged features with 96-hour lookback
-    X_with_lags, lagged_features_added = add_lagged_features(X_with_poly, lookback_hours=96)
+    # Add lagged features with 10-hour lookback for ALL features
+    X_with_lags, lagged_features_added = add_lagged_features_all(X_with_poly, lookback_hours=10)
     
-    # Update target to match lagged features (drop first 96 rows)
-    y_lagged = y.iloc[96:]
+    # Update target to match lagged features (drop first 10 rows)
+    y_lagged = y.iloc[10:]
     
-    print(f"\nLagged features added: {len(lagged_features_added)} features")
-    print(f"  Lookback periods: [1, 4, 12, 24, 48, 96] hours")
-    print(f"  Base features lagged: ['price_change', 'volume_ratio', 'volatility_24', 'volatility_48', 'eth_price_change', 'xrp_price_change', 'ada_price_change', 'altcoin_momentum', 'macd_histogram']")
+    # Calculate feature counts
+    original_features = len(X.columns)
+    polynomial_features = len(squared_feature_cols) + len(cubed_feature_cols)
+    lagged_features = len(lagged_features_added)
+    total_features = original_features + polynomial_features + lagged_features
     
-    all_feature_cols = list(X.columns) + squared_feature_cols + cubed_feature_cols + lagged_features_added
-    print(f"\nTotal features: {len(all_feature_cols)}")
-    print(f"  Original: {len(X.columns)}")
-    print(f"  Polynomial: {len(squared_feature_cols) + len(cubed_feature_cols)}")
-    print(f"  Lagged: {len(lagged_features_added)}")
+    print(f"\nLagged features added: {lagged_features} features")
+    print(f"  Lookback window: 10 hours (t-1 to t-10)")
+    print(f"  ALL features lagged: {original_features + polynomial_features} total features")
+    
+    print(f"\nTotal features: {total_features}")
+    print(f"  Original: {original_features}")
+    print(f"  Polynomial: {polynomial_features}")
+    print(f"  Lagged: {lagged_features}")
     
     # Print first 2 hours of non-lagged features for clarity
     print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
         print(f"\nHour {i+1} ({df.iloc[i]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        for j, feature in enumerate(all_feature_cols[:10]):  # Show only first 10 features
+        for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_with_lags.columns:
                 value = X_with_lags.iloc[i][feature]
                 print(f"  {feature}: {value:.6f}")
@@ -328,8 +325,8 @@ def main():
     # Print first 2 hours of normalized features
     print(f"\nFirst 2 hours of features (AFTER NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
-        print(f"\nHour {i+1} ({df.iloc[i+96]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        for j, feature in enumerate(all_feature_cols[:10]):  # Show only first 10 features
+        print(f"\nHour {i+1} ({df.iloc[i+10]['date'].strftime('%Y-%m-%d %H:%M')}):")
+        for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_normalized.columns:
                 value = X_normalized.iloc[i][feature]
                 print(f"  {feature}: {value:.6f}")
