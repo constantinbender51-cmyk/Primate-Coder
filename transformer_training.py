@@ -1,0 +1,367 @@
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+import requests
+import io
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+import warnings
+warnings.filterwarnings('ignore')
+
+class PositionalEncoding(layers.Layer):
+    """Positional encoding for transformer"""
+    def __init__(self, d_model, max_len=5000):
+        super(PositionalEncoding, self).__init__()
+        self.d_model = d_model
+        
+        # Create positional encoding matrix
+        position = np.arange(max_len)[:, np.newaxis]
+        div_term = np.exp(np.arange(0, d_model, 2) * -(np.log(10000.0) / d_model))
+        
+        pos_encoding = np.zeros((max_len, d_model))
+        pos_encoding[:, 0::2] = np.sin(position * div_term)
+        pos_encoding[:, 1::2] = np.cos(position * div_term)
+        
+        self.pos_encoding = tf.constant(pos_encoding, dtype=tf.float32)
+    
+    def call(self, x):
+        seq_len = tf.shape(x)[1]
+        return x + self.pos_encoding[:seq_len, :]
+
+class MultiHeadAttention(layers.Layer):
+    """Multi-head attention mechanism"""
+    def __init__(self, d_model, num_heads):
+        super(MultiHeadAttention, self).__init__()
+        self.num_heads = num_heads
+        self.d_model = d_model
+        
+        assert d_model % num_heads == 0
+        
+        self.depth = d_model // num_heads
+        
+        self.wq = layers.Dense(d_model)
+        self.wk = layers.Dense(d_model)
+        self.wv = layers.Dense(d_model)
+        
+        self.dense = layers.Dense(d_model)
+    
+    def split_heads(self, x, batch_size):
+        x = tf.reshape(x, (batch_size, -1, self.num_heads, self.depth))
+        return tf.transpose(x, perm=[0, 2, 1, 3])
+    
+    def call(self, v, k, q, mask=None):
+        batch_size = tf.shape(q)[0]
+        
+        q = self.wq(q)
+        k = self.wk(k)
+        v = self.wv(v)
+        
+        q = self.split_heads(q, batch_size)
+        k = self.split_heads(k, batch_size)
+        v = self.split_heads(v, batch_size)
+        
+        # Scaled dot-product attention
+        matmul_qk = tf.matmul(q, k, transpose_b=True)
+        dk = tf.cast(tf.shape(k)[-1], tf.float32)
+        scaled_attention_logits = matmul_qk / tf.math.sqrt(dk)
+        
+        if mask is not None:
+            scaled_attention_logits += (mask * -1e9)
+        
+        attention_weights = tf.nn.softmax(scaled_attention_logits, axis=-1)
+        output = tf.matmul(attention_weights, v)
+        
+        output = tf.transpose(output, perm=[0, 2, 1, 3])
+        concat_attention = tf.reshape(output, (batch_size, -1, self.d_model))
+        
+        return self.dense(concat_attention), attention_weights
+
+class TransformerEncoderLayer(layers.Layer):
+    """Single transformer encoder layer"""
+    def __init__(self, d_model, num_heads, dff, dropout_rate=0.1):
+        super(TransformerEncoderLayer, self).__init__()
+        
+        self.mha = MultiHeadAttention(d_model, num_heads)
+        self.ffn = keras.Sequential([
+            layers.Dense(dff, activation='relu'),
+            layers.Dense(d_model)
+        ])
+        
+        self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+        
+        self.dropout1 = layers.Dropout(dropout_rate)
+        self.dropout2 = layers.Dropout(dropout_rate)
+    
+    def call(self, x, training, mask=None):
+        attn_output, _ = self.mha(x, x, x, mask)
+        attn_output = self.dropout1(attn_output, training=training)
+        out1 = self.layernorm1(x + attn_output)
+        
+        ffn_output = self.ffn(out1)
+        ffn_output = self.dropout2(ffn_output, training=training)
+        out2 = self.layernorm2(out1 + ffn_output)
+        
+        return out2
+
+class TransformerEncoder(layers.Layer):
+    """Complete transformer encoder"""
+    def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size,
+                 maximum_position_encoding, dropout_rate=0.1):
+        super(TransformerEncoder, self).__init__()
+        
+        self.d_model = d_model
+        self.num_layers = num_layers
+        
+        self.embedding = layers.Dense(d_model)
+        self.pos_encoding = PositionalEncoding(d_model, maximum_position_encoding)
+        
+        self.enc_layers = [TransformerEncoderLayer(d_model, num_heads, dff, dropout_rate)
+                          for _ in range(num_layers)]
+        
+        self.dropout = layers.Dropout(dropout_rate)
+    
+    def call(self, x, training, mask=None):
+        seq_len = tf.shape(x)[1]
+        
+        # Embedding and positional encoding
+        x = self.embedding(x)
+        x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+        x = self.pos_encoding(x)
+        x = self.dropout(x, training=training)
+        
+        for i in range(self.num_layers):
+            x = self.enc_layers[i](x, training, mask)
+        
+        return x
+
+def download_ohlcv_data():
+    """Download OHLCV data from Google Drive"""
+    print("Downloading OHLCV data from Google Drive...")
+    
+    # Google Drive file ID from the URL
+    file_id = "1kDCl_29nXyW1mLNUAS-nsJe0O2pOuO6o"
+    
+    # Download URL
+    url = f"https://drive.google.com/uc?id={file_id}&export=download"
+    
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        
+        # Try to read as CSV
+        data = pd.read_csv(io.BytesIO(response.content))
+        print(f"Successfully downloaded data with shape: {data.shape}")
+        print(f"Columns: {data.columns.tolist()}")
+        
+        return data
+    
+    except Exception as e:
+        print(f"Error downloading data: {e}")
+        print("Creating sample OHLCV data for demonstration...")
+        
+        # Create sample data if download fails
+        dates = pd.date_range('2018-01-01', '2018-12-31', freq='1min')
+        np.random.seed(42)
+        
+        # Generate realistic OHLCV data
+        price = 100.0
+        data = []
+        
+        for date in dates:
+            # Random walk for price
+            change = np.random.normal(0, 0.001)
+            price = price * (1 + change)
+            
+            # Generate OHLC from the price
+            open_price = price
+            high_price = price * (1 + abs(np.random.normal(0, 0.002)))
+            low_price = price * (1 - abs(np.random.normal(0, 0.002)))
+            close_price = price
+            volume = np.random.randint(1000, 10000)
+            
+            data.append([date, open_price, high_price, low_price, close_price, volume])
+        
+        return pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+
+def preprocess_data(data):
+    """Preprocess OHLCV data for transformer training"""
+    print("Preprocessing data...")
+    
+    # Ensure timestamp is datetime
+    if 'timestamp' in data.columns:
+        data['timestamp'] = pd.to_datetime(data['timestamp'])
+        data = data.sort_values('timestamp')
+    
+    # Calculate technical indicators
+    data['returns'] = data['close'].pct_change()
+    data['volatility'] = data['returns'].rolling(window=20).std()
+    data['sma_20'] = data['close'].rolling(window=20).mean()
+    data['sma_50'] = data['close'].rolling(window=50).mean()
+    data['volume_sma'] = data['volume'].rolling(window=20).mean()
+    
+    # Remove NaN values
+    data = data.dropna()
+    
+    # Select features for the model
+    feature_columns = ['open', 'high', 'low', 'close', 'volume', 'returns', 
+                      'volatility', 'sma_20', 'sma_50', 'volume_sma']
+    
+    # Normalize features
+    scaler = StandardScaler()
+    scaled_features = scaler.fit_transform(data[feature_columns])
+    
+    return scaled_features, scaler, feature_columns
+
+def create_sequences(data, sequence_length=60, prediction_horizon=5):
+    """Create sequences for time series forecasting"""
+    X, y = [], []
+    
+    for i in range(len(data) - sequence_length - prediction_horizon):
+        # Input sequence
+        X.append(data[i:(i + sequence_length)])
+        
+        # Target: future price movement (1 if price goes up, 0 if down)
+        current_close = data[i + sequence_length - 1, 3]  # close price is at index 3
+        future_close = data[i + sequence_length + prediction_horizon - 1, 3]
+        
+        # Binary classification: 1 if price increases, 0 if decreases
+        target = 1 if future_close > current_close else 0
+        y.append(target)
+    
+    return np.array(X), np.array(y)
+
+def build_transformer_model(input_shape, num_layers=4, d_model=128, num_heads=8, 
+                          dff=512, dropout_rate=0.1):
+    """Build the transformer model for time series classification"""
+    
+    inputs = keras.Input(shape=input_shape)
+    
+    # Transformer encoder
+    transformer_encoder = TransformerEncoder(
+        num_layers=num_layers,
+        d_model=d_model,
+        num_heads=num_heads,
+        dff=dff,
+        input_vocab_size=input_shape[1],
+        maximum_position_encoding=1000,
+        dropout_rate=dropout_rate
+    )
+    
+    # Pass through transformer
+    encoder_output = transformer_encoder(inputs, training=True)
+    
+    # Global average pooling and classification
+    x = layers.GlobalAveragePooling1D()(encoder_output)
+    x = layers.Dense(64, activation='relu')(x)
+    x = layers.Dropout(0.3)(x)
+    x = layers.Dense(32, activation='relu')(x)
+    outputs = layers.Dense(1, activation='sigmoid')(x)
+    
+    model = keras.Model(inputs=inputs, outputs=outputs)
+    
+    return model
+
+def train_transformer():
+    """Main training function"""
+    print("Starting Transformer Training for OHLCV Data...")
+    
+    # Download and preprocess data
+    data = download_ohlcv_data()
+    scaled_features, scaler, feature_columns = preprocess_data(data)
+    
+    print(f"Processed data shape: {scaled_features.shape}")
+    print(f"Features used: {feature_columns}")
+    
+    # Create sequences
+    sequence_length = 60  # 60 minutes of historical data
+    prediction_horizon = 5  # Predict 5 minutes ahead
+    
+    X, y = create_sequences(scaled_features, sequence_length, prediction_horizon)
+    
+    print(f"Sequences created: {X.shape}")
+    print(f"Target distribution: {np.unique(y, return_counts=True)}")
+    
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    
+    print(f"Training set: {X_train.shape}")
+    print(f"Test set: {X_test.shape}")
+    
+    # Build model
+    model = build_transformer_model(
+        input_shape=(sequence_length, len(feature_columns)),
+        num_layers=4,
+        d_model=128,
+        num_heads=8,
+        dff=512
+    )
+    
+    # Compile model
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate=0.001),
+        loss='binary_crossentropy',
+        metrics=['accuracy', 'precision', 'recall']
+    )
+    
+    print("\nModel Architecture:")
+    model.summary()
+    
+    # Train model
+    print("\nTraining transformer model...")
+    history = model.fit(
+        X_train, y_train,
+        batch_size=32,
+        epochs=20,
+        validation_data=(X_test, y_test),
+        verbose=1
+    )
+    
+    # Evaluate model
+    print("\nEvaluating model...")
+    test_loss, test_accuracy, test_precision, test_recall = model.evaluate(X_test, y_test, verbose=0)
+    
+    print(f"Test Accuracy: {test_accuracy:.4f}")
+    print(f"Test Precision: {test_precision:.4f}")
+    print(f"Test Recall: {test_recall:.4f}")
+    
+    # Plot training history
+    plt.figure(figsize=(12, 4))
+    
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'], label='Training Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Model Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'], label='Training Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig('transformer_training_history.png')
+    plt.show()
+    
+    # Save model
+    model.save('transformer_ohlcv_model.h5')
+    print("\nModel saved as 'transformer_ohlcv_model.h5'")
+    
+    # Make some predictions
+    print("\nSample predictions:")
+    sample_predictions = model.predict(X_test[:10])
+    for i, (pred, actual) in enumerate(zip(sample_predictions, y_test[:10])):
+        print(f"Sample {i+1}: Predicted probability = {pred[0]:.4f}, Actual = {actual}")
+
+if __name__ == "__main__":
+    train_transformer()
