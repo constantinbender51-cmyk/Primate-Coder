@@ -124,8 +124,8 @@ def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
     
     return macd_line, signal_line, macd_histogram
 
-def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period=1):
-    """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - 30-MINUTE ADJUSTED"""
+def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, gold_df, hsi_df, holding_period=1):
+    """Create technical indicators and features including altcoin data, gold, and Hang Seng - ONLY DERIVATIVES - 30-MINUTE ADJUSTED"""
     df = btc_df.copy()
     
     # Price-based derivative features for Bitcoin (NO RAW PRICES)
@@ -135,13 +135,6 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period
     
     # Moving averages (adjusted for 30-minute data - 24h and 48h windows)
     df['sma_24'] = df['close'].rolling(48).mean()  # 24 hours (48 * 30min)
-def fetch_gold_data(periods=2500, start_date='2022-01-01'):
-    """Fetch gold data (XAU/USD)"""
-    return fetch_yahoo_data('GC=F', periods, start_date)
-
-def fetch_hang_seng_data(periods=2500, start_date='2022-01-01'):
-    """Fetch Hang Seng index data"""
-    return fetch_yahoo_data('^HSI', periods, start_date)
     df['sma_48'] = df['close'].rolling(96).mean()  # 48 hours (96 * 30min)
     
     # Price relative to moving averages (derivatives)
@@ -178,9 +171,26 @@ def fetch_hang_seng_data(periods=2500, start_date='2022-01-01'):
     df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(48).mean()
     df['btc_ada_ratio'] = df['close'] / ada_df['close']  # BTC dominance vs ADA
     
+    # Add gold features
+    df['gold_price_change'] = gold_df['close'].pct_change()
+    df['gold_volume_ratio'] = gold_df['volume'] / gold_df['volume'].rolling(48).mean()
+    df['btc_gold_ratio'] = df['close'] / gold_df['close']  # BTC vs Gold ratio
+    
+    # Add Hang Seng features
+    df['hsi_price_change'] = hsi_df['close'].pct_change()
+    df['hsi_volume_ratio'] = hsi_df['volume'] / hsi_df['volume'].rolling(48).mean()
+    df['btc_hsi_ratio'] = df['close'] / hsi_df['close']  # BTC vs Hang Seng ratio
+    
     # Altcoin momentum indicators
     df['altcoin_momentum'] = (df['eth_price_change'] + df['xrp_price_change'] + df['ada_price_change']) / 3
     df['altcoin_volume_strength'] = (df['eth_volume_ratio'] + df['xrp_volume_ratio'] + df['ada_volume_ratio']) / 3
+    
+    # Add cross-market momentum
+    df['gold_momentum'] = df['gold_price_change'].rolling(12).mean()
+    df['hsi_momentum'] = df['hsi_price_change'].rolling(12).mean()
+    
+    # Global market momentum
+    df['global_momentum'] = (df['altcoin_momentum'] + df['gold_momentum'] + df['hsi_momentum']) / 3
     
     # Target: Next N-period price direction (1 = up, 0 = down)
     df['target'] = (df['close'].shift(-holding_period) > df['close']).astype(int)
@@ -189,13 +199,11 @@ def fetch_hang_seng_data(periods=2500, start_date='2022-01-01'):
     df = df.dropna()
     
     return df
-def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, gold_df, hsi_df, holding_period=1):
-    """Create technical indicators and features including altcoin data, gold, and Hang Seng - ONLY DERIVATIVES - 30-MINUTE ADJUSTED"""
+
+def add_polynomial_features(X):
     """Add squared and cubic versions of key features to capture non-linear relationships"""
     X_poly = X.copy()
     
-    # Select key features for polynomial expansion
-    features_for_poly = [
     # Select key features for polynomial expansion
     features_for_poly = [
         'price_change', 'volatility_24', 'volatility_48', 
@@ -238,31 +246,14 @@ def add_lagged_features_selected(X):
     for feature in selected_features:
         if feature in X.columns:
             for lag in lag_periods:
-    # Add gold features
-    df['gold_price_change'] = gold_df['close'].pct_change()
-    df['gold_volume_ratio'] = gold_df['volume'] / gold_df['volume'].rolling(48).mean()
-    df['btc_gold_ratio'] = df['close'] / gold_df['close']  # BTC vs Gold ratio
-    
-    # Add Hang Seng features
-    df['hsi_price_change'] = hsi_df['close'].pct_change()
-    df['hsi_volume_ratio'] = hsi_df['volume'] / hsi_df['volume'].rolling(48).mean()
-    df['btc_hsi_ratio'] = df['close'] / hsi_df['close']  # BTC vs Hang Seng ratio
-    
-    # Add cross-market momentum
-    df['gold_momentum'] = df['gold_price_change'].rolling(12).mean()
-    df['hsi_momentum'] = df['hsi_price_change'].rolling(12).mean()
                 lagged_feature_name = f"{feature}_lag_{lag}"
                 X_lagged[lagged_feature_name] = X[feature].shift(lag)
                 lagged_features_added.append(lagged_feature_name)
     
-    # Altcoin momentum indicators
-    df['altcoin_momentum'] = (df['eth_price_change'] + df['xrp_price_change'] + df['ada_price_change']) / 3
-    df['altcoin_volume_strength'] = (df['eth_volume_ratio'] + df['xrp_volume_ratio'] + df['ada_volume_ratio']) / 3
-    
-    # Global market momentum
-    df['global_momentum'] = (df['altcoin_momentum'] + df['gold_momentum'] + df['hsi_momentum']) / 3
+    # Drop rows with NaN values from lagging
     X_lagged = X_lagged.iloc[12:]
     
+    return X_lagged, lagged_features_added
     return X_lagged, lagged_features_added
 
 def normalize_features(X):
@@ -349,8 +340,8 @@ def main(holding_period=1):
     hsi_df = fetch_hang_seng_data(2500, start_date)
     
     # Create features with altcoin data, gold, and Hang Seng
+    # Create features with altcoin data, gold, and Hang Seng
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, gold_df, hsi_df, holding_period)
-    df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period)
     
     # Dataset information
     print(f"\nDataset Info:")
