@@ -199,61 +199,100 @@ Current files in the repository:
 
 
 def extract_json_from_text(text):
-    """Extract all JSON objects from text."""
+    """Extract all JSON objects from text, respecting strings."""
     json_objects = []
-    brace_count = 0
-    start_idx = -1
-    
-    for i, char in enumerate(text):
-        if char == '{':
+    i = 0
+    n = len(text)
+    while i < n:
+        if text[i] == '{':
+            start = i
+            brace_count = 1
+            in_string = False
+            escaped = False
+            j = i + 1
+            while j < n and brace_count > 0:
+                char = text[j]
+                if escaped:
+                    escaped = False
+                elif in_string:
+                    if char == '\\':
+                        escaped = True
+                    elif char == '"':
+                        in_string = False
+                else:
+                    if char == '"':
+                        in_string = True
+                    elif char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                j += 1
             if brace_count == 0:
-                start_idx = i
-            brace_count += 1
-        elif char == '}':
-            brace_count -= 1
-            if brace_count == 0 and start_idx != -1:
-                json_str = text[start_idx:i+1]
+                json_str = text[start:j]
                 try:
                     obj = json.loads(json_str)
                     json_objects.append(obj)
+                    i = j  # Skip to after valid JSON
                 except json.JSONDecodeError:
-                    pass
-                start_idx = -1
-    
+                    i = start + 1  # Invalid, continue
+            else:
+                i = start + 1  # Unbalanced, continue
+        else:
+            i += 1
     return json_objects
 
-
 def remove_json_from_text(text):
-    """Remove JSON objects and code fences from text."""
-    result = text
-    brace_count = 0
-    start_idx = -1
+    """Remove JSON objects and code fences from text, respecting strings."""
     ranges_to_remove = []
-    
-    for i, char in enumerate(text):
-        if char == '{':
+    i = 0
+    n = len(text)
+    while i < n:
+        if text[i] == '{':
+            start = i
+            brace_count = 1
+            in_string = False
+            escaped = False
+            j = i + 1
+            while j < n and brace_count > 0:
+                char = text[j]
+                if escaped:
+                    escaped = False
+                elif in_string:
+                    if char == '\\':
+                        escaped = True
+                    elif char == '"':
+                        in_string = False
+                else:
+                    if char == '"':
+                        in_string = True
+                    elif char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                j += 1
             if brace_count == 0:
-                start_idx = i
-            brace_count += 1
-        elif char == '}':
-            brace_count -= 1
-            if brace_count == 0 and start_idx != -1:
-                json_str = text[start_idx:i+1]
+                json_str = text[start:j]
                 try:
                     json.loads(json_str)
-                    ranges_to_remove.append((start_idx, i+1))
+                    ranges_to_remove.append((start, j))
+                    i = j  # Skip to after valid JSON
                 except json.JSONDecodeError:
-                    pass
-                start_idx = -1
+                    i = start + 1  # Invalid, continue
+            else:
+                i = start + 1  # Unbalanced, continue
+        else:
+            i += 1
     
+    # Remove the ranges in reverse order
+    result = text
     for start, end in reversed(ranges_to_remove):
         result = result[:start] + result[end:]
     
+    # Remove code fences
     result = re.sub(r'```[\w]*\n?', '', result)
     result = re.sub(r'```', '', result)
     
     return result.strip()
-
 
 def merge_requirements(deepseek_requirements, base_requirements):
     """Merge DeepSeek requirements with base requirements."""
