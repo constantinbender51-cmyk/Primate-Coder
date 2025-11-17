@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 import yfinance as yf
 
 def fetch_crypto_data_chunked(symbol, hours_to_fetch=1000, start_date=None):
-    """Fetch OHLCV data for any cryptocurrency from Binance using chunking - 4-HOUR DATA"""
+    """Fetch OHLCV data for any cryptocurrency from Binance using chunking - 1-WEEK DATA"""
     client = Spot()
     
     all_data = []
@@ -34,7 +34,7 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=1000, start_date=None):
         try:
             klines = client.klines(
                 symbol=symbol,
-                interval='4h',  # 4-hour data
+                interval='1w',  # 1-week data
                 limit=limit,
                 endTime=end_time
             )
@@ -79,13 +79,11 @@ def fetch_yahoo_data(symbol, periods=1000, start_date='2022-01-01'):
         # Download data
         ticker = yf.Ticker(symbol)
         # Download data
-        df = ticker.history(start=start_date, interval='4h')
-        
-        # If we don't have enough 4h data, try daily and resample
+        # If we don't have enough 1w data, try daily and resample
         if len(df) < periods:
             df = ticker.history(start=start_date, interval='1d')
-            # Resample daily to 4h by forward filling
-            df = df.resample('4H').ffill()
+            # Resample daily to weekly
+            df = df.resample('1W').agg({'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last', 'Volume': 'sum'})
         
         # Ensure we have the required columns
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
@@ -122,7 +120,7 @@ def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
     return macd_line, signal_line, macd_histogram
 
 def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
-    """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - 4-HOUR ADJUSTED"""
+    """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - 1-WEEK ADJUSTED"""
     df = btc_df.copy()
     
     # Price-based derivative features for Bitcoin (NO RAW PRICES)
@@ -130,18 +128,17 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     df['high_low_ratio'] = df['high'] / df['low']
     df['close_open_ratio'] = df['close'] / df['open']
     
-    # Moving averages (adjusted for 4-hour data - 24h and 48h windows)
-    df['sma_24'] = df['close'].rolling(6).mean()  # 24 hours (6 * 4h)
-    df['sma_48'] = df['close'].rolling(12).mean()  # 48 hours (12 * 4h)
-    # Price relative to moving averages (derivatives)
+    # Moving averages (adjusted for 1-week data - 4-week and 8-week windows)
+    df['sma_24'] = df['close'].rolling(4).mean()  # 4 weeks
+    df['sma_48'] = df['close'].rolling(8).mean()  # 8 weeks
     df['price_vs_sma24'] = df['close'] / df['sma_24']
     df['price_vs_sma48'] = df['close'] / df['sma_48']
     
-    # Volatility (adjusted for 4-hour data)
-    df['volatility_24'] = df['price_change'].rolling(6).std()  # 24 hours
-    df['volatility_48'] = df['price_change'].rolling(12).std()  # 48 hours
+    # Volatility (adjusted for 1-week data)
+    df['volatility_24'] = df['price_change'].rolling(4).std()  # 4 weeks
+    df['volatility_48'] = df['price_change'].rolling(8).std()  # 8 weeks
     # Volume features (derivatives only)
-    df['volume_sma_24'] = df['volume'].rolling(6).mean()  # 24 hours
+    df['volume_sma_24'] = df['volume'].rolling(4).mean()  # 4 weeks
     df['volume_ratio'] = df['volume'] / df['volume_sma_24']
     
     # MACD features for Bitcoin
@@ -151,19 +148,20 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     df['macd_histogram'] = macd_histogram
     
     # Add altcoin features (derivatives only)
+    # Add altcoin features (derivatives only)
     # Ethereum features
     df['eth_price_change'] = eth_df['close'].pct_change()
-    df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(6).mean()
+    df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(4).mean()
     df['btc_eth_ratio'] = df['close'] / eth_df['close']  # BTC dominance vs ETH
     
     # Ripple features
     df['xrp_price_change'] = xrp_df['close'].pct_change()
-    df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(6).mean()
+    df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(4).mean()
     df['btc_xrp_ratio'] = df['close'] / xrp_df['close']  # BTC dominance vs XRP
     
     # Cardano features
     df['ada_price_change'] = ada_df['close'].pct_change()
-    df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(6).mean()
+    df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(4).mean()
     df['btc_ada_ratio'] = df['close'] / ada_df['close']  # BTC dominance vs ADA
     
     # Altcoin momentum indicators
@@ -213,7 +211,7 @@ def add_lagged_features_selected(X):
         'altcoin_momentum', 'macd_histogram'
     ]
     # Lag periods - removed 24
-    lag_periods = [1, 3, 6]  # 4-hour periods
+    lag_periods = [1, 2, 4]  # 1-week periods
     
     # Add lagged features for selected features
     lagged_features_added = []
@@ -225,7 +223,7 @@ def add_lagged_features_selected(X):
                 lagged_features_added.append(lagged_feature_name)
     
     # Drop rows with NaN values from lagging
-    X_lagged = X_lagged.iloc[6:]
+    X_lagged = X_lagged.iloc[8:]
     
     return X_lagged, lagged_features_added
 
@@ -311,7 +309,7 @@ def run_test(start_date=None, test_name="Current"):
     X_with_lags, lagged_features_added = add_lagged_features_selected(X_with_poly)
     
     # Update target to match lagged features (drop first 6 rows - maximum lag)
-    y_lagged = y.iloc[6:]
+    y_lagged = y.iloc[8:]
     
     # Normalize features
     X_normalized = normalize_features(X_with_lags)
@@ -400,7 +398,7 @@ def run_test(start_date=None, test_name="Current"):
         # Calculate Sharpe ratio (annualized)
         returns_series = test_df['strategy_return'].dropna()
         if len(returns_series) > 1 and returns_series.std() > 0:
-            sharpe_ratio = returns_series.mean() / returns_series.std() * np.sqrt(6 * 365)  # Annualize for 4-hour data
+            sharpe_ratio = returns_series.mean() / returns_series.std() * np.sqrt(52)  # Annualize for weekly data
         else:
             sharpe_ratio = 0
         
