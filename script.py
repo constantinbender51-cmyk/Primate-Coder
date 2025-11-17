@@ -356,27 +356,44 @@ def run_test(start_date=None, test_name="Current"):
         test_df['actual_return'] = test_df['close'].pct_change().shift(-1)
         
         # Strategy: Buy when prediction is 1, Short when prediction is 0, hold for one period with 4% stop loss
+        position = 0  # 0 = no position, 1 = long, -1 = short
+        entry_price = 0
+        
         for i in range(len(test_df) - 1):
             current_price = test_df.iloc[i]['close']
             next_close = test_df.iloc[i + 1]['close']
             
-            # Long position (prediction = 1)
-            if test_df.iloc[i]['prediction'] == 1:
-                entry_price = current_price
-                # Calculate stop loss price (4% below entry)
+            # Check if we need to exit due to stop loss
+            if position == 1:  # Long position
                 stop_loss_price = entry_price * 0.96
-                # Exit at next close or stop loss, whichever comes first
-                exit_price = min(next_close, stop_loss_price)
-                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (exit_price - entry_price) / entry_price
-            
-            # Short position (prediction = 0)
-            else:
-                entry_price = current_price
-                # Calculate stop loss price (4% above entry for short)
+                if next_close <= stop_loss_price:
+                    # Stop loss hit
+                    test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (stop_loss_price - entry_price) / entry_price
+                    position = 0
+                    continue
+            elif position == -1:  # Short position
                 stop_loss_price = entry_price * 1.04
-                # Exit at next close or stop loss, whichever comes first
-                exit_price = max(next_close, stop_loss_price)
-                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (entry_price - exit_price) / entry_price
+                if next_close >= stop_loss_price:
+                    # Stop loss hit
+                    test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (entry_price - stop_loss_price) / entry_price
+                    position = 0
+                    continue
+            
+            # Enter new position if no current position
+            if position == 0:
+                # Long position (prediction = 1)
+                if test_df.iloc[i]['prediction'] == 1:
+                    entry_price = current_price
+                    position = 1
+                    test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (next_close - entry_price) / entry_price
+                # Short position (prediction = 0)
+                else:
+                    entry_price = current_price
+                    position = -1
+                    test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (entry_price - next_close) / entry_price
+            else:
+                # Already in position, just hold
+                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = 0
         # Calculate performance metrics
         total_return = test_df['strategy_return'].sum()
         
