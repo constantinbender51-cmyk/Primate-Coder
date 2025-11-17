@@ -453,7 +453,6 @@ def main(holding_period=1):
                 price_n_hours_ago = stored_prices[i - holding_period]
                 
                 # Calculate new balance based on prediction from N hours ago
-                # Calculate new balance based on prediction from N hours ago
                 price_ratio = current_price / price_n_hours_ago
                 if prediction_n_hours_ago == 1:  # N hours ago predicted UP - go LONG
                     balance = balance * price_ratio
@@ -461,27 +460,14 @@ def main(holding_period=1):
                     # For short: if price goes down, we profit; if price goes up, we lose
                     # Return = 2 - (current_price / entry_price) = 2 - price_ratio
                     balance = balance * (2 - price_ratio)
+            
+            # Update portfolio values
+            portfolio_values.append(balance)
+            
             # Calculate hourly returns (only when we have a previous value)
             if len(portfolio_values) > 1:
                 hourly_return = (portfolio_values[-1] - portfolio_values[-2]) / portfolio_values[-2]
                 returns.append(hourly_return)
-                else:  # N hours ago predicted DOWN - go SHORT
-                    # For short: profit = 2 - price_ratio, but this needs to be bounded
-                    short_return = max(0, 2 - price_ratio)  # Prevent negative returns
-                    balance = balance * short_return
-                else:  # N hours ago predicted DOWN - go SHORT
-                    # For short: profit when price goes down, loss when price goes up
-                    balance = balance * (2 - price_ratio)
-                else:  # N hours ago predicted DOWN - go SHORT
-                    balance = balance * (2 - price_ratio)
-                    print(f"  Price ratio (current/entry): {price_ratio:.6f}")
-                    if prediction_n_hours_ago == 1:
-                        print(f"  Action: LONG - Balance = previous_balance × {price_ratio:.6f}")
-                    else:
-                        print(f"  Action: SHORT - Balance = previous_balance × {2 - price_ratio:.6f}")
-            if i > 0:
-                daily_return = (portfolio_values[i] - portfolio_values[i-1]) / portfolio_values[i-1]
-                returns.append(daily_return)
             
             # Print detailed information for first 20 hours
             if i < 20:
@@ -491,11 +477,11 @@ def main(holding_period=1):
                     print(f"  Using prediction from hour {i - holding_period + 1}: {prediction_n_hours_ago} ({'UP' if prediction_n_hours_ago == 1 else 'DOWN'})")
                     print(f"  Entry price (hour {i - holding_period + 1}): ${price_n_hours_ago:,.2f}")
                     print(f"  Current price (hour {i+1}): ${current_price:,.2f}")
-                    print(f"  Price ratio (entry/current): {price_n_hours_ago/current_price:.6f}")
+                    print(f"  Price ratio (current/entry): {price_ratio:.6f}")
                     if prediction_n_hours_ago == 1:
-                        print(f"  Action: LONG - Balance = previous_balance × {current_price/price_n_hours_ago:.6f}")
+                        print(f"  Action: LONG - Balance = previous_balance × {price_ratio:.6f}")
                     else:
-                        print(f"  Action: SHORT - Balance = previous_balance × {2 - current_price/price_n_hours_ago:.6f}")
+                        print(f"  Action: SHORT - Balance = previous_balance × {2 - price_ratio:.6f}")
                 else:
                     print(f"  No trading this hour (holding period: {holding_period} hours)")
                 print(f"  Balance: ${balance:,.2f}")
