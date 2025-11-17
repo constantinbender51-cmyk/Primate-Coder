@@ -2,460 +2,581 @@ HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Primate Coder</title>
     <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
     <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-tertiary: #e8e8e8;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-tertiary: #999999;
+            --accent: #1669C5;
+            --accent-hover: #1457a8;
+            --border: #d0d0d0;
+            --success: #00aa66;
+            --error: #dd4444;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2a2a2a;
+            --bg-tertiary: #0a0a0a;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --text-tertiary: #888888;
+            --accent: #1669C5;
+            --accent-hover: #1e7de6;
+            --border: #3a3a3a;
+            --success: #00ff88;
+            --error: #ff4444;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-            background: #2a2a2a;
-            min-height: 100vh;
-            padding: 20px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            overflow: hidden;
         }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: #1a1a1a;
-            border: 1px solid #3a3a3a;
+
+        .app {
             display: flex;
             flex-direction: column;
-            height: 90vh;
+            height: 100vh;
+            max-width: 100%;
+            margin: 0 auto;
+            background: var(--bg-primary);
         }
+
         .header {
-            background: #1a1a1a;
-            color: #ffffff;
-            padding: 20px 30px;
-            text-align: center;
-            border-bottom: 1px solid #3a3a3a;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
-        .header-center {
-            flex: 1;
-        }
+
         .header h1 {
-            font-size: 1.5em;
-            margin-bottom: 5px;
+            font-size: 1.1rem;
             font-weight: 500;
-            color: #ffffff;
+            color: var(--text-primary);
         }
-        .header h1 .highlight {
-            color: #FF1669C5;
+
+        .highlight {
+            color: var(--accent);
         }
-        .header p {
-            color: #888888;
-            font-size: 0.85em;
-            font-weight: 300;
-        }
-        .header-right {
-            position: relative;
-        }
-        .dropdown {
-            position: relative;
-            display: inline-block;
-        }
-        .dropdown-button {
-            background: #1a1a1a;
-            color: #888888;
-            border: 1px solid #3a3a3a;
-            padding: 8px 16px;
+
+        .menu-btn {
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
             cursor: pointer;
-            font-size: 0.85em;
-            transition: all 0.2s;
-        }
-        .dropdown-button:hover {
-            border-color: #FF1669C5;
-            color: #FF1669C5;
-        }
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            right: 0;
-            background: #1a1a1a;
-            min-width: 180px;
-            border: 1px solid #3a3a3a;
-            z-index: 1000;
-            margin-top: 5px;
-        }
-        .dropdown-content.show {
-            display: block;
-        }
-        .dropdown-item {
-            padding: 10px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid #3a3a3a;
-            color: #888888;
-            transition: all 0.2s;
+            padding: 4px 8px;
+            color: var(--text-secondary);
+            min-width: 44px;
+            min-height: 44px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: center;
         }
-        .dropdown-item:last-child {
+
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+
+        .menu-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .menu {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border);
+            border-radius: 16px 16px 0 0;
+            z-index: 201;
+            transform: translateY(100%);
+            transition: transform 0.3s;
+            box-shadow: 0 -4px 12px var(--shadow);
+        }
+
+        .menu.show {
+            transform: translateY(0);
+        }
+
+        .menu-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .menu-item {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 56px;
+            transition: background 0.2s;
+        }
+
+        .menu-item:active {
+            background: var(--bg-secondary);
+        }
+
+        .menu-item:last-child {
             border-bottom: none;
         }
-        .dropdown-item:hover {
-            background: #2a2a2a;
-            color: #FF1669C5;
-        }
-        .dropdown-item.active {
-            color: #FF1669C5;
-        }
-        .main-content {
+
+        .tabs {
             display: flex;
-            flex: 1;
-            min-height: 0;
-            overflow-x: auto;
-            overflow-y: hidden;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
         }
-        .output-panel {
+
+        .tab {
             flex: 1;
-            min-width: 400px;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 48px;
+        }
+
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            font-weight: 500;
+        }
+
+        .content {
+            flex: 1;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid #3a3a3a;
-            background: #1a1a1a;
-            overflow: hidden;
         }
-        .output-header {
-            background: #1a1a1a;
-            color: #ffffff;
-            padding: 15px;
-            font-weight: 400;
-            border-bottom: 1px solid #3a3a3a;
-            font-size: 0.9em;
-        }
-        .output-content {
+
+        .view {
             flex: 1;
             overflow-y: auto;
-            overflow-x: auto;
-            padding: 15px;
-            font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
-            font-size: 0.85em;
-            color: #FF1669C5;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            min-height: 0;
-            background: #0a0a0a;
-            border: 1px solid #3a3a3a;
-            margin: 10px;
-        }
-        .debug-console {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: auto;
-            padding: 15px;
-            font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
-            font-size: 0.75em;
-            color: #888888;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            min-height: 0;
-            background: #0a0a0a;
-            border: 1px solid #3a3a3a;
-            margin: 10px;
             display: none;
-        }
-        .debug-console.active {
-            display: block;
-        }
-        .debug-entry {
-            margin-bottom: 15px;
-            padding: 10px;
-            border-left: 3px solid #FF1669C5;
-            background: #1a1a1a;
-        }
-        .debug-timestamp {
-            color: #FF1669C5;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-        .debug-type {
-            color: #00ff88;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-        .debug-data {
-            color: #ffffff;
-            margin-top: 5px;
-        }
-        .chat-panel {
-            flex: 1;
-            min-width: 400px;
-            display: flex;
             flex-direction: column;
-            background: #2a2a2a;
-            overflow: hidden;
         }
+
+        .view.active {
+            display: flex;
+        }
+
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
-            min-height: 0;
-            background: #2a2a2a;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
+
         .message {
-            margin-bottom: 15px;
-            padding: 12px 15px;
-            animation: fadeIn 0.3s;
-            font-size: 0.9em;
-            line-height: 1.6;
-            color: #ffffff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            max-width: 85%;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            word-wrap: break-word;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        .message.user {
+            background: var(--accent);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
         }
-        .user-message {
-            background: transparent;
-            color: #ffffff;
-            margin-left: 20%;
+
+        .message.assistant {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
         }
-        .assistant-message {
-            background: transparent;
-            color: #ffffff;
-            margin-right: 20%;
-            border: 1px solid #FF1669C5;
-            padding: 12px 15px;
-        }
-        .assistant-message code {
-            background: #1a1a1a;
+
+        .message.assistant code {
+            background: var(--bg-tertiary);
             padding: 2px 6px;
             border-radius: 3px;
-            color: #FF1669C5;
+            color: var(--accent);
             font-size: 0.9em;
         }
-        .assistant-message pre {
-            background: #1a1a1a;
+
+        .message.assistant pre {
+            background: var(--bg-tertiary);
             padding: 12px;
             border-radius: 4px;
             overflow-x: auto;
             margin: 10px 0;
         }
-        .assistant-message pre code {
+
+        .message.assistant pre code {
             background: transparent;
             padding: 0;
-            color: #FF1669C5;
         }
-        .assistant-message h1,
-        .assistant-message h2,
-        .assistant-message h3,
-        .assistant-message h4 {
-            margin: 10px 0 5px 0;
-            font-weight: 600;
-        }
-        .assistant-message h1 { font-size: 1.3em; }
-        .assistant-message h2 { font-size: 1.2em; }
-        .assistant-message h3 { font-size: 1.1em; }
-        .assistant-message h4 { font-size: 1em; }
-        .assistant-message p {
-            margin: 8px 0;
-        }
-        .assistant-message ul,
-        .assistant-message ol {
-            margin: 8px 0;
-            padding-left: 25px;
-        }
-        .assistant-message li {
-            margin: 4px 0;
-        }
-        .assistant-message strong {
-            font-weight: 600;
-        }
-        .assistant-message em {
-            font-style: italic;
-        }
-        .assistant-message a {
-            color: #FF1669C5;
-            text-decoration: underline;
-        }
-        .assistant-message a:hover {
-            color: #ff3388;
-        }
-        .assistant-message blockquote {
-            border-left: 3px solid #FF1669C5;
-            padding-left: 15px;
-            margin: 10px 0;
-            color: #888888;
-        }
-        .status-message {
+
+        .message.system {
             background: transparent;
-            color: #888888;
+            color: var(--success);
+            font-size: 0.85rem;
             text-align: center;
-            font-size: 0.85em;
+            margin: 0 auto;
+        }
+
+        .message.status {
+            background: transparent;
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
             font-style: italic;
+            text-align: center;
+            margin: 0 auto;
         }
-        .error-message {
+
+        .message.error {
             background: transparent;
-            color: #ff4444;
-            border-left: 3px solid #ff4444;
-            padding-left: 12px;
+            color: var(--error);
+            font-size: 0.85rem;
+            margin: 0 auto;
+            text-align: center;
         }
-        .success-message {
-            background: transparent;
-            color: #00ff88;
-            border-left: 3px solid #00ff88;
-            padding-left: 12px;
+
+        .output-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: var(--bg-tertiary);
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: var(--accent);
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
-        .chat-input-area {
-            padding: 20px;
-            background: #2a2a2a;
-            border-top: 1px solid #3a3a3a;
+
+        .debug-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: var(--bg-tertiary);
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
         }
+
+        .debug-entry {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: var(--bg-primary);
+            border-left: 3px solid var(--accent);
+            border-radius: 4px;
+        }
+
+        .debug-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .debug-timestamp {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .debug-type {
+            color: var(--success);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .debug-data {
+            color: var(--text-primary);
+        }
+
+        .debug-expand-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+
+        .debug-expand-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .debug-expand-btn.expanded {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .debug-full-data {
+            margin-top: 10px;
+            padding: 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            max-height: 400px;
+            overflow: auto;
+            display: none;
+        }
+
+        .debug-full-data.visible {
+            display: block;
+        }
+
+        .debug-full-data pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.75rem;
+        }
+
+        .input-area {
+            padding: 16px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border);
+        }
+
         .input-wrapper {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            align-items: flex-end;
         }
-        #userInput {
+
+        .input {
             flex: 1;
             padding: 12px;
-            border: 1px solid #3a3a3a;
-            font-size: 0.9em;
-            resize: vertical;
-            min-height: 50px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 1rem;
             font-family: inherit;
-            background: #1a1a1a;
-            color: #ffffff;
-            transition: border-color 0.2s;
+            resize: none;
+            min-height: 48px;
+            max-height: 120px;
         }
-        #userInput:focus {
+
+        .input:focus {
             outline: none;
-            border-color: #FF1669C5;
+            border-color: var(--accent);
         }
-        .btn {
-            padding: 12px 24px;
-            border: 1px solid #3a3a3a;
-            font-size: 0.9em;
-            font-weight: 400;
+
+        .send-btn {
+            padding: 12px 20px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
-            background: #1a1a1a;
-            color: #ffffff;
+            min-height: 48px;
+            min-width: 72px;
+            transition: background 0.2s;
         }
-        .btn:hover {
-            border-color: #FF1669C5;
-            color: #FF1669C5;
+
+        .send-btn:active {
+            background: var(--accent-hover);
         }
-        .btn:disabled {
-            background: #0a0a0a;
-            color: #3a3a3a;
-            border-color: #3a3a3a;
+
+        .send-btn:disabled {
+            background: var(--border);
+            color: var(--text-tertiary);
             cursor: not-allowed;
         }
-        #sendBtn {
-            background: #ffffff;
-            color: #1a1a1a;
-            border-color: #1a1a1a;
-        }
-        #sendBtn:hover {
-            background: #f0f0f0;
-            border-color: #1a1a1a;
-            color: #1a1a1a;
-        }
-        #sendBtn:disabled {
-            background: #3a3a3a;
-            border-color: #3a3a3a;
-        }
+
         .loading {
             display: inline-block;
             width: 12px;
             height: 12px;
-            border: 1px solid #3a3a3a;
-            border-top: 1px solid #FF1669C5;
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-right: 8px;
         }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        @media (min-width: 768px) {
+            .app {
+                max-width: 1200px;
+                margin: 0 auto;
+                height: 95vh;
+                margin-top: 2.5vh;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 4px 24px var(--shadow);
+            }
+
+            .header {
+                border-radius: 8px 8px 0 0;
+                padding: 16px 24px;
+            }
+
+            .header h1 {
+                font-size: 1.3rem;
+            }
+
+            .tabs {
+                display: none;
+            }
+
+            .content {
+                flex-direction: row;
+            }
+
+            .view {
+                display: flex;
+                flex: 1;
+                border-right: 1px solid var(--border);
+            }
+
+            .view:last-child {
+                border-right: none;
+            }
+
+            .view.active {
+                display: flex;
+            }
+
+            .chat-messages {
+                padding: 24px;
+            }
+
+            .message {
+                max-width: 70%;
+            }
+
+            .output-container, .debug-container {
+                padding: 24px;
+            }
+
+            .input-area {
+                padding: 20px 24px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="app">
         <div class="header">
-            <div></div>
-            <div class="header-center">
-                <h1>🐵 Prima<span class="highlight">t</span>e Coder</h1>
-                <p>AI-powered code generation with DeepSeek</p>
+            <h1>Prima<span class="highlight">t</span>e Coder</h1>
+            <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
+        </div>
+
+        <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+        <div class="menu" id="menu">
+            <div class="menu-header">Options</div>
+            <div class="menu-item" onclick="toggleTheme()">
+                <span id="themeIcon">☀️</span>
+                <span id="themeLabel">Switch to Light Mode</span>
             </div>
-            <div class="header-right">
-                <div class="dropdown">
-                    <button class="dropdown-button" onclick="toggleDropdown()">⚙️ Options ▼</button>
-                    <div class="dropdown-content" id="dropdownMenu">
-                        <div class="dropdown-item" onclick="toggleTTS()">
-                            <span id="ttsLabel">🔊 TTS</span>
-                            <span id="ttsStatus">On</span>
-                        </div>
-                        <div class="dropdown-item" onclick="toggleDebug()">
-                            <span>🐛 Debug</span>
-                            <span id="debugStatus">Off</span>
-                        </div>
-                        <div class="dropdown-item" onclick="clearMemory()">
-                            <span>🧹 Clear Memory</span>
-                        </div>
-                        <div class="dropdown-item" onclick="startNewSession()">
-                            <span>🔄 New Session</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="menu-item" onclick="clearMemory()">
+                <span>🧹</span>
+                <span>Clear Memory</span>
+            </div>
+            <div class="menu-item" onclick="startNewSession()">
+                <span>🔄</span>
+                <span>New Session</span>
             </div>
         </div>
-        <div class="main-content">
-            <div class="output-panel">
-                <div class="output-header">📟 Script Output (script.py)</div>
-                <div class="output-content" id="outputContent">Waiting for script.py output...</div>
-                <div class="output-header">🐛 Debug Console</div>
-                <div class="debug-console" id="debugConsole">No debug logs yet...</div>
-            </div>
-            <div class="chat-panel">
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchView('chat')">Chat</button>
+            <button class="tab" onclick="switchView('output')">Output</button>
+            <button class="tab" onclick="switchView('debug')">Debug</button>
+        </div>
+
+        <div class="content">
+            <div class="view active" id="chatView">
                 <div class="chat-messages" id="chatMessages"></div>
-                <div class="chat-input-area">
+                <div class="input-area">
                     <div class="input-wrapper">
-                        <textarea id="userInput" placeholder="Describe what you want to build..."></textarea>
-                        <button id="sendBtn" class="btn" onclick="sendMessage()">Send</button>
+                        <textarea 
+                            class="input" 
+                            id="userInput" 
+                            placeholder="Describe what you want to build..."
+                            rows="1"
+                        ></textarea>
+                        <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
                     </div>
                 </div>
+            </div>
+
+            <div class="view" id="outputView">
+                <div class="output-container" id="outputContent">Waiting for script.py output...</div>
+            </div>
+
+            <div class="view" id="debugView">
+                <div class="debug-container" id="debugConsole">No debug logs yet...</div>
             </div>
         </div>
     </div>
 
     <script>
-        let shouldAutoScroll = true;
         let chatHistory = [];
-        let ttsEnabled = true;
-        let debugMode = false;
-        let currentAudio = null;
+        let theme = localStorage.getItem('primateTheme') || 'dark';
+        let activeView = 'chat';
         let debugLogs = [];
-        
+        let shouldAutoScroll = true;
+
         // Configure marked.js
-        marked.setOptions({ 
-            breaks: true, 
-            gfm: true 
-        });
-        
-        // Load TTS preference
-        const savedTTSPref = localStorage.getItem('primateTTSEnabled');
-        if (savedTTSPref !== null) {
-            ttsEnabled = savedTTSPref === 'true';
-            updateTTSStatus();
-        }
-        
-        // Load Debug preference
-        const savedDebugPref = localStorage.getItem('primateDebugEnabled');
-        if (savedDebugPref !== null) {
-            debugMode = savedDebugPref === 'true';
-            updateDebugStatus();
-            if (debugMode) {
-                document.getElementById('debugConsole').classList.add('active');
-            }
-        }
-        
+        marked.setOptions({ breaks: true, gfm: true });
+
+        // Initialize theme
+        document.documentElement.setAttribute('data-theme', theme);
+        updateThemeUI();
+
         // Load chat history
         const savedHistory = localStorage.getItem('primateChatHistory');
         if (savedHistory) {
@@ -466,9 +587,9 @@ HTML_TEMPLATE = """
                         addMessage(msg.content, 'user', false);
                     } else if (msg.role === 'assistant') {
                         const htmlContent = marked.parse(msg.content);
-                        addMessage('🤖 DeepSeek: ' + htmlContent, 'assistant', false);
+                        addMessage(htmlContent, 'assistant', false);
                     } else if (msg.role === 'system') {
-                        addMessage(msg.content, 'success', false);
+                        addMessage(msg.content, 'system', false);
                     }
                 });
             } catch (e) {
@@ -476,159 +597,157 @@ HTML_TEMPLATE = """
                 chatHistory = [];
             }
         }
-        
-        function toggleDropdown() {
-            document.getElementById('dropdownMenu').classList.toggle('show');
+
+        function toggleMenu() {
+            const menu = document.getElementById('menu');
+            const overlay = document.getElementById('menuOverlay');
+            menu.classList.toggle('show');
+            overlay.classList.toggle('show');
         }
-        
-        // Close dropdown when clicking outside
-        window.onclick = function(event) {
-            if (!event.target.matches('.dropdown-button')) {
-                const dropdowns = document.getElementsByClassName('dropdown-content');
-                for (let i = 0; i < dropdowns.length; i++) {
-                    dropdowns[i].classList.remove('show');
-                }
-            }
+
+        function toggleTheme() {
+            theme = theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('primateTheme', theme);
+            updateThemeUI();
+            toggleMenu();
         }
-        
-        function toggleTTS() {
-            ttsEnabled = !ttsEnabled;
-            localStorage.setItem('primateTTSEnabled', ttsEnabled);
-            updateTTSStatus();
-            if (!ttsEnabled && currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
-        }
-        
-        function updateTTSStatus() {
-            document.getElementById('ttsStatus').textContent = ttsEnabled ? 'On' : 'Off';
-        }
-        
-        function toggleDebug() {
-            debugMode = !debugMode;
-            localStorage.setItem('primateDebugEnabled', debugMode);
-            updateDebugStatus();
-            const console = document.getElementById('debugConsole');
-            if (debugMode) {
-                console.classList.add('active');
+
+        function updateThemeUI() {
+            const icon = document.getElementById('themeIcon');
+            const label = document.getElementById('themeLabel');
+            if (theme === 'dark') {
+                icon.textContent = '☀️';
+                label.textContent = 'Switch to Light Mode';
             } else {
-                console.classList.remove('active');
+                icon.textContent = '🌙';
+                label.textContent = 'Switch to Dark Mode';
             }
         }
-        
-        function updateDebugStatus() {
-            document.getElementById('debugStatus').textContent = debugMode ? 'On' : 'Off';
+
+        function switchView(view) {
+            activeView = view;
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            
+            if (view === 'chat') {
+                document.getElementById('chatView').classList.add('active');
+                document.querySelectorAll('.tab')[0].classList.add('active');
+            } else if (view === 'output') {
+                document.getElementById('outputView').classList.add('active');
+                document.querySelectorAll('.tab')[1].classList.add('active');
+            } else if (view === 'debug') {
+                document.getElementById('debugView').classList.add('active');
+                document.querySelectorAll('.tab')[2].classList.add('active');
+            }
         }
-        
+
         function clearMemory() {
-            if (!confirm('Clear chat history? Files will not be affected.')) return;
+            if (!confirm('Clear chat history?')) return;
             chatHistory = [];
             localStorage.removeItem('primateChatHistory');
             document.getElementById('chatMessages').innerHTML = '';
-            addMessage('🧹 Chat memory cleared.', 'success');
+            addMessage('Chat memory cleared', 'system');
+            toggleMenu();
         }
-        
-        function addDebugLog(type, data) {
-            const timestamp = new Date().toLocaleTimeString();
-            debugLogs.push({ timestamp, type, data });
-            if (debugLogs.length > 50) debugLogs.shift();
-            updateDebugConsole();
-        }
-        
-        function updateDebugConsole() {
-            const console = document.getElementById('debugConsole');
-            if (debugLogs.length === 0) {
-                console.innerHTML = 'No debug logs yet...';
-                return;
-            }
-            let html = '';
-            debugLogs.forEach(log => {
-                html += '<div class="debug-entry">' +
-                        '<div class="debug-timestamp">⏱ ' + log.timestamp + '</div>' +
-                        '<div class="debug-type">📡 ' + log.type + '</div>' +
-                        '<div class="debug-data">' + log.data + '</div>' +
-                        '</div>';
-            });
-            console.innerHTML = html;
-            if (debugMode) {
-                console.scrollTop = console.scrollHeight;
-            }
-        }
-        
-        function playAudio(audioData) {
-            if (!ttsEnabled) return;
-            if (currentAudio) currentAudio.pause();
-            currentAudio = new Audio(audioData);
-            currentAudio.play().catch(err => {
-                console.error('Error playing audio:', err);
-                addDebugLog('TTS Error', 'Failed to play audio');
-            });
-            currentAudio.onended = () => currentAudio = null;
-            addDebugLog('TTS Generated', 'Audio playing');
-        }
-        
-        // Output panel scroll detection
-        const outputDiv = document.getElementById('outputContent');
-        outputDiv.addEventListener('scroll', function() {
-            const distanceFromBottom = outputDiv.scrollHeight - outputDiv.scrollTop - outputDiv.clientHeight;
-            shouldAutoScroll = distanceFromBottom < 50;
-        });
-        
-        // Poll for script output
-        setInterval(async () => {
+
+        async function startNewSession() {
+            if (!confirm('Clear script.py and chat history?')) return;
+            
             try {
-                const response = await fetch('/get_output');
+                const response = await fetch('/new_session', { method: 'POST' });
                 const data = await response.json();
-                if (data.output) {
-                    outputDiv.textContent = data.output;
-                    if (shouldAutoScroll) {
-                        outputDiv.scrollTop = outputDiv.scrollHeight;
-                    }
+                
+                if (data.success) {
+                    chatHistory = [];
+                    localStorage.removeItem('primateChatHistory');
+                    document.getElementById('chatMessages').innerHTML = '';
+                    addMessage('New session started', 'system');
+                } else {
+                    addMessage('Error: ' + data.error, 'error');
                 }
             } catch (error) {
-                console.error('Error fetching output:', error);
+                addMessage('Error: ' + error.message, 'error');
             }
-        }, 1000);
-        
-        // Poll for debug logs
-        setInterval(async () => {
-            try {
-                const response = await fetch('/get_debug_logs');
-                const data = await response.json();
-                if (data.logs && data.logs.length > 0) {
-                    data.logs.forEach(log => addDebugLog(log.type, log.data));
-                }
-            } catch (error) {
-                console.error('Error fetching debug logs:', error);
-            }
-        }, 1000);
-        
+            toggleMenu();
+        }
+
         function addMessage(content, type, saveToHistory = true) {
             const chatMessages = document.getElementById('chatMessages');
             const msg = document.createElement('div');
-            msg.className = 'message ' + type + '-message';
+            msg.className = 'message ' + type;
             msg.innerHTML = content;
             chatMessages.appendChild(msg);
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
-            // Save system messages to chat history
-            if (saveToHistory && (type === 'success' || type === 'error')) {
-                const textContent = content.replace(/<[^>]*>/g, '').replace(/[✅❌🚀🧹🔄]/g, '').trim();
+            if (saveToHistory && (type === 'system' || type === 'error')) {
+                const textContent = content.replace(/<[^>]*>/g, '').trim();
                 chatHistory.push({ role: 'system', content: textContent });
                 saveChatHistory();
             }
             
             return msg;
         }
-        
+
         function saveChatHistory() {
             if (chatHistory.length > 30) {
                 chatHistory = chatHistory.slice(-30);
             }
             localStorage.setItem('primateChatHistory', JSON.stringify(chatHistory));
         }
-        
+
+        function addDebugLog(type, data, fullData = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugLogs.push({ timestamp, type, data, fullData });
+            if (debugLogs.length > 50) debugLogs.shift();
+            updateDebugConsole();
+        }
+
+        function updateDebugConsole() {
+            const console = document.getElementById('debugConsole');
+            if (debugLogs.length === 0) {
+                console.innerHTML = 'No debug logs yet...';
+                return;
+            }
+            
+            let html = '';
+            debugLogs.forEach((log, index) => {
+                html += '<div class="debug-entry">';
+                html += '<div class="debug-header">';
+                html += '<div><div class="debug-timestamp">' + log.timestamp + '</div>';
+                html += '<div class="debug-type">' + log.type + '</div></div>';
+                if (log.fullData) {
+                    html += '<button class="debug-expand-btn" onclick="toggleDebugData(' + index + ')">Show Details</button>';
+                }
+                html += '</div>';
+                html += '<div class="debug-data">' + escapeHtml(log.data) + '</div>';
+                if (log.fullData) {
+                    html += '<div class="debug-full-data" id="debug-full-' + index + '">';
+                    html += '<pre>' + escapeHtml(log.fullData) + '</pre>';
+                    html += '</div>';
+                }
+                html += '</div>';
+            });
+            console.innerHTML = html;
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function toggleDebugData(index) {
+            const elem = document.getElementById('debug-full-' + index);
+            const btn = document.querySelectorAll('.debug-expand-btn')[debugLogs.length - 1 - index];
+            if (elem) {
+                elem.classList.toggle('visible');
+                btn.classList.toggle('expanded');
+                btn.textContent = elem.classList.contains('visible') ? 'Hide Details' : 'Show Details';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         async function sendMessage() {
             const input = document.getElementById('userInput');
             const btn = document.getElementById('sendBtn');
@@ -644,80 +763,123 @@ HTML_TEMPLATE = """
             btn.disabled = true;
             
             const statusMsg = addMessage('<span class="loading"></span>Processing your request...', 'status');
-            addDebugLog('Client → Server', 'Request: ' + message.substring(0, 100));
+            
+            const requestPayload = { message, chat_history: chatHistory };
+            addDebugLog(
+                'Client → Server', 
+                'POST /generate | Message length: ' + message.length + ' chars',
+                JSON.stringify(requestPayload, null, 2)
+            );
             
             try {
                 const response = await fetch('/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message, chat_history: chatHistory })
+                    body: JSON.stringify(requestPayload)
                 });
                 
+                addDebugLog('Server → Client', 'Status: ' + response.status + ' ' + response.statusText);
+                
+                const responseText = await response.text();
+                addDebugLog(
+                    'Server Response (Raw)',
+                    'Length: ' + responseText.length + ' bytes',
+                    responseText
+                );
+                
                 statusMsg.remove();
-                const data = await response.json();
-                addDebugLog('Server → Client', 'Status: ' + response.status);
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    addDebugLog(
+                        'Server Response (Parsed)',
+                        'Successfully parsed JSON response',
+                        JSON.stringify(data, null, 2)
+                    );
+                } catch (parseError) {
+                    addDebugLog(
+                        'JSON Parse Error',
+                        'Failed to parse response: ' + parseError.message,
+                        responseText
+                    );
+                    addMessage('Error: Invalid JSON response from server', 'error');
+                    btn.disabled = false;
+                    return;
+                }
                 
                 if (data.error) {
-                    addDebugLog('Error', data.error);
-                    addMessage('❌ Error: ' + data.error, 'error');
+                    addDebugLog('Error Response', data.error);
+                    addMessage('Error: ' + data.error, 'error');
                 } else {
                     if (data.files_updated && data.files_updated.length > 0) {
-                        addDebugLog('GitHub', 'Updated: ' + data.files_updated.join(', '));
-                        addMessage('✅ Updated files: ' + data.files_updated.join(', '), 'success');
-                        addMessage('🚀 Files pushed to GitHub. Railway redeploying...', 'success');
-                        
-                        if (data.deepseek_response) {
-                            const htmlContent = marked.parse(data.deepseek_response);
-                            addMessage('🤖 DeepSeek: ' + htmlContent, 'assistant');
-                            chatHistory.push({ role: 'assistant', content: data.deepseek_response });
-                            saveChatHistory();
-                            if (data.audio && ttsEnabled) playAudio(data.audio);
-                        }
-                    } else if (data.deepseek_response) {
+                        addDebugLog('Files Updated', 'Updated: ' + data.files_updated.join(', '));
+                        addMessage('Updated files: ' + data.files_updated.join(', '), 'system');
+                        addMessage('Files pushed to GitHub. Railway redeploying...', 'system');
+                    }
+                    
+                    if (data.deepseek_response) {
                         const htmlContent = marked.parse(data.deepseek_response);
-                        addMessage('🤖 DeepSeek: ' + htmlContent, 'assistant');
+                        addMessage(htmlContent, 'assistant');
                         chatHistory.push({ role: 'assistant', content: data.deepseek_response });
                         saveChatHistory();
-                        if (data.audio && ttsEnabled) playAudio(data.audio);
                     }
                 }
             } catch (error) {
                 statusMsg.remove();
-                addDebugLog('Client Error', error.message);
-                addMessage('❌ Error: ' + error.message, 'error');
+                addDebugLog(
+                    'Client Fetch Error', 
+                    error.message,
+                    'Error: ' + error.name + '\\nMessage: ' + error.message + '\\nStack: ' + error.stack
+                );
+                addMessage('Network Error: ' + error.message, 'error');
             }
             
             btn.disabled = false;
         }
-        
-        async function startNewSession() {
-            if (!confirm('Clear script.py and chat history?')) return;
-            
-            try {
-                const response = await fetch('/new_session', { method: 'POST' });
-                const data = await response.json();
-                
-                if (data.success) {
-                    chatHistory = [];
-                    localStorage.removeItem('primateChatHistory');
-                    document.getElementById('chatMessages').innerHTML = '';
-                    addDebugLog('Session Reset', 'New session started');
-                    addMessage('🔄 New session started.', 'success');
-                } else {
-                    addMessage('❌ Error: ' + data.error, 'error');
-                }
-            } catch (error) {
-                addMessage('❌ Error: ' + error.message, 'error');
-            }
-        }
-        
-        // Enter key to send message
+
+        // Enter key to send
         document.getElementById('userInput').addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
         });
+
+        // Poll for script output
+        const outputDiv = document.getElementById('outputContent');
+        outputDiv.addEventListener('scroll', function() {
+            const distanceFromBottom = outputDiv.scrollHeight - outputDiv.scrollTop - outputDiv.clientHeight;
+            shouldAutoScroll = distanceFromBottom < 50;
+        });
+
+        setInterval(async () => {
+            try {
+                const response = await fetch('/get_output');
+                const data = await response.json();
+                if (data.output) {
+                    outputDiv.textContent = data.output;
+                    if (shouldAutoScroll) {
+                        outputDiv.scrollTop = outputDiv.scrollHeight;
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching output:', error);
+            }
+        }, 1000);
+
+        // Poll for debug logs
+        setInterval(async () => {
+            try {
+                const response = await fetch('/get_debug_logs');
+                const data = await response.json();
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => addDebugLog(log.type, log.data));
+                }
+            } catch (error) {
+                console.error('Error fetching debug logs:', error);
+            }
+        }, 1000);
     </script>
 </body>
 </html>
