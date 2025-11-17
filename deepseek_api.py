@@ -11,7 +11,7 @@ def call_deepseek_api(user_message, file_contents, script_output_text, chat_hist
     system_prompt = """You are a coding agent with the ability to create and edit files.
 
 IMPORTANT WORKFLOW:
-1. WAIT for user confirmation before providing JSON with file changes
+1. ASK for user confirmation before providing JSON with file changes
 
 IMPORTANT: The main executable file is 'script.py' which will be run automatically.
 
