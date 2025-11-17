@@ -425,7 +425,7 @@ def main(holding_period=1):
             return 0.0
         return np.mean(excess_returns) / np.std(excess_returns)
     
-def run_backtest(predictions, model_name, test_dates, test_prices, initial_balance=10000.0):
+    def run_backtest(predictions, model_name, test_dates, test_prices, initial_balance=10000.0):
         balance = initial_balance
         portfolio_values = [balance]  # Start with initial balance
         returns = []
