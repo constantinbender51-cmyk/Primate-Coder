@@ -321,7 +321,7 @@ def train_transformer():
     sequence_length = 60  # 60 minutes of historical data
     prediction_horizon = 5  # Predict 5 minutes ahead
     
-    X, y = create_sequences_memory_efficient(scaled_features, sequence_length, prediction_horizon, max_sequences=5000)
+    X, y = create_sequences_memory_efficient(scaled_features, sequence_length, prediction_horizon, max_sequences=20000)
     
     print(f"Sequences created: {X.shape}")
     print(f"Target distribution: {np.unique(y, return_counts=True)}")
