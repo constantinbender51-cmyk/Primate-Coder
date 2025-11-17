@@ -47,13 +47,10 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
             # Set end_time for next chunk (oldest data)
             end_time = int(klines[0][0]) - 1  # Subtract 1ms from first candle
             
-            print(f"Fetched {len(klines)} 30-min periods for {symbol}, total: {len(all_data)} periods")
-            
             # Small delay to avoid rate limiting
             time.sleep(0.1)
             
         except Exception as e:
-            print(f"Error fetching {symbol} chunk: {e}")
             break
     
     # Convert to DataFrame
@@ -75,8 +72,28 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
     df = df.sort_values('date').reset_index(drop=True)
     
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
+    
+    # Convert to DataFrame
+    df = pd.DataFrame(all_data, columns=[
+        'open_time', 'open', 'high', 'low', 'close', 'volume',
+        'close_time', 'quote_asset_volume', 'number_of_trades',
+        'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
+    ])
+    
+    # Convert to numeric types
+    numeric_cols = ['open', 'high', 'low', 'close', 'volume']
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col])
+    
+    # Convert timestamp to datetime
+    df['date'] = pd.to_datetime(df['open_time'], unit='ms')
+    
+    # Sort by date (oldest first)
+    df = df.sort_values('date').reset_index(drop=True)
+    
+    return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 def fetch_yahoo_data(symbol, periods=2500, start_date='2022-01-01'):
-    """Fetch data from Yahoo Finance for gold or stock indexes"""
+    """Fetch data from Yahoo Finance"""
     try:
         # Download data
         ticker = yf.Ticker(symbol)
@@ -97,20 +114,11 @@ def fetch_yahoo_data(symbol, periods=2500, start_date='2022-01-01'):
         # Take the last 'periods' rows
         df = df.tail(periods).reset_index(drop=True)
         
-        print(f"Fetched {len(df)} periods for {symbol}")
         return df
         
     except Exception as e:
-        print(f"Error fetching {symbol}: {e}")
         # Return empty DataFrame with required columns
         return pd.DataFrame(columns=['date', 'open', 'high', 'low', 'close', 'volume'])
-def fetch_gold_data(periods=2500, start_date='2022-01-01'):
-    """Fetch gold data (XAU/USD) from Yahoo Finance"""
-    return fetch_yahoo_data('GC=F', periods, start_date)
-
-def fetch_hang_seng_data(periods=2500, start_date='2022-01-01'):
-    """Fetch Hang Seng index data from Yahoo Finance"""
-    return fetch_yahoo_data('^HSI', periods, start_date)
 
 def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
     """Calculate MACD indicator"""
@@ -131,8 +139,8 @@ def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
     
     return macd_line, signal_line, macd_histogram
 
-def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, gold_df, hsi_df, holding_period=1):
-    """Create technical indicators and features including altcoin data, gold, and Hang Seng - ONLY DERIVATIVES - 30-MINUTE ADJUSTED"""
+def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period=1):
+    """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - 30-MINUTE ADJUSTED"""
     df = btc_df.copy()
     
     # Price-based derivative features for Bitcoin (NO RAW PRICES)
@@ -178,27 +186,17 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, gold_df, hsi_d
     df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(48).mean()
     df['btc_ada_ratio'] = df['close'] / ada_df['close']  # BTC dominance vs ADA
     
-    # Add gold features
-    df['gold_price_change'] = gold_df['close'].pct_change()
-    df['gold_volume_ratio'] = gold_df['volume'] / gold_df['volume'].rolling(48).mean()
-    df['btc_gold_ratio'] = df['close'] / gold_df['close']  # BTC vs Gold ratio
-    
-    # Add Hang Seng features
-    df['hsi_price_change'] = hsi_df['close'].pct_change()
-    df['hsi_volume_ratio'] = hsi_df['volume'] / hsi_df['volume'].rolling(48).mean()
-    df['btc_hsi_ratio'] = df['close'] / hsi_df['close']  # BTC vs Hang Seng ratio
-    
     # Altcoin momentum indicators
     df['altcoin_momentum'] = (df['eth_price_change'] + df['xrp_price_change'] + df['ada_price_change']) / 3
     df['altcoin_volume_strength'] = (df['eth_volume_ratio'] + df['xrp_volume_ratio'] + df['ada_volume_ratio']) / 3
     
-    # Add cross-market momentum
-    df['gold_momentum'] = df['gold_price_change'].rolling(12).mean()
-    df['hsi_momentum'] = df['hsi_price_change'].rolling(12).mean()
+    # Target: Next N-period price direction (1 = up, 0 = down)
+    df['target'] = (df['close'].shift(-holding_period) > df['close']).astype(int)
     
-    # Global market momentum
-    df['global_momentum'] = (df['altcoin_momentum'] + df['gold_momentum'] + df['hsi_momentum']) / 3
+    # Drop NaN values
+    df = df.dropna()
     
+    return df
     # Target: Next N-period price direction (1 = up, 0 = down)
     df['target'] = (df['close'].shift(-holding_period) > df['close']).astype(int)
     
@@ -215,9 +213,7 @@ def add_polynomial_features(X):
     features_for_poly = [
         'price_change', 'volatility_24', 'volatility_48', 
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum', 'macd_histogram', 'gold_price_change', 'hsi_price_change',
-        'gold_momentum', 'hsi_momentum', 'global_momentum'
-    ]
+        'altcoin_momentum', 'macd_histogram'
     
     # Add squared features
     for feature in features_for_poly:
@@ -241,9 +237,7 @@ def add_lagged_features_selected(X):
     selected_features = [
         'price_change', 'price_vs_sma24', 'volume_ratio', 'volatility_24', 'volatility_48',
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum', 'macd_histogram', 'gold_price_change', 'hsi_price_change',
-        'gold_momentum', 'hsi_momentum', 'global_momentum'
-    ]
+        'altcoin_momentum', 'macd_histogram'
     
     # Lag periods - removed 24
     lag_periods = [1, 3, 12]  # 30-minute periods
@@ -270,9 +264,7 @@ def normalize_features(X):
     # Features that can be negative (normalize to [-1, 1])
     negative_features = [
         'price_change', 'eth_price_change', 'xrp_price_change', 'ada_price_change', 
-        'altcoin_momentum', 'macd_line', 'macd_signal', 'macd_histogram',
-        'gold_price_change', 'hsi_price_change', 'gold_momentum', 'hsi_momentum', 'global_momentum'
-    ]
+        'altcoin_momentum', 'macd_line', 'macd_signal', 'macd_histogram'
     
     # Features that are always positive (normalize to [0, 1])
     positive_features = [
@@ -283,9 +275,7 @@ def normalize_features(X):
         'eth_volume_ratio', 'btc_eth_ratio',
         'xrp_volume_ratio', 'btc_xrp_ratio',
         'ada_volume_ratio', 'btc_ada_ratio',
-        'altcoin_volume_strength', 'gold_volume_ratio', 'btc_gold_ratio',
-        'hsi_volume_ratio', 'btc_hsi_ratio'
-    ]
+        'altcoin_volume_strength'
     
     # Add polynomial features to appropriate categories
     poly_features = [col for col in X.columns if col.endswith('_squared') or col.endswith('_cubed')]
@@ -321,35 +311,21 @@ def normalize_features(X):
     return X_normalized
 
 def main(holding_period=1):
+def main(holding_period=1):
     # Set fixed start date to 2022
     import datetime
     start_date = datetime.date(2022, 1, 1).strftime('%Y-%m-%d')
     
     # Fetch Bitcoin data
-    print(f"Fetching 2,500 periods of Bitcoin data from {start_date}...")
     btc_df = fetch_crypto_data_chunked('BTCUSDT', 2500, start_date)
     
     # Fetch altcoin data
-    print(f"\nFetching Ethereum data from {start_date}...")
     eth_df = fetch_crypto_data_chunked('ETHUSDT', 2500, start_date)
-    
-    print(f"\nFetching Ripple data from {start_date}...")
     xrp_df = fetch_crypto_data_chunked('XRPUSDT', 2500, start_date)
-    
-    print(f"\nFetching Cardano data from {start_date}...")
     ada_df = fetch_crypto_data_chunked('ADAUSDT', 2500, start_date)
     
-    # Fetch gold and Hang Seng data
-    print(f"\nFetching Gold data from {start_date}...")
-    gold_df = fetch_gold_data(2500, start_date)
-    
-    print(f"\nFetching Hang Seng data from {start_date}...")
-    hsi_df = fetch_hang_seng_data(2500, start_date)
-    
-    # Create features with altcoin data, gold, and Hang Seng
-    # Create features with altcoin data, gold, and Hang Seng
-    df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, gold_df, hsi_df, holding_period)
-    
+    # Create features with altcoin data
+    df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period)
     # Dataset information - simplified
     print(f"\nDataset Info:")
     print(f"  Total periods: {len(df)}")
