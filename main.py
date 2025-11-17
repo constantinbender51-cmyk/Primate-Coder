@@ -100,7 +100,12 @@ def get_debug_logs():
     """Get current debug logs."""
     logs = []
     while not debug_logs.empty():
-        logs.append(debug_logs.get())
+        log = debug_logs.get()
+        # Convert dict format to expected format
+        if isinstance(log, dict):
+            logs.append(log)
+        else:
+            logs.append({"type": "Unknown", "data": str(log)})
     
     return jsonify({"logs": logs})
 
@@ -138,6 +143,15 @@ def generate():
                                               chat_history, DEEPSEEK_API_KEY, debug_logs)
         
         json_objects = extract_json_from_text(deepseek_response)
+        
+        # Log extracted JSON objects
+        if json_objects:
+            debug_logs.put({
+                "type": "Extracted JSON",
+                "data": f"Found {len(json_objects)} JSON object(s)",
+                "fullData": "\n\n".join([f"Object {i+1}:\n{json.dumps(obj, indent=2)}" for i, obj in enumerate(json_objects)])
+            })
+        
         text_response = remove_json_from_text(deepseek_response)
         
         audio_data = None
@@ -185,7 +199,18 @@ def generate():
             current_content = get_file_from_github(filename, GITHUB_USERNAME, GITHUB_REPO,
                                                    GITHUB_BRANCH, GITHUB_TOKEN, debug_logs)
             if current_content is None:
+                debug_logs.put({
+                    "type": "Edit Error",
+                    "data": f"Could not retrieve {filename} from GitHub"
+                })
                 continue
+            
+            # Log the original file for debugging
+            debug_logs.put({
+                "type": "File Before Edits",
+                "data": f"{filename}: {len(current_content)} characters, {len(current_content.split(chr(10)))} lines",
+                "fullData": f"Original content of {filename}:\n{current_content}"
+            })
             
             # CRITICAL FIX: Sort edits by line number in DESCENDING order
             # This ensures we edit from bottom to top, so line numbers stay valid
@@ -203,11 +228,12 @@ def generate():
             
             debug_logs.put({
                 "type": "Edit Sorting", 
-                "data": f"{filename}: Applying {len(edits_sorted)} edits from bottom to top"
+                "data": f"{filename}: Applying {len(edits_sorted)} edit(s) from bottom to top",
+                "fullData": "\n".join([f"Edit {i+1}: {e['operation']} at line {get_sort_key(e)}" for i, e in enumerate(edits_sorted)])
             })
             
             # Apply each edit sequentially from bottom to top
-            for edit in edits_sorted:
+            for edit_idx, edit in enumerate(edits_sorted):
                 operation = edit["operation"]
                 data = edit["data"]
                 
@@ -219,13 +245,19 @@ def generate():
                     if start_line is None or end_line is None:
                         continue
                     
+                    lines = current_content.split('\n')
+                    total_lines = len(lines)
+                    
                     debug_logs.put({
                         "type": "Replace Lines",
-                        "data": f"{filename}: Lines {start_line}-{end_line}"
+                        "data": f"{filename}: Replacing lines {start_line}-{end_line} (file has {total_lines} lines)",
+                        "fullData": f"Original lines {start_line}-{end_line}:\n" + 
+                                   "\n".join([f"{i}: {lines[i-1]}" for i in range(start_line, min(end_line+1, total_lines+1)) if i-1 < len(lines)]) +
+                                   f"\n\nNew content:\n{content}"
                     })
                     
-                    lines = current_content.split('\n')
                     new_lines = content.split('\n') if content else []
+                    # Python slice: [start_line-1:end_line] replaces lines start_line through end_line (inclusive)
                     lines[start_line-1:end_line] = new_lines
                     current_content = '\n'.join(lines)
                     
@@ -236,15 +268,25 @@ def generate():
                     if line_number is None:
                         continue
                     
+                    lines = current_content.split('\n')
+                    total_lines = len(lines)
+                    
                     debug_logs.put({
                         "type": "Insert at Line",
-                        "data": f"{filename}: Line {line_number}"
+                        "data": f"{filename}: Inserting at line {line_number} (file has {total_lines} lines)",
+                        "fullData": f"Content to insert at line {line_number}:\n{content}"
                     })
                     
-                    lines = current_content.split('\n')
                     new_lines = content.split('\n') if content else []
                     lines[line_number-1:line_number-1] = new_lines
                     current_content = '\n'.join(lines)
+            
+            # Log the modified file for debugging
+            debug_logs.put({
+                "type": "File After Edits",
+                "data": f"{filename}: {len(current_content)} characters, {len(current_content.split(chr(10)))} lines",
+                "fullData": f"Modified content of {filename}:\n{current_content}"
+            })
             
             # Handle requirements.txt merging
             if filename == "requirements.txt":
@@ -267,7 +309,13 @@ def generate():
         })
         
     except Exception as e:
-        debug_logs.put({"type": "Server Error", "data": str(e)})
+        import traceback
+        error_details = traceback.format_exc()
+        debug_logs.put({
+            "type": "Server Error", 
+            "data": str(e),
+            "fullData": error_details
+        })
         return jsonify({"error": str(e)}), 500
 
 
