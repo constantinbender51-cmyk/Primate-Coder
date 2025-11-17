@@ -461,5 +461,4 @@ def main():
     print("\n=== COMPLETE ===")
 
 if __name__ == "__main__":
-if __name__ == "__main__":
     main()
