@@ -1,3 +1,4 @@
+
 import os
 import subprocess
 import threading
@@ -134,11 +135,32 @@ def generate():
         
         script_output_text = getattr(get_output, 'accumulated', '')
         
+        # Log the request context for debugging
+        debug_logs.put({
+            "type": "Generate Request Context",
+            "data": f"User message: {user_message[:200]}... | Files: {list(file_contents.keys())}",
+            "fullData": f"User Message: {user_message}\n\nFiles Available: {list(file_contents.keys())}\n\nScript Output (last 1000 chars): {script_output_text[-1000:] if script_output_text else 'None'}"
+        })
+        
         deepseek_response = call_deepseek_api(user_message, file_contents, script_output_text, 
                                               chat_history, DEEPSEEK_API_KEY, debug_logs)
         
         json_objects = extract_json_from_text(deepseek_response)
         text_response = remove_json_from_text(deepseek_response)
+        
+        # Log extracted JSON objects
+        debug_logs.put({
+            "type": "Extracted JSON Objects",
+            "data": f"Found {len(json_objects)} JSON objects in response",
+            "fullData": json.dumps(json_objects, indent=2) if json_objects else "No JSON objects found"
+        })
+        
+        # Log text response after JSON removal
+        debug_logs.put({
+            "type": "Text Response (JSON Removed)",
+            "data": f"Length: {len(text_response)} characters",
+            "fullData": text_response if text_response else "Empty text response"
+        })
         
         audio_data = None
         if text_response:
@@ -203,7 +225,8 @@ def generate():
             
             debug_logs.put({
                 "type": "Edit Sorting", 
-                "data": f"{filename}: Applying {len(edits_sorted)} edits from bottom to top"
+                "data": f"{filename}: Applying {len(edits_sorted)} edits from bottom to top",
+                "fullData": f"Edits to apply (in order):\n{json.dumps(edits_sorted, indent=2)}"
             })
             
             # Apply each edit sequentially from bottom to top
@@ -221,7 +244,8 @@ def generate():
                     
                     debug_logs.put({
                         "type": "Replace Lines",
-                        "data": f"{filename}: Lines {start_line}-{end_line}"
+                        "data": f"{filename}: Lines {start_line}-{end_line}",
+                        "fullData": f"Replacing lines {start_line}-{end_line} with:\n{content}"
                     })
                     
                     lines = current_content.split('\n')
@@ -238,7 +262,8 @@ def generate():
                     
                     debug_logs.put({
                         "type": "Insert at Line",
-                        "data": f"{filename}: Line {line_number}"
+                        "data": f"{filename}: Line {line_number}",
+                        "fullData": f"Inserting at line {line_number}:\n{content}"
                     })
                     
                     lines = current_content.split('\n')
@@ -267,7 +292,11 @@ def generate():
         })
         
     except Exception as e:
-        debug_logs.put({"type": "Server Error", "data": str(e)})
+        debug_logs.put({
+            "type": "Server Error", 
+            "data": str(e),
+            "fullData": f"Error details: {str(e)}\n\nTraceback (if available): {e.__traceback__}"
+        })
         return jsonify({"error": str(e)}), 500
 
 
