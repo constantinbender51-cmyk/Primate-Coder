@@ -46,22 +46,61 @@ Each JSON object must be a TOP-LEVEL object, NOT nested inside filename keys.
   "content": "new code"
 }
 
-CRITICAL - LINE NUMBER CLARITY:
-When using line editing operations, line numbers are INCLUSIVE on BOTH ends:
-- start_line: 10 means line 10 IS INCLUDED in the edit
-- end_line: 20 means line 20 IS INCLUDED in the edit
-- Lines 10, 11, 12, ..., 19, 20 will ALL be replaced with the new content
-- Line numbers are 1-indexed (first line is line 1, not line 0)
+CRITICAL - LINE NUMBER EXPLANATION:
+Line numbers are 1-indexed (first line is line 1, NOT line 0).
+When you see numbered lines in the file context, use those EXACT numbers.
 
-Example: To replace lines 5 through 8 (inclusive):
+For replace_lines operation:
+- start_line and end_line are BOTH INCLUSIVE
+- To replace lines 10 through 15, use: start_line: 10, end_line: 15
+- This will replace lines 10, 11, 12, 13, 14, AND 15 (all 6 lines)
+- The content you provide will replace ALL these lines
+
+Example from the file:
+10: def my_function():
+11:     x = 5
+12:     y = 10
+13:     return x + y
+
+To replace lines 11-12 ONLY (the two variable assignments):
 {
   "file": "script.py",
   "operation": "replace_lines",
-  "start_line": 5,
-  "end_line": 8,
-  "content": "new code here"
+  "start_line": 11,
+  "end_line": 12,
+  "content": "    x = 100\\n    y = 200"
 }
-This will replace lines 5, 6, 7, AND 8 with the new content.
+
+Result:
+10: def my_function():
+11:     x = 100
+12:     y = 200
+13:     return x + y
+
+IMPORTANT: Count the line numbers carefully! If you see:
+5: import os
+6: import sys
+7: 
+8: def main():
+
+And you want to add an import after line 6, you have two options:
+
+Option 1 - Insert at line 7:
+{
+  "file": "script.py",
+  "operation": "insert_at_line",
+  "line": 7,
+  "content": "import json"
+}
+
+Option 2 - Replace the empty line 7:
+{
+  "file": "script.py",
+  "operation": "replace_lines",
+  "start_line": 7,
+  "end_line": 7,
+  "content": "import json\\n"
+}
 
 For SMALL files (<100 lines) or NEW files, use FULL CONTENT format:
 {
@@ -77,7 +116,7 @@ For LARGE files (>100 lines) with edits, use LINE RANGE format:
   "content": "new code here"
 }
 
-For INSERTING code at a specific line, use INSERT format:
+For INSERTING code at a specific line (pushes existing lines down), use INSERT format:
 {
   "file": "script.py",
   "operation": "insert_at_line",
@@ -119,11 +158,9 @@ Current files in the repository:
     context_parts = []
     for name, content in visible_files.items():
         lines = content.split('\n')
-        if len(lines) > 50:
-            numbered_content = '\n'.join([f"{i+1}: {line}" for i, line in enumerate(lines)])
-            context_parts.append(f"=== {name} (with line numbers) ===\n{numbered_content}")
-        else:
-            context_parts.append(f"=== {name} ===\n{content}")
+        # Always show line numbers for better accuracy
+        numbered_content = '\n'.join([f"{i+1}: {line}" for i, line in enumerate(lines)])
+        context_parts.append(f"=== {name} (lines 1-{len(lines)}) ===\n{numbered_content}")
     
     context = "\n\n".join(context_parts)
     full_message = f"{context}\n\n=== User Request ===\n{user_message}"
@@ -149,7 +186,14 @@ Current files in the repository:
     
     data = response.json()
     if "choices" in data and len(data["choices"]) > 0:
-        return data["choices"][0]["message"]["content"]
+        response_content = data["choices"][0]["message"]["content"]
+        # Log the full DeepSeek response
+        debug_logs.put({
+            "type": "DeepSeek Response", 
+            "data": f"Length: {len(response_content)} characters",
+            "fullData": response_content
+        })
+        return response_content
     
     raise Exception("No valid response from DeepSeek")
 
