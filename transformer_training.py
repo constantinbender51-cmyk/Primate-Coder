@@ -293,12 +293,12 @@ def build_transformer_model(input_shape, num_layers=4, d_model=128, num_heads=8,
     # Pass through transformer
     encoder_output = transformer_encoder(inputs, training=True)
     
-    # Global average pooling and classification
+    # Global average pooling and classification with better initialization
     x = layers.GlobalAveragePooling1D()(encoder_output)
-    x = layers.Dense(64, activation='relu')(x)
+    x = layers.Dense(64, activation='relu', kernel_initializer='he_normal')(x)
     x = layers.Dropout(0.3)(x)
-    x = layers.Dense(32, activation='relu')(x)
-    outputs = layers.Dense(1, activation='sigmoid')(x)
+    x = layers.Dense(32, activation='relu', kernel_initializer='he_normal')(x)
+    outputs = layers.Dense(1, activation='sigmoid', kernel_initializer='glorot_normal')(x)
     
     model = keras.Model(inputs=inputs, outputs=outputs)
     
@@ -341,9 +341,15 @@ def train_transformer():
         dff=512
     )
     
-    # Compile model
+    # Calculate class weights for imbalanced data
+    from sklearn.utils.class_weight import compute_class_weight
+    class_weights = compute_class_weight('balanced', classes=np.unique(y_train), y=y_train)
+    class_weight_dict = {i: weight for i, weight in enumerate(class_weights)}
+    print(f"Class weights: {class_weight_dict}")
+    
+    # Compile model with better optimizer settings
     model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=0.001),
+        optimizer=keras.optimizers.Adam(learning_rate=0.0001),
         loss='binary_crossentropy',
         metrics=['accuracy', 'precision', 'recall']
     )
@@ -351,23 +357,43 @@ def train_transformer():
     print("\nModel Architecture:")
     model.summary()
     
-    # Train model
+    # Train model with class weights and callbacks
     print("\nTraining transformer model...")
+    
+    # Add learning rate scheduler
+    lr_scheduler = keras.callbacks.ReduceLROnPlateau(
+        monitor='val_loss', factor=0.5, patience=2, min_lr=1e-7, verbose=1
+    )
+    
     history = model.fit(
         X_train, y_train,
         batch_size=16,
         epochs=5,
         validation_data=(X_test, y_test),
-        verbose=2
+        verbose=2,
+        class_weight=class_weight_dict,
+        callbacks=[lr_scheduler]
     )
     
-    # Evaluate model
+    # Evaluate model with custom threshold
     print("\nEvaluating model...")
     test_loss, test_accuracy, test_precision, test_recall = model.evaluate(X_test, y_test, verbose=0)
     
-    print(f"Test Accuracy: {test_accuracy:.4f}")
-    print(f"Test Precision: {test_precision:.4f}")
-    print(f"Test Recall: {test_recall:.4f}")
+    # Also calculate metrics with custom threshold
+    y_pred_proba = model.predict(X_test, verbose=0)
+    y_pred = (y_pred_proba > 0.4).astype(int).flatten()  # Lower threshold
+    
+    from sklearn.metrics import precision_score, recall_score, accuracy_score
+    custom_precision = precision_score(y_test, y_pred, zero_division=0)
+    custom_recall = recall_score(y_test, y_pred, zero_division=0)
+    custom_accuracy = accuracy_score(y_test, y_pred)
+    
+    print(f"Test Accuracy (default): {test_accuracy:.4f}")
+    print(f"Test Precision (default): {test_precision:.4f}")
+    print(f"Test Recall (default): {test_recall:.4f}")
+    print(f"Test Accuracy (custom threshold 0.4): {custom_accuracy:.4f}")
+    print(f"Test Precision (custom threshold 0.4): {custom_precision:.4f}")
+    print(f"Test Recall (custom threshold 0.4): {custom_recall:.4f}")
     
     # Plot training history
     plt.figure(figsize=(12, 4))
@@ -396,11 +422,17 @@ def train_transformer():
     model.save('transformer_ohlcv_model.h5')
     print("\nModel saved as 'transformer_ohlcv_model.h5'")
     
-    # Make some predictions
+    # Make some predictions with analysis
     print("\nSample predictions:")
-    sample_predictions = model.predict(X_test[:10])
+    sample_predictions = model.predict(X_test[:10], verbose=0)
     for i, (pred, actual) in enumerate(zip(sample_predictions, y_test[:10])):
-        print(f"Sample {i+1}: Predicted probability = {pred[0]:.4f}, Actual = {actual}")
-
+        pred_class = 1 if pred[0] > 0.4 else 0
+        print(f"Sample {i+1}: Predicted probability = {pred[0]:.4f}, Predicted class = {pred_class}, Actual = {actual}")
+    
+    # Show prediction distribution
+    print(f"\nPrediction distribution:")
+    print(f"Min probability: {np.min(sample_predictions):.4f}")
+    print(f"Max probability: {np.max(sample_predictions):.4f}")
+    print(f"Mean probability: {np.mean(sample_predictions):.4f}")
 if __name__ == "__main__":
     train_transformer()
