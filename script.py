@@ -298,11 +298,7 @@ def main():
     
     # Create features with altcoin data
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
-    # Dataset information - simplified
-    print(f"\nDataset Info:")
-    print(f"  Total periods: {len(df)}")
-    print(f"  Date range: {df['date'].min().strftime('%Y-%m-%d %H:%M')} to {df['date'].max().strftime('%Y-%m-%d %H:%M')}")
-    print(f"  BTC price range: ${df['close'].min():.0f} - ${df['close'].max():.0f}")
+    # Dataset information - removed for cleaner output
     
     # Prepare features and target (EXCLUDE RAW PRICE DATA)
     exclude_cols = ['date', 'target', 'close', 'open', 'high', 'low', 'volume']
@@ -332,11 +328,6 @@ def main():
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Scale features (additional standardization for models that need it)
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    
     # Initialize classification models with parameters
     models = {
         'Logistic Regression': {
@@ -356,13 +347,37 @@ def main():
     for name, model_info in models.items():
         print(f"  {name}: {model_info['params']}")
     
+    # Backtesting function to calculate returns and Sharpe ratio
+    def backtest_strategy(df, predictions, model_name):
+        """Backtest trading strategy and calculate performance metrics"""
+        # Align predictions with dataframe
+        test_start_idx = len(df) - len(predictions)
+        test_df = df.iloc[test_start_idx:].copy()
+        test_df['prediction'] = predictions
+        
+        # Calculate returns based on predictions
+        test_df['strategy_return'] = 0.0
+        test_df['actual_return'] = test_df['close'].pct_change().shift(-1)
+        
+        # Buy when prediction is 1 (price will go up), hold for one period
+        for i in range(len(test_df) - 1):
+            if test_df.iloc[i]['prediction'] == 1:
+                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = test_df.iloc[i + 1]['close'] / test_df.iloc[i]['close'] - 1
+        
+        # Calculate performance metrics
+        total_return = test_df['strategy_return'].sum()
+        
+        # Calculate Sharpe ratio (annualized)
+        returns_series = test_df['strategy_return'].dropna()
+        if len(returns_series) > 1:
+            sharpe_ratio = returns_series.mean() / returns_series.std() * np.sqrt(48 * 365)  # Annualize for 30-min data
+        else:
+            sharpe_ratio = 0
+        
+        return total_return, sharpe_ratio
+    # Train and evaluate models
     # Train and evaluate models
     results = {}
-    
-    results = {}
-    # Train and evaluate models
-    results = {}
-    
     for name, model_info in models.items():
         model = model_info['model']
         
@@ -377,20 +392,32 @@ def main():
         # Calculate metrics
         accuracy = accuracy_score(y_test, y_pred)
         f1 = f1_score(y_test, y_pred)
-        results[name] = {'accuracy': accuracy, 'f1_score': f1, 'model': model, 'predictions': y_pred}
+        
+        # Calculate trading performance
+        total_return, sharpe_ratio = backtest_strategy(df, y_pred, name)
+        
+        results[name] = {
+            'accuracy': accuracy, 
+            'f1_score': f1, 
+            'model': model, 
+            'predictions': y_pred,
+            'total_return': total_return,
+            'sharpe_ratio': sharpe_ratio
+        }
+    
     # Find best model by F1 score
     best_model = max(results, key=lambda x: results[x]['f1_score'])
     print(f"\nBest Model: {best_model}")
     
     # Compare all models
     print("\n=== SUMMARY ===")
-    print(f"{'Model':<20} {'Accuracy':<10} {'F1':<10}")
-    print("-" * 40)
+    print(f"{'Model':<20} {'Accuracy':<10} {'F1':<10} {'Return':<10} {'Sharpe':<10}")
+    print("-" * 60)
     
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
-        print(f"{name:<20} {results[name]['accuracy']:.4f}    {results[name]['f1_score']:.4f}")
+        result = results[name]
+        print(f"{name:<20} {result['accuracy']:.4f}    {result['f1_score']:.4f}    {result['total_return']:.4f}    {result['sharpe_ratio']:.4f}")
     
     print("\n=== COMPLETE ===")
-
 if __name__ == "__main__":
     main()
