@@ -402,7 +402,7 @@ def run_test(start_date=None, test_name="Current"):
                         worst_trade_entry = entry_price
                         worst_trade_exit = next_close
             else:
-            else:
+                # Exit position after one period
                 # Exit position after one period
                 if position == 1:
                     trade_return = (next_close - entry_price) / entry_price
