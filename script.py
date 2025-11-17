@@ -372,7 +372,7 @@ def run_test(start_date=None, test_name="Current"):
                 entry_price = current_price
                 
                 # Calculate stop loss price (2% below entry for long positions)
-                stop_loss_price = entry_price * 0.98
+                stop_loss_price = entry_price * 0.999
                 
                 # Check if stop loss is triggered in next candle
                 if next_low <= stop_loss_price:
@@ -387,7 +387,7 @@ def run_test(start_date=None, test_name="Current"):
                 entry_price = current_price
                 
                 # Calculate stop loss price (2% above entry for short positions)
-                stop_loss_price = entry_price * 1.02
+                stop_loss_price = entry_price * 1.001
                 
                 # Check if stop loss is triggered in next candle
                 if next_high >= stop_loss_price:
