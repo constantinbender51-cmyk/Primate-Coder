@@ -1,4 +1,3 @@
-
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -929,6 +928,12 @@ HTML_TEMPLATE = """
                         addDebugLog('Files Updated', 'Updated: ' + data.files_updated.join(', '));
                         addMessage('Updated files: ' + data.files_updated.join(', '), 'system');
                         addMessage('Files pushed to GitHub. Railway redeploying...', 'system');
+                    }
+                    
+                    // Handle deleted files
+                    if (data.files_deleted && data.files_deleted.length > 0) {
+                        addDebugLog('Files Deleted', 'Deleted: ' + data.files_deleted.join(', '));
+                        addMessage('Deleted files: ' + data.files_deleted.join(', '), 'system');
                     }
                     
                     if (data.deepseek_response) {
