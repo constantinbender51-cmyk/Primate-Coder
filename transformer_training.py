@@ -13,29 +13,20 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class PositionalEncoding(layers.Layer):
-    """Positional encoding for transformer"""
+    """Fixed positional encoding for transformer"""
     def __init__(self, d_model, max_len=5000):
         super(PositionalEncoding, self).__init__()
         self.d_model = d_model
         
-        # Create positional encoding matrix
-        position = tf.range(max_len, dtype=tf.float32)[:, tf.newaxis]
-        div_term = tf.exp(tf.range(0, d_model, 2, dtype=tf.float32) * 
-                         -(tf.math.log(10000.0) / d_model))
+        # Create positional encoding matrix using numpy for simplicity
+        position = np.arange(max_len)[:, np.newaxis]
+        div_term = np.exp(np.arange(0, d_model, 2) * -(np.log(10000.0) / d_model))
         
-        pos_encoding = tf.zeros((max_len, d_model))
-        pos_encoding = tf.tensor_scatter_nd_update(
-            pos_encoding,
-            tf.stack([tf.range(max_len)[:, tf.newaxis] for _ in range(d_model//2)], axis=1)[:, 0],
-            tf.sin(position * div_term)
-        )
-        pos_encoding = tf.tensor_scatter_nd_update(
-            pos_encoding,
-            tf.stack([tf.range(max_len)[:, tf.newaxis] for _ in range(d_model//2)], axis=1)[:, 1],
-            tf.cos(position * div_term)
-        )
+        pos_encoding = np.zeros((max_len, d_model))
+        pos_encoding[:, 0::2] = np.sin(position * div_term)
+        pos_encoding[:, 1::2] = np.cos(position * div_term)
         
-        self.pos_encoding = pos_encoding[tf.newaxis, ...]
+        self.pos_encoding = tf.constant(pos_encoding[np.newaxis, ...], dtype=tf.float32)
     
     def call(self, x):
         seq_len = tf.shape(x)[1]
