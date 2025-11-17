@@ -319,7 +319,7 @@ def train_transformer():
     sequence_length = 60  # 60 minutes of historical data
     prediction_horizon = 5  # Predict 5 minutes ahead
     
-    X, y = create_sequences_memory_efficient(scaled_features, sequence_length, prediction_horizon, max_sequences=50000)
+    X, y = create_sequences_memory_efficient(scaled_features, sequence_length, prediction_horizon, max_sequences=5000)
     
     print(f"Sequences created: {X.shape}")
     print(f"Target distribution: {np.unique(y, return_counts=True)}")
@@ -355,10 +355,10 @@ def train_transformer():
     print("\nTraining transformer model...")
     history = model.fit(
         X_train, y_train,
-        batch_size=32,
-        epochs=20,
+        batch_size=16,
+        epochs=5,
         validation_data=(X_test, y_test),
-        verbose=1
+        verbose=2
     )
     
     # Evaluate model
