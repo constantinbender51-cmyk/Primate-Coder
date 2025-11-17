@@ -5,7 +5,7 @@ import requests
 from io import BytesIO
 from gtts import gTTS
 
-def call_deepseek_api(user_message, file_contents, script_output_text, chat_history, deepseek_api_key, debug_logs):
+def call_deepseek_api(user_message, file_contents, script_output_text, chat_history, deepseek_api_key, debug_logs, is_auto_retry=False):
     """Call DeepSeek API with coding agent prompt."""
     
     system_prompt = """You are a coding agent with the ability to create, edit, and delete files.
@@ -155,7 +155,7 @@ Current files in the repository:
     
     system_prompt += "\n".join([f"- {name}: {len(content)} characters" for name, content in visible_files.items()])
 
-    if script_output_text:
+    if script_output_text and not is_auto_retry:
         system_prompt += f"\n\nCurrent script.py output:\n{script_output_text}"
 
     url = "https://api.deepseek.com/chat/completions"
@@ -188,31 +188,19 @@ Current files in the repository:
     }
     
     debug_logs.put({"type": "→ DeepSeek API", "data": f"Sending request | Messages: {len(messages)}"})
-    debug_logs.put({
-        "type": "DeepSeek Request Payload", 
-        "data": f"Payload size: {len(str(payload))} chars",
-        "fullData": json.dumps(payload, indent=2)
-    })
     
     response = requests.post(url, json=payload, headers=headers)
-    debug_logs.put({"type": "← DeepSeek API", "data": f"Status: {response}"})
+    debug_logs.put({"type": "← DeepSeek API", "data": f"Status: {response.status_code}"})
     
     response.raise_for_status()
     
     data = response.json()
     
-    # Log the FULL DeepSeek API response
-    debug_logs.put({
-        "type": "DeepSeek Full API Response", 
-        "data": f"Response size: {len(str(data))} chars",
-        "fullData": json.dumps(data, indent=2)
-    })
-    
     if "choices" in data and len(data["choices"]) > 0:
         response_content = data["choices"][0]["message"]["content"]
-        # Log the DeepSeek response content separately
+        # Log the DeepSeek response content with full data
         debug_logs.put({
-            "type": "DeepSeek Response Content", 
+            "type": "DeepSeek Response",
             "data": f"Length: {len(response_content)} characters",
             "fullData": response_content
         })
@@ -221,6 +209,85 @@ Current files in the repository:
         return response_content
     
     raise Exception("No valid response from DeepSeek")
+
+
+def analyze_script_output(script_output, file_contents, chat_history, deepseek_api_key, debug_logs, attempt_number):
+    """Analyze script output and provide fixes or confirmation."""
+    
+    analysis_prompt = f"""You are analyzing the output of script.py to determine if it's working correctly.
+
+SCRIPT OUTPUT (Attempt {attempt_number}):
+{script_output}
+
+INSTRUCTIONS:
+1. Carefully analyze the output above
+2. Check for errors, exceptions, or unexpected behavior
+3. If there are ANY issues, provide JSON fixes to correct them
+4. If the script is working PERFECTLY as intended, respond with:
+   
+   SCRIPT_WORKING_CORRECTLY
+   
+   Then provide a brief summary of what the script accomplished.
+
+5. Do NOT say it's working correctly if there are ANY errors or issues
+
+Your analysis:"""
+
+    url = "https://api.deepseek.com/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {deepseek_api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    # Build context with current files
+    hidden_files = ['main.py', 'html_template.py', 'github_api.py', 'deepseek_api.py']
+    visible_files = {name: content for name, content in file_contents.items() if name not in hidden_files}
+    
+    context_parts = []
+    for name, content in visible_files.items():
+        lines = content.split('\n')
+        numbered_content = '\n'.join([f"{i+1}: {line}" for i, line in enumerate(lines)])
+        context_parts.append(f"=== {name} (lines 1-{len(lines)}) ===\n{numbered_content}")
+    
+    context = "\n\n".join(context_parts)
+    full_message = f"{context}\n\n{analysis_prompt}"
+    
+    messages = list(chat_history)
+    messages.append({"role": "user", "content": full_message})
+    
+    payload = {
+        "model": "deepseek-coder",
+        "messages": messages,
+        "temperature": 0.5,
+        "max_tokens": 8000
+    }
+    
+    debug_logs.put({
+        "type": "→ DeepSeek Analysis",
+        "data": f"Analyzing output (Attempt {attempt_number})"
+    })
+    
+    response = requests.post(url, json=payload, headers=headers)
+    debug_logs.put({
+        "type": "← DeepSeek Analysis",
+        "data": f"Status: {response.status_code}"
+    })
+    
+    response.raise_for_status()
+    
+    data = response.json()
+    
+    if "choices" in data and len(data["choices"]) > 0:
+        analysis_response = data["choices"][0]["message"]["content"]
+        debug_logs.put({
+            "type": "DeepSeek Analysis Result",
+            "data": f"Attempt {attempt_number} - Length: {len(analysis_response)} chars",
+            "fullData": analysis_response
+        })
+        return analysis_response
+    
+    raise Exception("No valid response from DeepSeek analysis")
+
 
 def extract_json_from_text(text):
     """Extract all JSON objects from text, respecting strings."""
