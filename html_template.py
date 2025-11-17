@@ -1,5 +1,4 @@
-[file name]: html_template (5).py
-[file content begin]
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -1003,4 +1002,3 @@ HTML_TEMPLATE = """
 </body>
 </html>
 """
-[file content end]
