@@ -350,31 +350,23 @@ def main(holding_period=1):
     # Create features with altcoin data, gold, and Hang Seng
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, gold_df, hsi_df, holding_period)
     
-    # Dataset information
+    # Dataset information - simplified
     print(f"\nDataset Info:")
-    print(f"  Total days: {len(df)}")
+    print(f"  Total periods: {len(df)}")
     print(f"  Date range: {df['date'].min().strftime('%Y-%m-%d %H:%M')} to {df['date'].max().strftime('%Y-%m-%d %H:%M')}")
     print(f"  BTC price range: ${df['close'].min():.0f} - ${df['close'].max():.0f}")
-    print(f"  ETH price range: ${eth_df['close'].min():.2f} - ${eth_df['close'].max():.2f}")
-    print(f"  XRP price range: ${xrp_df['close'].min():.4f} - ${xrp_df['close'].max():.4f}")
-    print(f"  ADA price range: ${ada_df['close'].min():.4f} - ${ada_df['close'].max():.4f}")
-    print(f"  Gold price range: ${gold_df['close'].min():.2f} - ${gold_df['close'].max():.2f}")
-    print(f"  Hang Seng range: {hsi_df['close'].min():.0f} - {hsi_df['close'].max():.0f}")
     # Prepare features and target (EXCLUDE RAW PRICE DATA)
     exclude_cols = ['date', 'target', 'close', 'open', 'high', 'low', 'volume']
     feature_cols = [col for col in df.columns if col not in exclude_cols]
     X = df[feature_cols]
     y = df['target']
     
-    print(f"\nOriginal feature columns (DERIVATIVES ONLY): {feature_cols}")
+    print(f"\nOriginal features: {len(feature_cols)}")
     
     # Add polynomial features (squared and cubed)
     X_with_poly = add_polynomial_features(X)
     squared_feature_cols = [col for col in X_with_poly.columns if col.endswith('_squared')]
     cubed_feature_cols = [col for col in X_with_poly.columns if col.endswith('_cubed')]
-    
-    print(f"\nSquared features added: {squared_feature_cols}")
-    print(f"Cubed features added: {cubed_feature_cols}")
     
     # Add lagged features for SELECTED features with specific periods
     X_with_lags, lagged_features_added = add_lagged_features_selected(X_with_poly)
@@ -382,49 +374,20 @@ def main(holding_period=1):
     # Update target to match lagged features (drop first 12 rows - maximum lag)
     y_lagged = y.iloc[12:]
     
-    # Define selected features for reporting (same as in add_lagged_features_selected)
-    selected_features_for_report = [
-        'price_change', 'price_vs_sma24', 'volume_ratio', 'volatility_24', 'volatility_48',
-        'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum', 'macd_histogram', 'gold_price_change', 'hsi_price_change',
-        'gold_momentum', 'hsi_momentum', 'global_momentum'
-    ]
-    
     # Calculate feature counts
     original_features = len(X.columns)
     polynomial_features = len(squared_feature_cols) + len(cubed_feature_cols)
     lagged_features = len(lagged_features_added)
     total_features = original_features + polynomial_features + lagged_features
     
-    print(f"\nLagged features added: {lagged_features} features")
-    print(f"  Selected features: {len(selected_features_for_report)} key features")
-    print(f"  Lag periods: [1, 3, 12] 30-min periods")
-    
-    print(f"\nTotal features: {total_features}")
+    print(f"\nFeature Engineering:")
     print(f"  Original: {original_features}")
     print(f"  Polynomial: {polynomial_features}")
     print(f"  Lagged: {lagged_features}")
-    
-    # Print first 2 hours of non-lagged features for clarity
-    print(f"\nFirst 2 periods of features (BEFORE NORMALIZATION - showing first 10 non-lagged features):")
-    for i in range(2):
-        print(f"\nPeriod {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
-            if feature in X_with_lags.columns:
-                value = X_with_lags.iloc[i][feature]
-                print(f"  {feature}: {value:.6f}")
+    print(f"  Total: {total_features}")
     
     # Normalize features
     X_normalized = normalize_features(X_with_lags)
-    
-    # Print first 2 hours of normalized features
-    print(f"\nFirst 2 periods of features (AFTER NORMALIZATION - showing first 10 non-lagged features):")
-    for i in range(2):
-        print(f"\nPeriod {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
-        for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
-            if feature in X_normalized.columns:
-                value = X_normalized.iloc[i][feature]
-                print(f"  {feature}: {value:.6f}")
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
@@ -455,10 +418,11 @@ def main(holding_period=1):
         }
     }
     print(f"\nModel Hyperparameters (Holding Period: {holding_period} 30-min periods):")
-    # Print model hyperparameters
-    print(f"\nModel Hyperparameters:")
     for name, model_info in models.items():
         print(f"  {name}: {model_info['params']}")
+    
+    # Train and evaluate models
+    results = {}
     
     # Train and evaluate models
     results = {}
@@ -487,9 +451,12 @@ def main(holding_period=1):
     # Find best model by F1 score
     best_model = max(results, key=lambda x: results[x]['f1_score'])
     print(f"\nBest Model: {best_model}")
+    # Find best model by F1 score
+    best_model = max(results, key=lambda x: results[x]['f1_score'])
+    print(f"\nBest Model: {best_model}")
     
     # Backtesting simulation for ALL models
-    print("\n=== BACKTESTING SIMULATION FOR ALL MODELS ===")
+    print("\n=== BACKTESTING SIMULATION ===")
     
     # Get test data for all models
     test_start_idx = len(y_lagged) - len(y_test) + 12  # Correct alignment
@@ -512,11 +479,6 @@ def main(holding_period=1):
         stored_predictions = []
         stored_prices = []
         
-        print(f"\nBacktesting with {holding_period}-period holding period:")
-        print(f"  - Trading every {holding_period} periods")
-        print(f"  - Holding positions for {holding_period} periods")
-        print(f"  - Total test periods: {len(predictions)}")
-        
         # Trading simulation with N-period holding period
         for i in range(len(predictions)):
             current_price = test_prices[i]
@@ -528,22 +490,16 @@ def main(holding_period=1):
             
             # Only trade when we have a stored prediction from N periods ago AND it's a trading period
             if i >= holding_period and (i % holding_period == 0):
-                # Get prediction and price from N hours ago
                 # Get prediction and price from N periods ago
                 prediction_n_periods_ago = stored_predictions[i - holding_period]
                 price_n_periods_ago = stored_prices[i - holding_period]
                 
-                # Calculate new balance based on prediction from N hours ago
+                # Calculate new balance based on prediction from N periods ago
                 price_ratio = current_price / price_n_periods_ago
                 if prediction_n_periods_ago == 1:  # N periods ago predicted UP - go LONG
                     balance = balance * price_ratio
                 else:  # N periods ago predicted DOWN - go SHORT
-                    # For short: if price goes down, we profit; if price goes up, we lose
-                    # For short: if price goes down, we profit; if price goes up, we lose
                     balance = balance * (2 - price_ratio)
-            
-            # Update portfolio values
-            portfolio_values.append(balance)
             
             # Update portfolio values
             portfolio_values.append(balance)
@@ -552,23 +508,6 @@ def main(holding_period=1):
             if len(portfolio_values) >= 2:
                 period_return = (portfolio_values[-1] - portfolio_values[-2]) / portfolio_values[-2]
                 returns.append(period_return)
-            
-            # Print detailed information for first 20 periods
-            if i < 20:
-                print(f"\nPeriod {i+1} ({test_dates[i]}):")
-                if i >= holding_period and (i % holding_period == 0):
-                    print(f"  Using prediction from period {i - holding_period + 1}: {prediction_n_periods_ago} ({'UP' if prediction_n_periods_ago == 1 else 'DOWN'})")
-                    print(f"  Entry price (period {i - holding_period + 1}): ${price_n_periods_ago:,.2f}")
-                    print(f"  Current price (period {i+1}): ${current_price:,.2f}")
-                    print(f"  Price ratio (current/entry): {price_ratio:.6f}")
-                    if prediction_n_periods_ago == 1:
-                        print(f"  Action: LONG - Balance = previous_balance × {price_ratio:.6f}")
-                    else:
-                        print(f"  Action: SHORT - Balance = previous_balance × {2 - price_ratio:.6f}")
-                else:
-                    print(f"  No trading this period (holding period: {holding_period} periods)")
-                print(f"  Balance: ${balance:,.2f}")
-        
         # Calculate performance metrics
         # Calculate performance metrics
         total_return = (balance - initial_balance) / initial_balance * 100
@@ -589,8 +528,6 @@ def main(holding_period=1):
     backtest_results = {}
     
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
-        print(f"\n=== {name.upper()} BACKTESTING SIMULATION ===")
-        
         # Get model predictions
         if name == 'Logistic Regression':
             predictions = results[name]['predictions']
@@ -598,54 +535,25 @@ def main(holding_period=1):
             predictions = results[name]['predictions']
         
         # Run backtest
-        print(f"\nDetailed Period Breakdown for {name}:")
         result = run_backtest(predictions, name, test_dates, test_prices)
         backtest_results[name] = result
         
         # Print results
-        print(f"\nTrading Simulation Results:")
-        print(f"  Initial Balance: ${10000:,.2f}")
-        print(f"  Final Balance: ${result['final_balance']:,.2f}")
+        print(f"\n{name}:")
+        print(f"  Accuracy: {results[name]['accuracy']:.4f}")
+        print(f"  F1-Score: {results[name]['f1_score']:.4f}")
         print(f"  Total Return: {result['total_return']:+.2f}%")
-        print(f"  Buy & Hold Return: {result['buy_hold_return']:+.2f}%")
         print(f"  Sharpe Ratio: {result['sharpe_ratio']:.4f}")
-        
-        # Compare strategy vs buy & hold
-        if result['total_return'] > result['buy_hold_return']:
-            outperformance = result['total_return'] - result['buy_hold_return']
-            print(f"  Strategy Outperformance: +{outperformance:.2f}% vs Buy & Hold")
-        else:
-            underperformance = result['buy_hold_return'] - result['total_return']
-            print(f"  Strategy Underperformance: -{underperformance:.2f}% vs Buy & Hold")
-    
     # Compare all models
-    print("\n=== MODEL COMPARISON SUMMARY ===")
-    print("\nPerformance Comparison:")
-    print(f"{'Model':<20} {'Total Return':<12} {'Sharpe Ratio':<12}")
-    print("-" * 45)
-    
-    # Compare all models
-    print("\n=== MODEL COMPARISON SUMMARY ===")
-    print("\nPerformance Comparison:")
-    print(f"{'Model':<20} {'Total Return':<12} {'Sharpe Ratio':<12}")
-    print("-" * 45)
+    print("\n=== SUMMARY ===")
+    print(f"{'Model':<20} {'Accuracy':<10} {'F1':<10} {'Return':<10} {'Sharpe':<10}")
+    print("-" * 60)
     
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
         result = backtest_results[name]
-        print(f"{name:<20} {result['total_return']:+.2f}%{'':<4} {result['sharpe_ratio']:.4f}")
+        print(f"{name:<20} {results[name]['accuracy']:.4f}    {results[name]['f1_score']:.4f}    {result['total_return']:+.2f}%    {result['sharpe_ratio']:.4f}")
     
-    # Find best model by Sharpe ratio
-    best_sharpe_model = max(backtest_results.keys(), 
-                           key=lambda x: backtest_results[x]['sharpe_ratio'])
-    
-    # Find best model by Total Return
-    best_return_model = max(backtest_results.keys(),
-                           key=lambda x: backtest_results[x]['total_return'])
-    
-    print(f"\nBest Model by Sharpe Ratio: {best_sharpe_model} ({backtest_results[best_sharpe_model]['sharpe_ratio']:.4f})")
-    print(f"Best Model by Total Return: {best_return_model} ({backtest_results[best_return_model]['total_return']:+.2f}%)")
-    
-    print("\n=== BACKTESTING COMPLETE ===")
+    print("\n=== COMPLETE ===")
 
 if __name__ == "__main__":
     # Change this parameter to set the holding period (1, 2, 3, etc.)
