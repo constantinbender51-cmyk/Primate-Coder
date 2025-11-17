@@ -26,7 +26,7 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500):
         try:
             klines = client.klines(
                 symbol=symbol,
-                interval='1h',  # Changed from '1d' to '1h' for hourly data
+                interval='4h',  # Changed from '1h' to '4h' for 4-hour data
                 limit=limit,
                 endTime=end_time
             )
