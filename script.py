@@ -328,7 +328,6 @@ def run_test(start_date=None, test_name="Current"):
     
     # Initialize classification models with parameters
     models = {
-    models = {
         'Logistic Regression': {
             'model': LogisticRegression(random_state=42, max_iter=200),
             'params': 'C=1.0, max_iter=200'
