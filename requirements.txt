@@ -10,3 +10,4 @@ tensorflow>=2.8.0
 gtts
 binance-connector
 xgboost
+yfinance
