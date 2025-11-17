@@ -346,6 +346,7 @@ def run_test(start_date=None, test_name="Current"):
         print(f"  {name}: {model_info['params']}")
     
     # Backtesting function to calculate returns, Sharpe ratio, and final balance
+    # Backtesting function to calculate returns, Sharpe ratio, and final balance
     def backtest_strategy(df, predictions, model_name):
         """Backtest trading strategy and calculate performance metrics"""
         # Align predictions with dataframe
@@ -357,10 +358,48 @@ def run_test(start_date=None, test_name="Current"):
         test_df['strategy_return'] = 0.0
         test_df['actual_return'] = test_df['close'].pct_change().shift(-1)
         
+        # Track active positions and entry prices
+        active_position = False
+        entry_price = 0
+        
         # Buy when prediction is 1 (price will go up), hold for one period
         for i in range(len(test_df) - 1):
-            if test_df.iloc[i]['prediction'] == 1:
-                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = test_df.iloc[i + 1]['close'] / test_df.iloc[i]['close'] - 1
+            current_price = test_df.iloc[i]['close']
+            next_price = test_df.iloc[i + 1]['close']
+            
+            # Check if we need to close position due to stop loss
+            if active_position:
+                # Calculate current return since entry
+                current_return = (current_price - entry_price) / entry_price
+                
+                # Stop loss triggered if loss exceeds 2%
+                if current_return <= -0.02:
+                    # Close position at stop loss price
+                    stop_loss_price = entry_price * 0.98
+                    test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (stop_loss_price - entry_price) / entry_price
+                    active_position = False
+                    continue
+            
+            # Open new position if prediction is 1 and no active position
+            if test_df.iloc[i]['prediction'] == 1 and not active_position:
+                active_position = True
+                entry_price = current_price
+            
+            # Close position at next period if we have an active position
+            elif active_position and test_df.iloc[i]['prediction'] == 0:
+                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (next_price - entry_price) / entry_price
+                active_position = False
+        
+        # Close any remaining position at the end
+        if active_position:
+            last_price = test_df.iloc[-1]['close']
+            # Check if stop loss would have been triggered
+            final_return = (last_price - entry_price) / entry_price
+            if final_return <= -0.02:
+                # Apply stop loss
+                test_df.iloc[-1, test_df.columns.get_loc('strategy_return')] = -0.02
+            else:
+                test_df.iloc[-1, test_df.columns.get_loc('strategy_return')] = final_return
         
         # Calculate performance metrics
         total_return = test_df['strategy_return'].sum()
