@@ -121,7 +121,7 @@ def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
     
     return macd_line, signal_line, macd_histogram
 
-def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period=1):
+def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df):
     """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - 30-MINUTE ADJUSTED"""
     df = btc_df.copy()
     
@@ -172,8 +172,8 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period
     df['altcoin_momentum'] = (df['eth_price_change'] + df['xrp_price_change'] + df['ada_price_change']) / 3
     df['altcoin_volume_strength'] = (df['eth_volume_ratio'] + df['xrp_volume_ratio'] + df['ada_volume_ratio']) / 3
     
-    # Target: Next N-period price direction (1 = up, 0 = down)
-    df['target'] = (df['close'].shift(-holding_period) > df['close']).astype(int)
+    # Target: Next period price direction (1 = up, 0 = down)
+    df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
     
     # Drop NaN values
     df = df.dropna()
@@ -284,7 +284,7 @@ def normalize_features(X):
     
     return X_normalized
 
-def main(holding_period=1):
+def main():
     # Set start date to None to fetch data up to current time
     start_date = None
     # Fetch Bitcoin data
@@ -296,7 +296,7 @@ def main(holding_period=1):
     ada_df = fetch_crypto_data_chunked('ADAUSDT', 2500, start_date)
     
     # Create features with altcoin data
-    df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period)
+    df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
     # Dataset information - simplified
     print(f"\nDataset Info:")
     print(f"  Total periods: {len(df)}")
@@ -364,14 +364,14 @@ def main(holding_period=1):
             'params': 'n_estimators=700, learning_rate=0.05'
         }
     }
-    print(f"\nModel Hyperparameters (Holding Period: {holding_period} 30-min periods):")
+    print(f"\nModel Hyperparameters:")
     for name, model_info in models.items():
         print(f"  {name}: {model_info['params']}")
     
     # Train and evaluate models
     results = {}
     
-    
+    results = {}
     print("\nModel Performance:")
     for name, model_info in models.items():
         model = model_info['model']
@@ -416,44 +416,33 @@ def main(holding_period=1):
     
     def run_backtest(predictions, model_name, test_dates, test_prices, initial_balance=10000.0):
         balance = initial_balance
-        portfolio_values = [balance]  # Start with initial balance
+        portfolio_values = [balance]
         returns = []
-        stored_predictions = []
-        stored_prices = []
         
-        # Trading simulation with N-period holding period
+        # Simple trading simulation - trade every period
         for i in range(len(predictions)):
             current_price = test_prices[i]
             current_prediction = predictions[i]
             
-            # Store current prediction and price for future use
-            stored_predictions.append(current_prediction)
-            stored_prices.append(current_price)
-            
-            # Only trade when we have a stored prediction from N periods ago AND it's a trading period
-            if i >= holding_period and (i % holding_period == 0):
-                # Get prediction and price from N periods ago
-                prediction_n_periods_ago = stored_predictions[i - holding_period]
-                price_n_periods_ago = stored_prices[i - holding_period]
-                
-                # Calculate new balance based on prediction from N periods ago
-                price_ratio = current_price / price_n_periods_ago
-                if prediction_n_periods_ago == 1:  # N periods ago predicted UP - go LONG
+            # Calculate new balance based on prediction
+            if i > 0:
+                price_ratio = current_price / test_prices[i-1]
+                if current_prediction == 1:  # Predicted UP - go LONG
                     balance = balance * price_ratio
-                else:  # N periods ago predicted DOWN - go SHORT
+                else:  # Predicted DOWN - go SHORT
                     balance = balance * (2 - price_ratio)
             
             # Update portfolio values
             portfolio_values.append(balance)
             
-            # Calculate period returns (only when we have a previous value)
+            # Calculate period returns
             if len(portfolio_values) >= 2:
                 period_return = (portfolio_values[-1] - portfolio_values[-2]) / portfolio_values[-2]
                 returns.append(period_return)
-        # Calculate performance metrics
-        buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
         
-        # Calculate Sharpe ratio
+        # Calculate performance metrics
+        total_return = (balance - initial_balance) / initial_balance * 100
+        buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
         sharpe_ratio = calculate_sharpe_ratio(returns) if returns else 0.0
         
         return {
@@ -497,4 +486,5 @@ def main(holding_period=1):
 
 if __name__ == "__main__":
     # Change this parameter to set the holding period (1, 2, 3, etc.)
-    main(holding_period=1)  # Set to 1 for 1-period (30-min) holding period
+if __name__ == "__main__":
+    main()
