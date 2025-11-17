@@ -1,20 +1,22 @@
 import os
 import subprocess
 import threading
+import time
 from flask import Flask, render_template_string, request, jsonify
 from queue import Queue
 
 # Import from other files (you'll need to have these files in the same directory)
 from html_template import HTML_TEMPLATE
-from github_api import get_file_from_github, update_github_file, list_repo_files
+from github_api import get_file_from_github, update_github_file, list_repo_files, delete_github_file
 from deepseek_api import (call_deepseek_api, extract_json_from_text, remove_json_from_text,
-                          merge_requirements, generate_tts_audio)
+                          merge_requirements, generate_tts_audio, analyze_script_output)
 
 # ==================== CONFIGURATION ====================
 GITHUB_USERNAME = "constantinbender51-cmyk"
 GITHUB_REPO = "Primate-Coder"
 GITHUB_BRANCH = "main"
 PORT = 8080
+MAX_AUTO_RETRY_ATTEMPTS = 5
 
 # Base dependencies that must always be in requirements.txt
 BASE_REQUIREMENTS = ["flask", "requests", "gtts"]
@@ -27,26 +29,32 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 app = Flask(__name__)
 script_output = Queue()
 script_process = None
+script_exit_code = None
+script_is_running = False
 tracked_files = ["script.py", "requirements.txt"]
 debug_logs = Queue()
+auto_retry_in_progress = False
 
 # ==================== SCRIPT EXECUTION ====================
 
 def run_script():
     """Run script.py and capture its output."""
-    global script_process
+    global script_process, script_exit_code, script_is_running
     
     if not os.path.exists('script.py'):
         script_output.put("script.py not found\n")
+        script_is_running = False
         return
     
     with open('script.py', 'r') as f:
         content = f.read().strip()
         if not content:
             script_output.put("script.py is empty\n")
+            script_is_running = False
             return
     
     try:
+        script_is_running = True
         script_process = subprocess.Popen(
             ['python', 'script.py'],
             stdout=subprocess.PIPE,
@@ -61,16 +69,27 @@ def run_script():
                 script_output.put(line)
         
         script_process.wait()
-        script_output.put(f"\n[Process exited with code {script_process.returncode}]\n")
+        script_exit_code = script_process.returncode
+        script_output.put(f"\n[Process exited with code {script_exit_code}]\n")
+        script_is_running = False
         
     except Exception as e:
         script_output.put(f"Error running script.py: {str(e)}\n")
+        script_is_running = False
 
 
 def start_script_thread():
     """Start script.py in a background thread."""
     thread = threading.Thread(target=run_script, daemon=True)
     thread.start()
+
+
+def wait_for_script_completion(timeout=300):
+    """Wait for script to complete execution with timeout."""
+    start_time = time.time()
+    while script_is_running and (time.time() - start_time) < timeout:
+        time.sleep(1)
+    return not script_is_running
 
 
 # ==================== FLASK ROUTES ====================
@@ -108,10 +127,14 @@ def get_debug_logs():
 @app.route('/generate', methods=['POST'])
 def generate():
     """Handle code generation request."""
+    global auto_retry_in_progress
+    
     try:
         data = request.json
         user_message = data.get('message', '')
         chat_history = data.get('chat_history', [])
+        is_auto_retry = data.get('is_auto_retry', False)
+        retry_attempt = data.get('retry_attempt', 0)
         
         if not user_message:
             return jsonify({"error": "No message provided"}), 400
@@ -135,18 +158,19 @@ def generate():
         script_output_text = getattr(get_output, 'accumulated', '')
         
         deepseek_response = call_deepseek_api(user_message, file_contents, script_output_text, 
-                                              chat_history, DEEPSEEK_API_KEY, debug_logs)
+                                              chat_history, DEEPSEEK_API_KEY, debug_logs, is_auto_retry)
         
         json_objects = extract_json_from_text(deepseek_response)
         text_response = remove_json_from_text(deepseek_response)
         
         audio_data = None
-        if text_response:
+        if text_response and not is_auto_retry:
             audio_data = generate_tts_audio(text_response, debug_logs)
         
         # Group edits by file to apply all changes before uploading
         file_edits = {}
         files_updated = []
+        files_deleted = []
         
         for json_obj in json_objects:
             if "operation" in json_obj:
@@ -154,6 +178,16 @@ def generate():
                 operation = json_obj.get("operation")
                 
                 if not filename:
+                    continue
+                
+                # Handle delete operation
+                if operation == "delete":
+                    delete_github_file(filename, f"Delete {filename} via DeepSeek",
+                                     GITHUB_USERNAME, GITHUB_REPO, GITHUB_BRANCH,
+                                     GITHUB_TOKEN, debug_logs)
+                    files_deleted.append(filename)
+                    if filename in tracked_files:
+                        tracked_files.remove(filename)
                     continue
                 
                 # Store edits to apply them all at once
@@ -187,8 +221,7 @@ def generate():
             if current_content is None:
                 continue
             
-            # CRITICAL FIX: Sort edits by line number in DESCENDING order
-            # This ensures we edit from bottom to top, so line numbers stay valid
+            # Sort edits by line number in DESCENDING order
             def get_sort_key(edit):
                 operation = edit["operation"]
                 data = edit["data"]
@@ -198,7 +231,6 @@ def generate():
                     return data.get("line", 0)
                 return 0
             
-            # Sort in descending order (highest line numbers first)
             edits_sorted = sorted(edits, key=get_sort_key, reverse=True)
             
             debug_logs.put({
@@ -259,16 +291,242 @@ def generate():
             if filename not in tracked_files:
                 tracked_files.append(filename)
         
-        return jsonify({
+        # Check if this was a successful auto-retry completion
+        script_confirmed_working = "SCRIPT_WORKING_CORRECTLY" in deepseek_response.upper()
+        
+        response_data = {
             "success": True,
             "deepseek_response": text_response if text_response else "",
             "files_updated": files_updated,
-            "audio": audio_data
-        })
+            "files_deleted": files_deleted,
+            "audio": audio_data,
+            "script_confirmed_working": script_confirmed_working,
+            "is_auto_retry": is_auto_retry,
+            "retry_attempt": retry_attempt
+        }
+        
+        # Start auto-retry loop if files were updated and not already in retry
+        if (files_updated or files_deleted) and not is_auto_retry and not script_confirmed_working:
+            # Start auto-retry in background thread
+            threading.Thread(
+                target=auto_retry_loop,
+                args=(chat_history, user_message, text_response),
+                daemon=True
+            ).start()
+        
+        return jsonify(response_data)
         
     except Exception as e:
         debug_logs.put({"type": "Server Error", "data": str(e)})
         return jsonify({"error": str(e)}), 500
+
+
+def auto_retry_loop(chat_history, original_user_message, assistant_response):
+    """Auto-retry loop that analyzes script output and fixes issues."""
+    global auto_retry_in_progress
+    
+    if auto_retry_in_progress:
+        return
+    
+    auto_retry_in_progress = True
+    
+    try:
+        # Wait for Railway to redeploy and script to start (give it some time)
+        time.sleep(15)
+        
+        for attempt in range(1, MAX_AUTO_RETRY_ATTEMPTS + 1):
+            debug_logs.put({
+                "type": "Auto-Retry",
+                "data": f"Attempt {attempt}/{MAX_AUTO_RETRY_ATTEMPTS} - Waiting for script to complete..."
+            })
+            
+            # Wait for script to complete
+            completed = wait_for_script_completion(timeout=300)
+            
+            if not completed:
+                debug_logs.put({
+                    "type": "Auto-Retry Timeout",
+                    "data": f"Attempt {attempt}: Script did not complete within timeout"
+                })
+                break
+            
+            # Get the script output
+            script_output_text = getattr(get_output, 'accumulated', '')
+            
+            if not script_output_text or script_output_text.strip() == "Waiting for script.py output...":
+                debug_logs.put({
+                    "type": "Auto-Retry",
+                    "data": f"Attempt {attempt}: No output captured, skipping analysis"
+                })
+                break
+            
+            # Analyze the output with DeepSeek
+            debug_logs.put({
+                "type": "Auto-Retry",
+                "data": f"Attempt {attempt}: Analyzing output with DeepSeek..."
+            })
+            
+            # Get current files
+            global tracked_files
+            tracked_files = list_repo_files(GITHUB_USERNAME, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TOKEN)
+            
+            file_contents = {}
+            for filename in tracked_files:
+                content = get_file_from_github(filename, GITHUB_USERNAME, GITHUB_REPO,
+                                              GITHUB_BRANCH, GITHUB_TOKEN, debug_logs)
+                if content is not None:
+                    file_contents[filename] = content
+            
+            # Build chat history for retry
+            retry_chat_history = list(chat_history)
+            retry_chat_history.append({"role": "user", "content": original_user_message})
+            retry_chat_history.append({"role": "assistant", "content": assistant_response})
+            
+            # Call DeepSeek to analyze output
+            analysis_response = analyze_script_output(
+                script_output_text,
+                file_contents,
+                retry_chat_history,
+                DEEPSEEK_API_KEY,
+                debug_logs,
+                attempt
+            )
+            
+            # Check if DeepSeek confirmed script is working
+            if "SCRIPT_WORKING_CORRECTLY" in analysis_response.upper():
+                debug_logs.put({
+                    "type": "Auto-Retry Success",
+                    "data": f"Script confirmed working after {attempt} attempt(s)"
+                })
+                break
+            
+            # Extract and apply any fixes from DeepSeek
+            json_objects = extract_json_from_text(analysis_response)
+            
+            if not json_objects:
+                debug_logs.put({
+                    "type": "Auto-Retry",
+                    "data": f"Attempt {attempt}: No fixes provided by DeepSeek"
+                })
+                break
+            
+            # Apply the fixes (similar to main generate logic)
+            files_updated = apply_deepseek_fixes(json_objects, file_contents)
+            
+            if files_updated:
+                debug_logs.put({
+                    "type": "Auto-Retry",
+                    "data": f"Attempt {attempt}: Applied fixes to {', '.join(files_updated)}"
+                })
+                
+                # Wait for redeployment
+                time.sleep(15)
+            else:
+                break
+        
+    except Exception as e:
+        debug_logs.put({
+            "type": "Auto-Retry Error",
+            "data": str(e)
+        })
+    finally:
+        auto_retry_in_progress = False
+
+
+def apply_deepseek_fixes(json_objects, file_contents):
+    """Apply fixes from DeepSeek's analysis."""
+    files_updated = []
+    file_edits = {}
+    
+    for json_obj in json_objects:
+        if "operation" in json_obj:
+            filename = json_obj.get("file")
+            operation = json_obj.get("operation")
+            
+            if not filename:
+                continue
+            
+            if operation == "delete":
+                delete_github_file(filename, f"Auto-fix: Delete {filename}",
+                                 GITHUB_USERNAME, GITHUB_REPO, GITHUB_BRANCH,
+                                 GITHUB_TOKEN, debug_logs)
+                files_updated.append(filename)
+                continue
+            
+            if filename not in file_edits:
+                file_edits[filename] = []
+            
+            file_edits[filename].append({
+                "operation": operation,
+                "data": json_obj
+            })
+        else:
+            # Full file format
+            for filename, content in json_obj.items():
+                if filename == "requirements.txt":
+                    content = merge_requirements(content, BASE_REQUIREMENTS)
+                
+                update_github_file(filename, content, f"Auto-fix: Update {filename}",
+                                 GITHUB_USERNAME, GITHUB_REPO, GITHUB_BRANCH,
+                                 GITHUB_TOKEN, debug_logs)
+                files_updated.append(filename)
+    
+    # Apply edits
+    for filename, edits in file_edits.items():
+        current_content = get_file_from_github(filename, GITHUB_USERNAME, GITHUB_REPO,
+                                               GITHUB_BRANCH, GITHUB_TOKEN, debug_logs)
+        if current_content is None:
+            continue
+        
+        def get_sort_key(edit):
+            operation = edit["operation"]
+            data = edit["data"]
+            if operation == "replace_lines":
+                return data.get("start_line", 0)
+            elif operation == "insert_at_line":
+                return data.get("line", 0)
+            return 0
+        
+        edits_sorted = sorted(edits, key=get_sort_key, reverse=True)
+        
+        for edit in edits_sorted:
+            operation = edit["operation"]
+            data = edit["data"]
+            
+            if operation == "replace_lines":
+                start_line = data.get("start_line")
+                end_line = data.get("end_line")
+                content = data.get("content", "")
+                
+                if start_line is None or end_line is None:
+                    continue
+                
+                lines = current_content.split('\n')
+                new_lines = content.split('\n') if content else []
+                lines[start_line-1:end_line] = new_lines
+                current_content = '\n'.join(lines)
+                
+            elif operation == "insert_at_line":
+                line_number = data.get("line")
+                content = data.get("content", "")
+                
+                if line_number is None:
+                    continue
+                
+                lines = current_content.split('\n')
+                new_lines = content.split('\n') if content else []
+                lines[line_number-1:line_number-1] = new_lines
+                current_content = '\n'.join(lines)
+        
+        if filename == "requirements.txt":
+            current_content = merge_requirements(current_content, BASE_REQUIREMENTS)
+        
+        update_github_file(filename, current_content, f"Auto-fix: Update {filename}",
+                         GITHUB_USERNAME, GITHUB_REPO, GITHUB_BRANCH,
+                         GITHUB_TOKEN, debug_logs)
+        files_updated.append(filename)
+    
+    return files_updated
 
 
 @app.route('/new_session', methods=['POST'])
