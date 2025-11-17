@@ -355,7 +355,7 @@ def run_test(start_date=None, test_name="Current"):
         test_df['strategy_return'] = 0.0
         test_df['actual_return'] = test_df['close'].pct_change().shift(-1)
         
-        # Strategy: Buy when prediction is 1, Short when prediction is 0, hold for one period
+        # Strategy: Buy when prediction is 1, Short when prediction is 0, hold for one period with 4% stop loss
         for i in range(len(test_df) - 1):
             current_price = test_df.iloc[i]['close']
             next_close = test_df.iloc[i + 1]['close']
@@ -363,14 +363,20 @@ def run_test(start_date=None, test_name="Current"):
             # Long position (prediction = 1)
             if test_df.iloc[i]['prediction'] == 1:
                 entry_price = current_price
-                # Exit at next close (no stop loss)
-                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (next_close - entry_price) / entry_price
+                # Calculate stop loss price (4% below entry)
+                stop_loss_price = entry_price * 0.96
+                # Exit at next close or stop loss, whichever comes first
+                exit_price = min(next_close, stop_loss_price)
+                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (exit_price - entry_price) / entry_price
             
             # Short position (prediction = 0)
             else:
                 entry_price = current_price
-                # Exit at next close (no stop loss)
-                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (entry_price - next_close) / entry_price
+                # Calculate stop loss price (4% above entry for short)
+                stop_loss_price = entry_price * 1.04
+                # Exit at next close or stop loss, whichever comes first
+                exit_price = max(next_close, stop_loss_price)
+                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (entry_price - exit_price) / entry_price
         # Calculate performance metrics
         total_return = test_df['strategy_return'].sum()
         
