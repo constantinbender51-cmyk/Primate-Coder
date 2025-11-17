@@ -11,7 +11,7 @@ import time
 warnings.filterwarnings('ignore')
 
 def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
-    """Fetch OHLCV data for any cryptocurrency from Binance using chunking - 1-DAY DATA"""
+    """Fetch OHLCV data for any cryptocurrency from Binance using chunking - 30-MINUTE DATA"""
     client = Spot()
     
     all_data = []
@@ -33,7 +33,7 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
         try:
             klines = client.klines(
                 symbol=symbol,
-                interval='1d',  # 1-day data
+                interval='30m',  # 30-minute data
                 limit=limit,
                 endTime=end_time
             )
@@ -46,7 +46,7 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
             # Set end_time for next chunk (oldest data)
             end_time = int(klines[0][0]) - 1  # Subtract 1ms from first candle
             
-            print(f"Fetched {len(klines)} days for {symbol}, total: {len(all_data)} days")
+            print(f"Fetched {len(klines)} 30-min periods for {symbol}, total: {len(all_data)} periods")
             
             # Small delay to avoid rate limiting
             time.sleep(0.1)
@@ -95,7 +95,7 @@ def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
     return macd_line, signal_line, macd_histogram
 
 def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period=1):
-    """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - HOURLY ADJUSTED"""
+    """Create technical indicators and features including altcoin data - ONLY DERIVATIVES - 30-MINUTE ADJUSTED"""
     df = btc_df.copy()
     
     # Price-based derivative features for Bitcoin (NO RAW PRICES)
@@ -103,20 +103,20 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period
     df['high_low_ratio'] = df['high'] / df['low']
     df['close_open_ratio'] = df['close'] / df['open']
     
-    # Moving averages (adjusted for hourly data - 24h and 48h windows)
-    df['sma_24'] = df['close'].rolling(24).mean()  # 24 days
-    df['sma_48'] = df['close'].rolling(48).mean()  # 48 days
+    # Moving averages (adjusted for 30-minute data - 24h and 48h windows)
+    df['sma_24'] = df['close'].rolling(48).mean()  # 24 hours (48 * 30min)
+    df['sma_48'] = df['close'].rolling(96).mean()  # 48 hours (96 * 30min)
     
     # Price relative to moving averages (derivatives)
     df['price_vs_sma24'] = df['close'] / df['sma_24']
     df['price_vs_sma48'] = df['close'] / df['sma_48']
     
-    # Volatility (adjusted for daily data)
-    df['volatility_24'] = df['price_change'].rolling(24).std()
-    df['volatility_48'] = df['price_change'].rolling(48).std()
+    # Volatility (adjusted for 30-minute data)
+    df['volatility_24'] = df['price_change'].rolling(48).std()  # 24 hours
+    df['volatility_48'] = df['price_change'].rolling(96).std()  # 48 hours
     
     # Volume features (derivatives only)
-    df['volume_sma_24'] = df['volume'].rolling(24).mean()
+    df['volume_sma_24'] = df['volume'].rolling(48).mean()  # 24 hours
     df['volume_ratio'] = df['volume'] / df['volume_sma_24']
     
     # MACD features for Bitcoin
@@ -128,24 +128,24 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period
     # Add altcoin features (derivatives only)
     # Ethereum features
     df['eth_price_change'] = eth_df['close'].pct_change()
-    df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(24).mean()
+    df['eth_volume_ratio'] = eth_df['volume'] / eth_df['volume'].rolling(48).mean()
     df['btc_eth_ratio'] = df['close'] / eth_df['close']  # BTC dominance vs ETH
     
     # Ripple features
     df['xrp_price_change'] = xrp_df['close'].pct_change()
-    df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(24).mean()
+    df['xrp_volume_ratio'] = xrp_df['volume'] / xrp_df['volume'].rolling(48).mean()
     df['btc_xrp_ratio'] = df['close'] / xrp_df['close']  # BTC dominance vs XRP
     
     # Cardano features
     df['ada_price_change'] = ada_df['close'].pct_change()
-    df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(24).mean()
+    df['ada_volume_ratio'] = ada_df['volume'] / ada_df['volume'].rolling(48).mean()
     df['btc_ada_ratio'] = df['close'] / ada_df['close']  # BTC dominance vs ADA
     
     # Altcoin momentum indicators
     df['altcoin_momentum'] = (df['eth_price_change'] + df['xrp_price_change'] + df['ada_price_change']) / 3
     df['altcoin_volume_strength'] = (df['eth_volume_ratio'] + df['xrp_volume_ratio'] + df['ada_volume_ratio']) / 3
     
-    # Target: Next N-hour price direction (1 = up, 0 = down)
+    # Target: Next N-period price direction (1 = up, 0 = down)
     df['target'] = (df['close'].shift(-holding_period) > df['close']).astype(int)
     
     # Drop NaN values
@@ -179,7 +179,7 @@ def add_polynomial_features(X):
     return X_poly
 
 def add_lagged_features_selected(X):
-    """Add lagged versions of SELECTED features with specific periods: [1, 3, 12] hours"""
+    """Add lagged versions of SELECTED features with specific periods: [1, 3, 12] periods"""
     X_lagged = X.copy()
     
     # Selected features for lagging - added price_change and price_vs_sma24
@@ -190,7 +190,7 @@ def add_lagged_features_selected(X):
     ]
     
     # Lag periods - removed 24
-    lag_periods = [1, 3, 12]  # Days
+    lag_periods = [1, 3, 12]  # 30-minute periods
     
     # Add lagged features for selected features
     lagged_features_added = []
@@ -329,7 +329,7 @@ def main(holding_period=1):
     
     print(f"\nLagged features added: {lagged_features} features")
     print(f"  Selected features: {len(selected_features_for_report)} key features")
-    print(f"  Lag periods: [1, 3, 12] days")
+    print(f"  Lag periods: [1, 3, 12] 30-min periods")
     
     print(f"\nTotal features: {total_features}")
     print(f"  Original: {original_features}")
@@ -337,9 +337,9 @@ def main(holding_period=1):
     print(f"  Lagged: {lagged_features}")
     
     # Print first 2 hours of non-lagged features for clarity
-    print(f"\nFirst 2 days of features (BEFORE NORMALIZATION - showing first 10 non-lagged features):")
+    print(f"\nFirst 2 periods of features (BEFORE NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
-        print(f"\nDay {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d')}):")
+        print(f"\nPeriod {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
         for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_with_lags.columns:
                 value = X_with_lags.iloc[i][feature]
@@ -349,9 +349,9 @@ def main(holding_period=1):
     X_normalized = normalize_features(X_with_lags)
     
     # Print first 2 hours of normalized features
-    print(f"\nFirst 2 days of features (AFTER NORMALIZATION - showing first 10 non-lagged features):")
+    print(f"\nFirst 2 periods of features (AFTER NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
-        print(f"\nDay {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d')}):")
+        print(f"\nPeriod {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
         for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_normalized.columns:
                 value = X_normalized.iloc[i][feature]
@@ -385,7 +385,7 @@ def main(holding_period=1):
             'params': 'n_estimators=700, learning_rate=0.05'
         }
     }
-    print(f"\nModel Hyperparameters (Holding Period: {holding_period} days):")
+    print(f"\nModel Hyperparameters (Holding Period: {holding_period} 30-min periods):")
     # Print model hyperparameters
     print(f"\nModel Hyperparameters:")
     for name, model_info in models.items():
@@ -443,12 +443,12 @@ def main(holding_period=1):
         stored_predictions = []
         stored_prices = []
         
-        print(f"\nBacktesting with {holding_period}-day holding period:")
-        print(f"  - Trading every {holding_period} days")
-        print(f"  - Holding positions for {holding_period} days")
-        print(f"  - Total test days: {len(predictions)}")
+        print(f"\nBacktesting with {holding_period}-period holding period:")
+        print(f"  - Trading every {holding_period} periods")
+        print(f"  - Holding positions for {holding_period} periods")
+        print(f"  - Total test periods: {len(predictions)}")
         
-        # Trading simulation with N-hour holding period
+        # Trading simulation with N-period holding period
         for i in range(len(predictions)):
             current_price = test_prices[i]
             current_prediction = predictions[i]
@@ -457,43 +457,44 @@ def main(holding_period=1):
             stored_predictions.append(current_prediction)
             stored_prices.append(current_price)
             
-            # Only trade when we have a stored prediction from N hours ago AND it's a trading hour
+            # Only trade when we have a stored prediction from N periods ago AND it's a trading period
             if i >= holding_period and (i % holding_period == 0):
                 # Get prediction and price from N hours ago
-                prediction_n_hours_ago = stored_predictions[i - holding_period]
-                price_n_hours_ago = stored_prices[i - holding_period]
+                # Get prediction and price from N periods ago
+                prediction_n_periods_ago = stored_predictions[i - holding_period]
+                price_n_periods_ago = stored_prices[i - holding_period]
                 
                 # Calculate new balance based on prediction from N hours ago
-                price_ratio = current_price / price_n_hours_ago
-                if prediction_n_hours_ago == 1:  # N hours ago predicted UP - go LONG
+                price_ratio = current_price / price_n_periods_ago
+                if prediction_n_periods_ago == 1:  # N periods ago predicted UP - go LONG
                     balance = balance * price_ratio
-                else:  # N hours ago predicted DOWN - go SHORT
+                else:  # N periods ago predicted DOWN - go SHORT
                     # For short: if price goes down, we profit; if price goes up, we lose
-                    # Return = 2 - (current_price / entry_price) = 2 - price_ratio
+                    # For short: if price goes down, we profit; if price goes up, we lose
                     balance = balance * (2 - price_ratio)
             
             # Update portfolio values
             portfolio_values.append(balance)
             
             # Calculate daily returns (only when we have a previous value)
-            if len(portfolio_values) >= 2:
-                hourly_return = (portfolio_values[-1] - portfolio_values[-2]) / portfolio_values[-2]
-                returns.append(hourly_return)
+            # Calculate period returns (only when we have a previous value)
+                period_return = (portfolio_values[-1] - portfolio_values[-2]) / portfolio_values[-2]
+                returns.append(period_return)
             
             # Print detailed information for first 20 days
-            if i < 20:
-                print(f"\nDay {i+1} ({test_dates[i]}):")
+            # Print detailed information for first 20 periods
+                print(f"\nPeriod {i+1} ({test_dates[i]}):")
                 if i >= holding_period and (i % holding_period == 0):
-                    print(f"  Using prediction from day {i - holding_period + 1}: {prediction_n_hours_ago} ({'UP' if prediction_n_hours_ago == 1 else 'DOWN'})")
-                    print(f"  Entry price (day {i - holding_period + 1}): ${price_n_hours_ago:,.2f}")
-                    print(f"  Current price (day {i+1}): ${current_price:,.2f}")
+                    print(f"  Using prediction from period {i - holding_period + 1}: {prediction_n_periods_ago} ({'UP' if prediction_n_periods_ago == 1 else 'DOWN'})")
+                    print(f"  Entry price (period {i - holding_period + 1}): ${price_n_periods_ago:,.2f}")
+                    print(f"  Current price (period {i+1}): ${current_price:,.2f}")
                     print(f"  Price ratio (current/entry): {price_ratio:.6f}")
-                    if prediction_n_hours_ago == 1:
+                    if prediction_n_periods_ago == 1:
                         print(f"  Action: LONG - Balance = previous_balance × {price_ratio:.6f}")
                     else:
                         print(f"  Action: SHORT - Balance = previous_balance × {2 - price_ratio:.6f}")
                 else:
-                    print(f"  No trading this day (holding period: {holding_period} days)")
+                    print(f"  No trading this period (holding period: {holding_period} periods)")
                 print(f"  Balance: ${balance:,.2f}")
         
         final_balance = balance
@@ -526,7 +527,7 @@ def main(holding_period=1):
             predictions = results[name]['predictions']
         
         # Run backtest
-        print(f"\nDetailed Hourly Breakdown for {name}:")
+        print(f"\nDetailed Period Breakdown for {name}:")
         result = run_backtest(predictions, name, test_dates, test_prices)
         backtest_results[name] = result
         
@@ -577,4 +578,4 @@ def main(holding_period=1):
 
 if __name__ == "__main__":
     # Change this parameter to set the holding period (1, 2, 3, etc.)
-    main(holding_period=1)  # Set to 1 for 1-hour holding period
+    main(holding_period=1)  # Set to 1 for 1-period (30-min) holding period
