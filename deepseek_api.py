@@ -216,6 +216,8 @@ Current files in the repository:
             "data": f"Length: {len(response_content)} characters",
             "fullData": response_content
         })
+
+        print("Deepseek responded: ", response_content)
         return response_content
     
     raise Exception("No valid response from DeepSeek")
