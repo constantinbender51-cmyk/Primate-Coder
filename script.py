@@ -303,36 +303,21 @@ def main():
     print(f"  Total periods: {len(df)}")
     print(f"  Date range: {df['date'].min().strftime('%Y-%m-%d %H:%M')} to {df['date'].max().strftime('%Y-%m-%d %H:%M')}")
     print(f"  BTC price range: ${df['close'].min():.0f} - ${df['close'].max():.0f}")
+    
     # Prepare features and target (EXCLUDE RAW PRICE DATA)
     exclude_cols = ['date', 'target', 'close', 'open', 'high', 'low', 'volume']
     feature_cols = [col for col in df.columns if col not in exclude_cols]
     X = df[feature_cols]
     y = df['target']
     
-    print(f"\nOriginal features: {len(feature_cols)}")
-    
     # Add polynomial features (squared and cubed)
     X_with_poly = add_polynomial_features(X)
-    squared_feature_cols = [col for col in X_with_poly.columns if col.endswith('_squared')]
-    cubed_feature_cols = [col for col in X_with_poly.columns if col.endswith('_cubed')]
     
     # Add lagged features for SELECTED features with specific periods
     X_with_lags, lagged_features_added = add_lagged_features_selected(X_with_poly)
     
     # Update target to match lagged features (drop first 12 rows - maximum lag)
     y_lagged = y.iloc[12:]
-    
-    # Calculate feature counts
-    original_features = len(X.columns)
-    polynomial_features = len(squared_feature_cols) + len(cubed_feature_cols)
-    lagged_features = len(lagged_features_added)
-    total_features = original_features + polynomial_features + lagged_features
-    
-    print(f"\nFeature Engineering:")
-    print(f"  Original: {original_features}")
-    print(f"  Polynomial: {polynomial_features}")
-    print(f"  Lagged: {lagged_features}")
-    print(f"  Total: {total_features}")
     
     # Normalize features
     X_normalized = normalize_features(X_with_lags)
@@ -342,8 +327,10 @@ def main():
         X_normalized, y_lagged, test_size=0.2, random_state=42, shuffle=False
     )
     
-    print(f"\n  Train samples: {len(X_train)}")
-    print(f"  Test samples: {len(X_test)}")
+    # Scale features (additional standardization for models that need it)
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
     
     # Scale features (additional standardization for models that need it)
     scaler = StandardScaler()
@@ -373,7 +360,9 @@ def main():
     results = {}
     
     results = {}
-    print("\nModel Performance:")
+    # Train and evaluate models
+    results = {}
+    
     for name, model_info in models.items():
         model = model_info['model']
         
@@ -389,99 +378,17 @@ def main():
         accuracy = accuracy_score(y_test, y_pred)
         f1 = f1_score(y_test, y_pred)
         results[name] = {'accuracy': accuracy, 'f1_score': f1, 'model': model, 'predictions': y_pred}
-        
-        print(f"{name}:")
-        print(f"  Accuracy: {accuracy:.4f}")
-        print(f"  F1-Score: {f1:.4f}")
-    
     # Find best model by F1 score
     best_model = max(results, key=lambda x: results[x]['f1_score'])
     print(f"\nBest Model: {best_model}")
     
-    # Backtesting simulation for ALL models
-    print("\n=== BACKTESTING SIMULATION ===")
-    
-    # Get test data for all models
-    test_start_idx = len(y_lagged) - len(y_test) + 12  # Correct alignment
-    test_dates = df.iloc[test_start_idx:test_start_idx + len(y_test)]['date'].values
-    test_prices = df.iloc[test_start_idx:test_start_idx + len(y_test)]['close'].values
-    
-    def calculate_sharpe_ratio(returns, risk_free_rate=0.0):
-        """Calculate Sharpe ratio for a series of returns"""
-        if len(returns) == 0:
-            return 0.0
-        excess_returns = np.array(returns) - risk_free_rate
-        if np.std(excess_returns) == 0:
-            return 0.0
-        return np.mean(excess_returns) / np.std(excess_returns)
-    
-    def run_backtest(predictions, model_name, test_dates, test_prices, initial_balance=10000.0):
-        balance = initial_balance
-        portfolio_values = [balance]
-        returns = []
-        
-        # Simple trading simulation - trade every period
-        for i in range(len(predictions)):
-            current_price = test_prices[i]
-            current_prediction = predictions[i]
-            
-            # Calculate new balance based on prediction
-            if i > 0:
-                price_ratio = current_price / test_prices[i-1]
-                if current_prediction == 1:  # Predicted UP - go LONG
-                    balance = balance * price_ratio
-                else:  # Predicted DOWN - go SHORT
-                    balance = balance * (2 - price_ratio)
-            
-            # Update portfolio values
-            portfolio_values.append(balance)
-            
-            # Calculate period returns
-            if len(portfolio_values) >= 2:
-                period_return = (portfolio_values[-1] - portfolio_values[-2]) / portfolio_values[-2]
-                returns.append(period_return)
-        
-        # Calculate performance metrics
-        total_return = (balance - initial_balance) / initial_balance * 100
-        buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
-        sharpe_ratio = calculate_sharpe_ratio(returns) if returns else 0.0
-        
-        return {
-            'model_name': model_name,
-            'final_balance': balance,
-            'total_return': total_return,
-            'buy_hold_return': buy_hold_return,
-            'sharpe_ratio': sharpe_ratio,
-            'portfolio_values': portfolio_values,
-            'returns': returns
-        }
-    backtest_results = {}
-    
-    for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
-        # Get model predictions
-        if name == 'Logistic Regression':
-            predictions = results[name]['predictions']
-        else:
-            predictions = results[name]['predictions']
-        
-        # Run backtest
-        result = run_backtest(predictions, name, test_dates, test_prices)
-        backtest_results[name] = result
-        
-        # Print results
-        print(f"\n{name}:")
-        print(f"  Accuracy: {results[name]['accuracy']:.4f}")
-        print(f"  F1-Score: {results[name]['f1_score']:.4f}")
-        print(f"  Total Return: {result['total_return']:+.2f}%")
-        print(f"  Sharpe Ratio: {result['sharpe_ratio']:.4f}")
     # Compare all models
     print("\n=== SUMMARY ===")
-    print(f"{'Model':<20} {'Accuracy':<10} {'F1':<10} {'Return':<10} {'Sharpe':<10}")
-    print("-" * 60)
+    print(f"{'Model':<20} {'Accuracy':<10} {'F1':<10}")
+    print("-" * 40)
     
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
-        result = backtest_results[name]
-        print(f"{name:<20} {results[name]['accuracy']:.4f}    {results[name]['f1_score']:.4f}    {result['total_return']:+.2f}%    {result['sharpe_ratio']:.4f}")
+        print(f"{name:<20} {results[name]['accuracy']:.4f}    {results[name]['f1_score']:.4f}")
     
     print("\n=== COMPLETE ===")
 
