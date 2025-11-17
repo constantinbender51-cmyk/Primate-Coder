@@ -475,14 +475,13 @@ def main(holding_period=1):
             # Update portfolio values
             portfolio_values.append(balance)
             
-            # Calculate hourly returns (only when we have a previous value)
             # Calculate daily returns (only when we have a previous value)
+            if len(portfolio_values) >= 2:
                 hourly_return = (portfolio_values[-1] - portfolio_values[-2]) / portfolio_values[-2]
                 returns.append(hourly_return)
             
-            # Print detailed information for first 20 hours
             # Print detailed information for first 20 days
-                print(f"\nHour {i+1} ({test_dates[i]}):")
+            if i < 20:
                 print(f"\nDay {i+1} ({test_dates[i]}):")
                 if i >= holding_period and (i % holding_period == 0):
                     print(f"  Using prediction from day {i - holding_period + 1}: {prediction_n_hours_ago} ({'UP' if prediction_n_hours_ago == 1 else 'DOWN'})")
