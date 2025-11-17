@@ -379,14 +379,9 @@ def main(holding_period=1):
     # Train and evaluate models
     results = {}
     
-    print("\nModel Performance:")
-    for name, model_info in models.items():
-        model = model_info['model']
-        
     # Train and evaluate models
     results = {}
     
-    print("\nModel Performance:")
     for name, model_info in models.items():
         model = model_info['model']
         
@@ -402,11 +397,6 @@ def main(holding_period=1):
         accuracy = accuracy_score(y_test, y_pred)
         f1 = f1_score(y_test, y_pred)
         results[name] = {'accuracy': accuracy, 'f1_score': f1, 'model': model, 'predictions': y_pred}
-        
-        print(f"{name}:")
-        print(f"  Accuracy: {accuracy:.4f}")
-        print(f"  F1-Score: {f1:.4f}")
-    # Backtesting simulation for ALL models
     print("\n=== BACKTESTING SIMULATION FOR ALL MODELS ===")
     
     # Get test data for all models
@@ -440,12 +430,10 @@ def main(holding_period=1):
             current_price = test_prices[i]
             current_prediction = predictions[i]
             
-            # Store current prediction and price for future use
-            stored_predictions.append(current_prediction)
-            stored_prices.append(current_price)
-            
-            # Only trade when we have a stored prediction from N hours ago AND it's a trading hour
-            if i >= holding_period and (i % holding_period == 0):
+        print(f"\nBacktesting with {holding_period}-hour holding period:")
+        print(f"  - Trading every {holding_period} hours")
+        print(f"  - Holding positions for {holding_period} hours")
+        print(f"  - Total test hours: {len(predictions)}")
                 # Get prediction and price from N hours ago
                 prediction_n_hours_ago = stored_predictions[i - holding_period]
                 price_n_hours_ago = stored_prices[i - holding_period]
@@ -476,20 +464,18 @@ def main(holding_period=1):
                     print(f"  Current price (hour {i+1}): ${current_price:,.2f}")
                     print(f"  Balance: ${balance:,.2f}")
                 else:
+            # Print detailed information for first 5 hours only
+            if i < 5:
+                print(f"\nHour {i+1} ({test_dates[i]}):")
+                print(f"  Price: ${current_price:,.2f}")
+                if i >= holding_period and (i % holding_period == 0):
+                    print(f"  Using prediction from hour {i - holding_period + 1}: {prediction_n_hours_ago} ({'UP' if prediction_n_hours_ago == 1 else 'DOWN'})")
+                    print(f"  Entry price (hour {i - holding_period + 1}): ${price_n_hours_ago:,.2f}")
+                    print(f"  Current price (hour {i+1}): ${current_price:,.2f}")
+                    print(f"  Balance: ${balance:,.2f}")
+                else:
                     print(f"  No trading this hour (holding period: {holding_period} hours)")
                     print(f"  Balance: ${balance:,.2f}")
-        # Calculate performance metrics
-        total_return = (final_balance - initial_balance) / initial_balance * 100
-        buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
-        
-        # Calculate Sharpe ratio
-        sharpe_ratio = calculate_sharpe_ratio(returns) if returns else 0.0
-        
-        return {
-            'model_name': model_name,
-            'final_balance': final_balance,
-            'total_return': total_return,
-            'buy_hold_return': buy_hold_return,
             'sharpe_ratio': sharpe_ratio,
             'portfolio_values': portfolio_values,
             'returns': returns
@@ -510,9 +496,17 @@ def main(holding_period=1):
         result = run_backtest(predictions, name, test_dates, test_prices)
         backtest_results[name] = result
         
-        # Print results
-        print(f"\nTrading Simulation Results:")
-        print(f"  Initial Balance: ${10000:,.2f}")
+    backtest_results = {}
+    
+    for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
+        print(f"\n=== {name.upper()} BACKTESTING SIMULATION ===")
+        
+        # Get model predictions
+        if name == 'Logistic Regression':
+            predictions = results[name]['predictions']
+        else:
+            predictions = results[name]['predictions']
+        
         # Run backtest
         result = run_backtest(predictions, name, test_dates, test_prices)
         backtest_results[name] = result
@@ -523,17 +517,12 @@ def main(holding_period=1):
         print(f"  F1-Score: {results[name]['f1_score']:.4f}")
         print(f"  Final Balance: ${result['final_balance']:,.2f}")
         print(f"  Sharpe Ratio: {result['sharpe_ratio']:.4f}")
-    # Compare all models
-    print("\n=== MODEL COMPARISON SUMMARY ===")
-    print("\nPerformance Comparison:")
-    print(f"{'Model':<20} {'Total Return':<12} {'Sharpe Ratio':<12}")
-    print("-" * 45)
     
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
         result = backtest_results[name]
-        print(f"{name:<20} {result['total_return']:+.2f}%{'':<4} {result['sharpe_ratio']:.4f}")
+        print(f"{name:<20} {results[name]['accuracy']:.4f}    {results[name]['f1_score']:.4f}    {result['sharpe_ratio']:.4f}    ${result['final_balance']:>10,.2f}")
     
-    # Find best model by Sharpe ratio
+    print("\n=== BACKTESTING COMPLETE ===")
     # Final results summary
     print("\n=== FINAL RESULTS SUMMARY ===")
     print(f"\n{'Model':<20} {'Accuracy':<10} {'F1-Score':<10} {'Sharpe':<10} {'Final Balance':<15}")
@@ -544,3 +533,4 @@ def main(holding_period=1):
         print(f"{name:<20} {results[name]['accuracy']:.4f}    {results[name]['f1_score']:.4f}    {result['sharpe_ratio']:.4f}    ${result['final_balance']:>10,.2f}")
     
     print("\n=== BACKTESTING COMPLETE ===")
+main(holding_period=1)  # Set to 1 for 1-hour holding period
