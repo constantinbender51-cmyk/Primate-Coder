@@ -11,3 +11,4 @@ gtts
 binance-connector
 xgboost
 yfinance
+seaborn>=0.11.0
