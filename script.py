@@ -485,6 +485,4 @@ def main():
     print("\n=== COMPLETE ===")
 
 if __name__ == "__main__":
-    # Change this parameter to set the holding period (1, 2, 3, etc.)
-if __name__ == "__main__":
     main()
