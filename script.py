@@ -11,7 +11,7 @@ import time
 warnings.filterwarnings('ignore')
 import yfinance as yf
 
-def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
+def fetch_crypto_data_chunked(symbol, hours_to_fetch=1000, start_date=None):
     """Fetch OHLCV data for any cryptocurrency from Binance using chunking - 30-MINUTE DATA"""
     client = Spot()
     
@@ -74,7 +74,7 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
     
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
-def fetch_yahoo_data(symbol, periods=2500, start_date='2022-01-01'):
+def fetch_yahoo_data(symbol, periods=1000, start_date='2022-01-01'):
     """Fetch data from Yahoo Finance"""
     try:
         # Download data
@@ -288,12 +288,13 @@ def main():
     # Set start date to None to fetch data up to current time
     start_date = None
     # Fetch Bitcoin data
-    btc_df = fetch_crypto_data_chunked('BTCUSDT', 2500, start_date)
+    # Fetch Bitcoin data
+    btc_df = fetch_crypto_data_chunked('BTCUSDT', 1000, start_date)
     
     # Fetch altcoin data
-    eth_df = fetch_crypto_data_chunked('ETHUSDT', 2500, start_date)
-    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 2500, start_date)
-    ada_df = fetch_crypto_data_chunked('ADAUSDT', 2500, start_date)
+    eth_df = fetch_crypto_data_chunked('ETHUSDT', 1000, start_date)
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 1000, start_date)
+    ada_df = fetch_crypto_data_chunked('ADAUSDT', 1000, start_date)
     
     # Create features with altcoin data
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
