@@ -570,7 +570,8 @@ def main(holding_period=1):
                 print(f"  Balance: ${balance:,.2f}")
         
         # Calculate performance metrics
-        total_return = (final_balance - initial_balance) / initial_balance * 100
+        # Calculate performance metrics
+        total_return = (balance - initial_balance) / initial_balance * 100
         buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
         
         # Calculate Sharpe ratio
@@ -578,7 +579,7 @@ def main(holding_period=1):
         
         return {
             'model_name': model_name,
-            'final_balance': final_balance,
+            'final_balance': balance,
             'total_return': total_return,
             'buy_hold_return': buy_hold_return,
             'sharpe_ratio': sharpe_ratio,
