@@ -542,7 +542,21 @@ def main(holding_period=1):
     print("-" * 45)
     
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
+        result = backtest_results[name]
+        print(f"{name:<20} {result['total_return']:+.2f}%{'':<4} {result['sharpe_ratio']:.4f}")
+    
     # Find best model by Sharpe ratio
+    best_sharpe_model = max(backtest_results.keys(), 
+                           key=lambda x: backtest_results[x]['sharpe_ratio'])
+    
+    # Find best model by Total Return
+    best_return_model = max(backtest_results.keys(),
+                           key=lambda x: backtest_results[x]['total_return'])
+    
+    print(f"\nBest Model by Sharpe Ratio: {best_sharpe_model} ({backtest_results[best_sharpe_model]['sharpe_ratio']:.4f})")
+    print(f"Best Model by Total Return: {best_return_model} ({backtest_results[best_return_model]['total_return']:+.2f}%)")
+    
+    print("\n=== BACKTESTING COMPLETE ===")
     best_sharpe_model = max(backtest_results.keys(), 
                            key=lambda x: backtest_results[x]['sharpe_ratio'])
     
