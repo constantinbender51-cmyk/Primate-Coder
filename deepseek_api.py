@@ -1,3 +1,4 @@
+
 import json
 import re
 import base64
@@ -178,6 +179,11 @@ Current files in the repository:
     }
     
     debug_logs.put({"type": "→ DeepSeek API", "data": f"Sending request | Messages: {len(messages)}"})
+    debug_logs.put({
+        "type": "DeepSeek Request Payload", 
+        "data": f"Payload size: {len(str(payload))} chars",
+        "fullData": json.dumps(payload, indent=2)
+    })
     
     response = requests.post(url, json=payload, headers=headers)
     debug_logs.put({"type": "← DeepSeek API", "data": f"Status: {response.status_code}"})
@@ -185,18 +191,25 @@ Current files in the repository:
     response.raise_for_status()
     
     data = response.json()
+    
+    # Log the FULL DeepSeek API response
+    debug_logs.put({
+        "type": "DeepSeek Full API Response", 
+        "data": f"Response size: {len(str(data))} chars",
+        "fullData": json.dumps(data, indent=2)
+    })
+    
     if "choices" in data and len(data["choices"]) > 0:
         response_content = data["choices"][0]["message"]["content"]
-        # Log the full DeepSeek response
+        # Log the DeepSeek response content separately
         debug_logs.put({
-            "type": "DeepSeek Response", 
+            "type": "DeepSeek Response Content", 
             "data": f"Length: {len(response_content)} characters",
             "fullData": response_content
         })
         return response_content
     
     raise Exception("No valid response from DeepSeek")
-
 
 def extract_json_from_text(text):
     """Extract all JSON objects from text, respecting strings."""
