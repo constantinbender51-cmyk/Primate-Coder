@@ -241,6 +241,28 @@ HTML_TEMPLATE = """
             padding: 0;
             color: #FF1669C5;
         }
+        .assistant-message h1,
+        .assistant-message h2,
+        .assistant-message h3,
+        .assistant-message h4 {
+            margin: 10px 0 5px 0;
+            font-weight: 600;
+        }
+        .assistant-message h1 { font-size: 1.3em; }
+        .assistant-message h2 { font-size: 1.2em; }
+        .assistant-message h3 { font-size: 1.1em; }
+        .assistant-message h4 { font-size: 1em; }
+        .assistant-message p {
+            margin: 8px 0;
+        }
+        .assistant-message ul,
+        .assistant-message ol {
+            margin: 8px 0;
+            padding-left: 25px;
+        }
+        .assistant-message li {
+            margin: 4px 0;
+        }
         .assistant-message strong {
             font-weight: 600;
         }
@@ -250,6 +272,15 @@ HTML_TEMPLATE = """
         .assistant-message a {
             color: #FF1669C5;
             text-decoration: underline;
+        }
+        .assistant-message a:hover {
+            color: #ff3388;
+        }
+        .assistant-message blockquote {
+            border-left: 3px solid #FF1669C5;
+            padding-left: 15px;
+            margin: 10px 0;
+            color: #888888;
         }
         .status-message {
             background: transparent;
@@ -402,20 +433,30 @@ HTML_TEMPLATE = """
         let currentAudio = null;
         let debugLogs = [];
         
-        marked.setOptions({ breaks: true, gfm: true });
+        // Configure marked.js
+        marked.setOptions({ 
+            breaks: true, 
+            gfm: true 
+        });
         
+        // Load TTS preference
         const savedTTSPref = localStorage.getItem('primateTTSEnabled');
         if (savedTTSPref !== null) {
             ttsEnabled = savedTTSPref === 'true';
             updateTTSStatus();
         }
         
+        // Load Debug preference
         const savedDebugPref = localStorage.getItem('primateDebugEnabled');
         if (savedDebugPref !== null) {
             debugMode = savedDebugPref === 'true';
             updateDebugStatus();
+            if (debugMode) {
+                document.getElementById('debugConsole').classList.add('active');
+            }
         }
         
+        // Load chat history
         const savedHistory = localStorage.getItem('primateChatHistory');
         if (savedHistory) {
             try {
@@ -440,6 +481,7 @@ HTML_TEMPLATE = """
             document.getElementById('dropdownMenu').classList.toggle('show');
         }
         
+        // Close dropdown when clicking outside
         window.onclick = function(event) {
             if (!event.target.matches('.dropdown-button')) {
                 const dropdowns = document.getElementsByClassName('dropdown-content');
@@ -502,12 +544,16 @@ HTML_TEMPLATE = """
             }
             let html = '';
             debugLogs.forEach(log => {
-                html += '<div class="debug-entry"><div class="debug-timestamp">⏱ ' + log.timestamp + 
-                        '</div><div class="debug-type">📡 ' + log.type + '</div><div class="debug-data">' + 
-                        log.data + '</div></div>';
+                html += '<div class="debug-entry">' +
+                        '<div class="debug-timestamp">⏱ ' + log.timestamp + '</div>' +
+                        '<div class="debug-type">📡 ' + log.type + '</div>' +
+                        '<div class="debug-data">' + log.data + '</div>' +
+                        '</div>';
             });
             console.innerHTML = html;
-            if (debugMode) console.scrollTop = console.scrollHeight;
+            if (debugMode) {
+                console.scrollTop = console.scrollHeight;
+            }
         }
         
         function playAudio(audioData) {
@@ -522,25 +568,30 @@ HTML_TEMPLATE = """
             addDebugLog('TTS Generated', 'Audio playing');
         }
         
+        // Output panel scroll detection
         const outputDiv = document.getElementById('outputContent');
         outputDiv.addEventListener('scroll', function() {
             const distanceFromBottom = outputDiv.scrollHeight - outputDiv.scrollTop - outputDiv.clientHeight;
             shouldAutoScroll = distanceFromBottom < 50;
         });
         
+        // Poll for script output
         setInterval(async () => {
             try {
                 const response = await fetch('/get_output');
                 const data = await response.json();
                 if (data.output) {
                     outputDiv.textContent = data.output;
-                    if (shouldAutoScroll) outputDiv.scrollTop = outputDiv.scrollHeight;
+                    if (shouldAutoScroll) {
+                        outputDiv.scrollTop = outputDiv.scrollHeight;
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching output:', error);
             }
         }, 1000);
         
+        // Poll for debug logs
         setInterval(async () => {
             try {
                 const response = await fetch('/get_debug_logs');
@@ -561,6 +612,7 @@ HTML_TEMPLATE = """
             chatMessages.appendChild(msg);
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
+            // Save system messages to chat history
             if (saveToHistory && (type === 'success' || type === 'error')) {
                 const textContent = content.replace(/<[^>]*>/g, '').replace(/[✅❌🚀🧹🔄]/g, '').trim();
                 chatHistory.push({ role: 'system', content: textContent });
@@ -571,7 +623,9 @@ HTML_TEMPLATE = """
         }
         
         function saveChatHistory() {
-            if (chatHistory.length > 30) chatHistory = chatHistory.slice(-30);
+            if (chatHistory.length > 30) {
+                chatHistory = chatHistory.slice(-30);
+            }
             localStorage.setItem('primateChatHistory', JSON.stringify(chatHistory));
         }
         
@@ -579,6 +633,7 @@ HTML_TEMPLATE = """
             const input = document.getElementById('userInput');
             const btn = document.getElementById('sendBtn');
             const message = input.value.trim();
+            
             if (!message) return;
             
             addMessage(message, 'user');
@@ -587,10 +642,83 @@ HTML_TEMPLATE = """
             
             input.value = '';
             btn.disabled = true;
+            
             const statusMsg = addMessage('<span class="loading"></span>Processing your request...', 'status');
             addDebugLog('Client → Server', 'Request: ' + message.substring(0, 100));
             
             try {
                 const response = await fetch('/generate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'a
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, chat_history: chatHistory })
+                });
+                
+                statusMsg.remove();
+                const data = await response.json();
+                addDebugLog('Server → Client', 'Status: ' + response.status);
+                
+                if (data.error) {
+                    addDebugLog('Error', data.error);
+                    addMessage('❌ Error: ' + data.error, 'error');
+                } else {
+                    if (data.files_updated && data.files_updated.length > 0) {
+                        addDebugLog('GitHub', 'Updated: ' + data.files_updated.join(', '));
+                        addMessage('✅ Updated files: ' + data.files_updated.join(', '), 'success');
+                        addMessage('🚀 Files pushed to GitHub. Railway redeploying...', 'success');
+                        
+                        if (data.deepseek_response) {
+                            const htmlContent = marked.parse(data.deepseek_response);
+                            addMessage('🤖 DeepSeek: ' + htmlContent, 'assistant');
+                            chatHistory.push({ role: 'assistant', content: data.deepseek_response });
+                            saveChatHistory();
+                            if (data.audio && ttsEnabled) playAudio(data.audio);
+                        }
+                    } else if (data.deepseek_response) {
+                        const htmlContent = marked.parse(data.deepseek_response);
+                        addMessage('🤖 DeepSeek: ' + htmlContent, 'assistant');
+                        chatHistory.push({ role: 'assistant', content: data.deepseek_response });
+                        saveChatHistory();
+                        if (data.audio && ttsEnabled) playAudio(data.audio);
+                    }
+                }
+            } catch (error) {
+                statusMsg.remove();
+                addDebugLog('Client Error', error.message);
+                addMessage('❌ Error: ' + error.message, 'error');
+            }
+            
+            btn.disabled = false;
+        }
+        
+        async function startNewSession() {
+            if (!confirm('Clear script.py and chat history?')) return;
+            
+            try {
+                const response = await fetch('/new_session', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    chatHistory = [];
+                    localStorage.removeItem('primateChatHistory');
+                    document.getElementById('chatMessages').innerHTML = '';
+                    addDebugLog('Session Reset', 'New session started');
+                    addMessage('🔄 New session started.', 'success');
+                } else {
+                    addMessage('❌ Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                addMessage('❌ Error: ' + error.message, 'error');
+            }
+        }
+        
+        // Enter key to send message
+        document.getElementById('userInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
+"""
