@@ -347,7 +347,7 @@ def run_test(start_date=None, test_name="Current"):
     for name, model_info in models.items():
         print(f"  {name}: {model_info['params']}")
     
-    # Backtesting function to calculate returns and Sharpe ratio
+    # Backtesting function to calculate returns, Sharpe ratio, and final balance
     def backtest_strategy(df, predictions, model_name):
         """Backtest trading strategy and calculate performance metrics"""
         # Align predictions with dataframe
@@ -374,8 +374,11 @@ def run_test(start_date=None, test_name="Current"):
         else:
             sharpe_ratio = 0
         
-        return total_return, sharpe_ratio
-    
+        # Calculate final balance (starting with $1000)
+        initial_balance = 1000
+        final_balance = initial_balance * (1 + total_return)
+        
+        return total_return, sharpe_ratio, final_balance
     # Train and evaluate models
     results = {}
     for name, model_info in models.items():
@@ -394,7 +397,7 @@ def run_test(start_date=None, test_name="Current"):
         f1 = f1_score(y_test, y_pred)
         
         # Calculate trading performance
-        total_return, sharpe_ratio = backtest_strategy(df, y_pred, name)
+        total_return, sharpe_ratio, final_balance = backtest_strategy(df, y_pred, name)
         
         results[name] = {
             'accuracy': accuracy, 
@@ -402,23 +405,22 @@ def run_test(start_date=None, test_name="Current"):
             'model': model, 
             'predictions': y_pred,
             'total_return': total_return,
-            'sharpe_ratio': sharpe_ratio
+            'sharpe_ratio': sharpe_ratio,
+            'final_balance': final_balance
         }
-    
     # Find best model by F1 score
     best_model = max(results, key=lambda x: results[x]['f1_score'])
     print(f"\nBest Model: {best_model}")
     
     # Compare all models
+    # Compare all models
     print(f"\n=== {test_name.upper()} RESULTS ===")
-    print(f"{'Model':<20} {'Accuracy':<10} {'F1':<10} {'Return':<10} {'Sharpe':<10}")
-    print("-" * 60)
+    print(f"{'Model':<20} {'Accuracy':<10} {'F1':<10} {'Return':<10} {'Sharpe':<10} {'Balance':<12}")
+    print("-" * 75)
     
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
         result = results[name]
-        print(f"{name:<20} {result['accuracy']:.4f}    {result['f1_score']:.4f}    {result['total_return']:.4f}    {result['sharpe_ratio']:.4f}")
-    
-    return results
+        print(f"{name:<20} {result['accuracy']:.4f}    {result['f1_score']:.4f}    {result['total_return']:.4f}    {result['sharpe_ratio']:.4f}    ${result['final_balance']:.2f}")
 
 def main():
     # Run test for May 2023
@@ -454,8 +456,11 @@ def main():
         # Sharpe ratio comparison
         sharpe_change = may_2023['sharpe_ratio'] - may_2021['sharpe_ratio']
         print(f"{model_name:<20} {'Sharpe':<12} {may_2023['sharpe_ratio']:.4f}    {may_2021['sharpe_ratio']:.4f}    {sharpe_change:+.4f}")
+        
+        # Final balance comparison
+        balance_change = may_2023['final_balance'] - may_2021['final_balance']
+        print(f"{model_name:<20} {'Balance':<12} ${may_2023['final_balance']:.2f}  ${may_2021['final_balance']:.2f}  ${balance_change:+.2f}")
         print()
-    
     print("\n=== COMPLETE ===")
 
 if __name__ == "__main__":
