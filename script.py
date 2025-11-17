@@ -341,7 +341,6 @@ def run_test(start_date=None, test_name="Current"):
             'params': 'n_estimators=200, learning_rate=0.1'
         }
     }
-    }
     print(f"\nModel Hyperparameters:")
     for name, model_info in models.items():
         print(f"  {name}: {model_info['params']}")
