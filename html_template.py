@@ -128,6 +128,27 @@ HTML_TEMPLATE = """
             font-weight: 400;
             border-bottom: 1px solid #3a3a3a;
             font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .debug-toggle-btn {
+            background: transparent;
+            border: 1px solid #3a3a3a;
+            color: #888888;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: all 0.2s;
+        }
+        .debug-toggle-btn:hover {
+            border-color: #FF1669C5;
+            color: #FF1669C5;
+        }
+        .debug-toggle-btn.active {
+            background: #FF1669C5;
+            border-color: #FF1669C5;
+            color: #ffffff;
         }
         .output-content {
             flex: 1;
@@ -182,6 +203,34 @@ HTML_TEMPLATE = """
         .debug-data {
             color: #ffffff;
             margin-top: 5px;
+        }
+        .debug-full-data {
+            margin-top: 10px;
+            padding: 10px;
+            background: #0a0a0a;
+            border: 1px solid #3a3a3a;
+            color: #888888;
+            max-height: 300px;
+            overflow: auto;
+            display: none;
+        }
+        .debug-full-data.visible {
+            display: block;
+        }
+        .debug-full-data pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .debug-expand-btn {
+            color: #FF1669C5;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-top: 5px;
+            display: inline-block;
+        }
+        .debug-expand-btn:hover {
+            text-decoration: underline;
         }
         .chat-panel {
             flex: 1;
@@ -410,7 +459,10 @@ HTML_TEMPLATE = """
             <div class="output-panel">
                 <div class="output-header">📟 Script Output (script.py)</div>
                 <div class="output-content" id="outputContent">Waiting for script.py output...</div>
-                <div class="output-header">🐛 Debug Console</div>
+                <div class="output-header">
+                    <span>🐛 Debug Console</span>
+                    <button class="debug-toggle-btn" id="verboseToggle" onclick="toggleVerbose()">Show Full Payloads</button>
+                </div>
                 <div class="debug-console" id="debugConsole">No debug logs yet...</div>
             </div>
             <div class="chat-panel">
@@ -430,6 +482,7 @@ HTML_TEMPLATE = """
         let chatHistory = [];
         let ttsEnabled = true;
         let debugMode = false;
+        let verboseMode = false;
         let currentAudio = null;
         let debugLogs = [];
         
@@ -454,6 +507,13 @@ HTML_TEMPLATE = """
             if (debugMode) {
                 document.getElementById('debugConsole').classList.add('active');
             }
+        }
+        
+        // Load Verbose preference
+        const savedVerbosePref = localStorage.getItem('primateVerboseEnabled');
+        if (savedVerbosePref !== null) {
+            verboseMode = savedVerbosePref === 'true';
+            updateVerboseStatus();
         }
         
         // Load chat history
@@ -521,6 +581,24 @@ HTML_TEMPLATE = """
             document.getElementById('debugStatus').textContent = debugMode ? 'On' : 'Off';
         }
         
+        function toggleVerbose() {
+            verboseMode = !verboseMode;
+            localStorage.setItem('primateVerboseEnabled', verboseMode);
+            updateVerboseStatus();
+            updateDebugConsole();
+        }
+        
+        function updateVerboseStatus() {
+            const btn = document.getElementById('verboseToggle');
+            if (verboseMode) {
+                btn.classList.add('active');
+                btn.textContent = 'Hide Full Payloads';
+            } else {
+                btn.classList.remove('active');
+                btn.textContent = 'Show Full Payloads';
+            }
+        }
+        
         function clearMemory() {
             if (!confirm('Clear chat history? Files will not be affected.')) return;
             chatHistory = [];
@@ -529,11 +607,18 @@ HTML_TEMPLATE = """
             addMessage('🧹 Chat memory cleared.', 'success');
         }
         
-        function addDebugLog(type, data) {
+        function addDebugLog(type, data, fullData = null) {
             const timestamp = new Date().toLocaleTimeString();
-            debugLogs.push({ timestamp, type, data });
-            if (debugLogs.length > 50) debugLogs.shift();
+            debugLogs.push({ timestamp, type, data, fullData });
+            if (debugLogs.length > 100) debugLogs.shift();
             updateDebugConsole();
+        }
+        
+        function toggleFullData(index) {
+            const elem = document.getElementById('debug-full-' + index);
+            if (elem) {
+                elem.classList.toggle('visible');
+            }
         }
         
         function updateDebugConsole() {
@@ -543,17 +628,31 @@ HTML_TEMPLATE = """
                 return;
             }
             let html = '';
-            debugLogs.forEach(log => {
+            debugLogs.forEach((log, index) => {
                 html += '<div class="debug-entry">' +
                         '<div class="debug-timestamp">⏱ ' + log.timestamp + '</div>' +
                         '<div class="debug-type">📡 ' + log.type + '</div>' +
-                        '<div class="debug-data">' + log.data + '</div>' +
-                        '</div>';
+                        '<div class="debug-data">' + log.data + '</div>';
+                
+                if (log.fullData && verboseMode) {
+                    html += '<div class="debug-expand-btn" onclick="toggleFullData(' + index + ')">▼ Show Full Data</div>' +
+                            '<div class="debug-full-data" id="debug-full-' + index + '">' +
+                            '<pre>' + escapeHtml(log.fullData) + '</pre>' +
+                            '</div>';
+                }
+                
+                html += '</div>';
             });
             console.innerHTML = html;
             if (debugMode) {
                 console.scrollTop = console.scrollHeight;
             }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         function playAudio(audioData) {
@@ -644,21 +743,56 @@ HTML_TEMPLATE = """
             btn.disabled = true;
             
             const statusMsg = addMessage('<span class="loading"></span>Processing your request...', 'status');
-            addDebugLog('Client → Server', 'Request: ' + message.substring(0, 100));
+            
+            const requestPayload = { message, chat_history: chatHistory };
+            addDebugLog(
+                'Client → Server', 
+                'POST /generate | Message length: ' + message.length + ' | History items: ' + chatHistory.length,
+                JSON.stringify(requestPayload, null, 2)
+            );
             
             try {
                 const response = await fetch('/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message, chat_history: chatHistory })
+                    body: JSON.stringify(requestPayload)
                 });
                 
+                // Log response status
+                addDebugLog('Server → Client', 'Status: ' + response.status + ' ' + response.statusText);
+                
+                // Get raw response text first
+                const responseText = await response.text();
+                addDebugLog(
+                    'Server Response (Raw)',
+                    'Length: ' + responseText.length + ' bytes',
+                    responseText
+                );
+                
                 statusMsg.remove();
-                const data = await response.json();
-                addDebugLog('Server → Client', 'Status: ' + response.status);
+                
+                // Try to parse as JSON
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    addDebugLog(
+                        'Server Response (Parsed)',
+                        'Successfully parsed JSON',
+                        JSON.stringify(data, null, 2)
+                    );
+                } catch (parseError) {
+                    addDebugLog(
+                        'JSON Parse Error',
+                        'Failed to parse response: ' + parseError.message,
+                        'Parse error at position: ' + parseError.message
+                    );
+                    addMessage('❌ Error: Invalid JSON response from server', 'error');
+                    btn.disabled = false;
+                    return;
+                }
                 
                 if (data.error) {
-                    addDebugLog('Error', data.error);
+                    addDebugLog('Error Response', data.error);
                     addMessage('❌ Error: ' + data.error, 'error');
                 } else {
                     if (data.files_updated && data.files_updated.length > 0) {
@@ -683,8 +817,12 @@ HTML_TEMPLATE = """
                 }
             } catch (error) {
                 statusMsg.remove();
-                addDebugLog('Client Error', error.message);
-                addMessage('❌ Error: ' + error.message, 'error');
+                addDebugLog(
+                    'Client Fetch Error', 
+                    error.message,
+                    'Error Name: ' + error.name + '\nError Message: ' + error.message + '\nStack: ' + error.stack
+                );
+                addMessage('❌ Network Error: ' + error.message, 'error');
             }
             
             btn.disabled = false;
