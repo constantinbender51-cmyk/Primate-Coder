@@ -355,7 +355,7 @@ def run_test(start_date=None, test_name="Current"):
         test_df['strategy_return'] = 0.0
         test_df['actual_return'] = test_df['close'].pct_change().shift(-1)
         
-        # Strategy: Buy when prediction is 1, Short when prediction is 0, hold for one period with 4% stop loss
+        # Strategy: Buy when prediction is 1, Short when prediction is 0, hold for one period
         position = 0  # 0 = no position, 1 = long, -1 = short
         entry_price = 0
         
@@ -370,42 +370,6 @@ def run_test(start_date=None, test_name="Current"):
             current_price = test_df.iloc[i]['close']
             next_close = test_df.iloc[i + 1]['close']
             current_date = test_df.iloc[i]['date']
-            
-            # Check if we need to exit due to stop loss
-            if position == 1:  # Long position
-                stop_loss_price = entry_price * 0.96
-                if next_close <= stop_loss_price:
-                    # Stop loss hit
-                    trade_return = (stop_loss_price - entry_price) / entry_price
-                    test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
-                    
-                    # Track worst trade
-                    if trade_return < worst_trade_return:
-                        worst_trade_return = trade_return
-                        worst_trade_date = current_date
-                        worst_trade_direction = "LONG"
-                        worst_trade_entry = entry_price
-                        worst_trade_exit = stop_loss_price
-                    
-                    position = 0
-                    continue
-            elif position == -1:  # Short position
-                stop_loss_price = entry_price * 1.04
-                if next_close >= stop_loss_price:
-                    # Stop loss hit
-                    trade_return = (entry_price - stop_loss_price) / entry_price
-                    test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
-                    
-                    # Track worst trade
-                    if trade_return < worst_trade_return:
-                        worst_trade_return = trade_return
-                        worst_trade_date = current_date
-                        worst_trade_direction = "SHORT"
-                        worst_trade_entry = entry_price
-                        worst_trade_exit = stop_loss_price
-                    
-                    position = 0
-                    continue
             
             # Enter new position if no current position
             if position == 0:
@@ -438,6 +402,24 @@ def run_test(start_date=None, test_name="Current"):
                         worst_trade_entry = entry_price
                         worst_trade_exit = next_close
             else:
+                # Exit position after one period
+                if position == 1:
+                    trade_return = (next_close - entry_price) / entry_price
+                else:  # position == -1
+                    trade_return = (entry_price - next_close) / entry_price
+                
+                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
+                
+                # Track worst trade
+                if trade_return < worst_trade_return:
+                    worst_trade_return = trade_return
+                    worst_trade_date = current_date
+                    worst_trade_direction = "LONG" if position == 1 else "SHORT"
+                    worst_trade_entry = entry_price
+                    worst_trade_exit = next_close
+                
+                # Reset position
+                position = 0
                 # Already in position, just hold
                 test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = 0
         
