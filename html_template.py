@@ -1,3 +1,4 @@
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -159,23 +160,25 @@ HTML_TEMPLATE = """
             border-bottom: none;
         }
 
+        /* Updated tabs positioning */
         .tabs {
             display: flex;
             background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
+            border-top: 1px solid var(--border);
+            justify-content: flex-end;
+            padding: 0 16px;
         }
 
         .tab {
-            flex: 1;
-            padding: 12px;
+            padding: 8px 16px;
             background: transparent;
             border: none;
             border-bottom: 2px solid transparent;
             color: var(--text-secondary);
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             cursor: pointer;
             transition: all 0.2s;
-            min-height: 48px;
+            min-height: 40px;
         }
 
         .tab.active {
@@ -468,7 +471,13 @@ HTML_TEMPLATE = """
             }
 
             .tabs {
-                display: none;
+                display: flex;
+                padding: 0 24px;
+            }
+
+            .tab {
+                padding: 10px 20px;
+                font-size: 0.95rem;
             }
 
             .content {
@@ -531,26 +540,9 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
-        <div class="tabs">
-            <button class="tab active" onclick="switchView('chat')">Chat</button>
-            <button class="tab" onclick="switchView('output')">Output</button>
-            <button class="tab" onclick="switchView('debug')">Debug</button>
-        </div>
-
         <div class="content">
             <div class="view active" id="chatView">
                 <div class="chat-messages" id="chatMessages"></div>
-                <div class="input-area">
-                    <div class="input-wrapper">
-                        <textarea 
-                            class="input" 
-                            id="userInput" 
-                            placeholder="Describe what you want to build..."
-                            rows="1"
-                        ></textarea>
-                        <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
-                    </div>
-                </div>
             </div>
 
             <div class="view" id="outputView">
@@ -559,6 +551,25 @@ HTML_TEMPLATE = """
 
             <div class="view" id="debugView">
                 <div class="debug-container" id="debugConsole">No debug logs yet...</div>
+            </div>
+        </div>
+
+        <!-- Tabs moved to bottom right above input area -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchView('chat')">Chat</button>
+            <button class="tab" onclick="switchView('output')">Output</button>
+            <button class="tab" onclick="switchView('debug')">Debug</button>
+        </div>
+
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea 
+                    class="input" 
+                    id="userInput" 
+                    placeholder="Describe what you want to build..."
+                    rows="1"
+                ></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
             </div>
         </div>
     </div>
