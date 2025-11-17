@@ -11,7 +11,7 @@ import time
 warnings.filterwarnings('ignore')
 
 def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
-    """Fetch OHLCV data for any cryptocurrency from Binance using chunking - 4-HOUR DATA"""
+    """Fetch OHLCV data for any cryptocurrency from Binance using chunking - 1-DAY DATA"""
     client = Spot()
     
     all_data = []
@@ -33,7 +33,7 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
         try:
             klines = client.klines(
                 symbol=symbol,
-                interval='4h',  # 4-hour data
+                interval='1d',  # 1-day data
                 limit=limit,
                 endTime=end_time
             )
@@ -46,7 +46,7 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
             # Set end_time for next chunk (oldest data)
             end_time = int(klines[0][0]) - 1  # Subtract 1ms from first candle
             
-            print(f"Fetched {len(klines)} hours for {symbol}, total: {len(all_data)} hours")
+            print(f"Fetched {len(klines)} days for {symbol}, total: {len(all_data)} days")
             
             # Small delay to avoid rate limiting
             time.sleep(0.1)
@@ -104,14 +104,14 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period
     df['close_open_ratio'] = df['close'] / df['open']
     
     # Moving averages (adjusted for hourly data - 24h and 48h windows)
-    df['sma_24'] = df['close'].rolling(24).mean()  # 24 hours = 1 day
-    df['sma_48'] = df['close'].rolling(48).mean()  # 48 hours = 2 days
+    df['sma_24'] = df['close'].rolling(24).mean()  # 24 days
+    df['sma_48'] = df['close'].rolling(48).mean()  # 48 days
     
     # Price relative to moving averages (derivatives)
     df['price_vs_sma24'] = df['close'] / df['sma_24']
     df['price_vs_sma48'] = df['close'] / df['sma_48']
     
-    # Volatility (adjusted for hourly data)
+    # Volatility (adjusted for daily data)
     df['volatility_24'] = df['price_change'].rolling(24).std()
     df['volatility_48'] = df['price_change'].rolling(48).std()
     
@@ -190,7 +190,7 @@ def add_lagged_features_selected(X):
     ]
     
     # Lag periods - removed 24
-    lag_periods = [1, 3, 12]
+    lag_periods = [1, 3, 12]  # Days
     
     # Add lagged features for selected features
     lagged_features_added = []
@@ -262,34 +262,30 @@ def normalize_features(X):
     return X_normalized
 
 def main(holding_period=1):
-    # Generate random start date between 2018 and 2025
-    import random
+    # Set fixed start date to 2022
     import datetime
-    random_year = random.randint(2018, 2024)  # Up to 2024 since we can't fetch future data
-    random_month = random.randint(1, 12)
-    random_day = random.randint(1, 28)  # Avoid month-end issues
-    start_date = datetime.date(random_year, random_month, random_day).strftime('%Y-%m-%d')
+    start_date = datetime.date(2022, 1, 1).strftime('%Y-%m-%d')
     
     # Fetch Bitcoin data
-    # Fetch Bitcoin data
+    print(f"Fetching 2,500 days of Bitcoin data from {start_date}...")
     print(f"Fetching 5,000 hours of Bitcoin data from {start_date}...")
-    btc_df = fetch_crypto_data_chunked('BTCUSDT', 5000, start_date)
+    btc_df = fetch_crypto_data_chunked('BTCUSDT', 2500, start_date)
     
     # Fetch altcoin data
     print(f"\nFetching Ethereum data from {start_date}...")
-    eth_df = fetch_crypto_data_chunked('ETHUSDT', 5000, start_date)
+    eth_df = fetch_crypto_data_chunked('ETHUSDT', 2500, start_date)
     
     print(f"\nFetching Ripple data from {start_date}...")
-    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 5000, start_date)
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 2500, start_date)
     
     print(f"\nFetching Cardano data from {start_date}...")
-    ada_df = fetch_crypto_data_chunked('ADAUSDT', 5000, start_date)
+    ada_df = fetch_crypto_data_chunked('ADAUSDT', 2500, start_date)
     # Create features with altcoin data
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period)
     
     # Dataset information
     print(f"\nDataset Info:")
-    print(f"  Total hours: {len(df)}")
+    print(f"  Total days: {len(df)}")
     print(f"  Date range: {df['date'].min().strftime('%Y-%m-%d %H:%M')} to {df['date'].max().strftime('%Y-%m-%d %H:%M')}")
     print(f"  BTC price range: ${df['close'].min():.0f} - ${df['close'].max():.0f}")
     print(f"  ETH price range: ${eth_df['close'].min():.2f} - ${eth_df['close'].max():.2f}")
@@ -333,7 +329,7 @@ def main(holding_period=1):
     
     print(f"\nLagged features added: {lagged_features} features")
     print(f"  Selected features: {len(selected_features_for_report)} key features")
-    print(f"  Lag periods: [1, 3, 12] hours")
+    print(f"  Lag periods: [1, 3, 12] days")
     
     print(f"\nTotal features: {total_features}")
     print(f"  Original: {original_features}")
@@ -341,9 +337,9 @@ def main(holding_period=1):
     print(f"  Lagged: {lagged_features}")
     
     # Print first 2 hours of non-lagged features for clarity
-    print(f"\nFirst 2 hours of features (BEFORE NORMALIZATION - showing first 10 non-lagged features):")
+    print(f"\nFirst 2 days of features (BEFORE NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
-        print(f"\nHour {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
+        print(f"\nDay {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d')}):")
         for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_with_lags.columns:
                 value = X_with_lags.iloc[i][feature]
@@ -353,9 +349,9 @@ def main(holding_period=1):
     X_normalized = normalize_features(X_with_lags)
     
     # Print first 2 hours of normalized features
-    print(f"\nFirst 2 hours of features (AFTER NORMALIZATION - showing first 10 non-lagged features):")
+    print(f"\nFirst 2 days of features (AFTER NORMALIZATION - showing first 10 non-lagged features):")
     for i in range(2):
-        print(f"\nHour {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d %H:%M')}):")
+        print(f"\nDay {i+1} ({df.iloc[i+12]['date'].strftime('%Y-%m-%d')}):")
         for j, feature in enumerate(feature_cols[:10]):  # Show only first 10 features
             if feature in X_normalized.columns:
                 value = X_normalized.iloc[i][feature]
@@ -389,7 +385,7 @@ def main(holding_period=1):
             'params': 'n_estimators=700, learning_rate=0.05'
         }
     }
-    print(f"\nModel Hyperparameters (Holding Period: {holding_period} hours):")
+    print(f"\nModel Hyperparameters (Holding Period: {holding_period} days):")
     # Print model hyperparameters
     print(f"\nModel Hyperparameters:")
     for name, model_info in models.items():
@@ -447,10 +443,10 @@ def main(holding_period=1):
         stored_predictions = []
         stored_prices = []
         
-        print(f"\nBacktesting with {holding_period}-hour holding period:")
-        print(f"  - Trading every {holding_period} hours")
-        print(f"  - Holding positions for {holding_period} hours")
-        print(f"  - Total test hours: {len(predictions)}")
+        print(f"\nBacktesting with {holding_period}-day holding period:")
+        print(f"  - Trading every {holding_period} days")
+        print(f"  - Holding positions for {holding_period} days")
+        print(f"  - Total test days: {len(predictions)}")
         
         # Trading simulation with N-hour holding period
         for i in range(len(predictions)):
@@ -480,25 +476,25 @@ def main(holding_period=1):
             portfolio_values.append(balance)
             
             # Calculate hourly returns (only when we have a previous value)
-            if len(portfolio_values) > 1:
+            # Calculate daily returns (only when we have a previous value)
                 hourly_return = (portfolio_values[-1] - portfolio_values[-2]) / portfolio_values[-2]
                 returns.append(hourly_return)
             
             # Print detailed information for first 20 hours
-            if i < 20:
+            # Print detailed information for first 20 days
                 print(f"\nHour {i+1} ({test_dates[i]}):")
-                print(f"  Price: ${current_price:,.2f}")
+                print(f"\nDay {i+1} ({test_dates[i]}):")
                 if i >= holding_period and (i % holding_period == 0):
-                    print(f"  Using prediction from hour {i - holding_period + 1}: {prediction_n_hours_ago} ({'UP' if prediction_n_hours_ago == 1 else 'DOWN'})")
-                    print(f"  Entry price (hour {i - holding_period + 1}): ${price_n_hours_ago:,.2f}")
-                    print(f"  Current price (hour {i+1}): ${current_price:,.2f}")
+                    print(f"  Using prediction from day {i - holding_period + 1}: {prediction_n_hours_ago} ({'UP' if prediction_n_hours_ago == 1 else 'DOWN'})")
+                    print(f"  Entry price (day {i - holding_period + 1}): ${price_n_hours_ago:,.2f}")
+                    print(f"  Current price (day {i+1}): ${current_price:,.2f}")
                     print(f"  Price ratio (current/entry): {price_ratio:.6f}")
                     if prediction_n_hours_ago == 1:
                         print(f"  Action: LONG - Balance = previous_balance × {price_ratio:.6f}")
                     else:
                         print(f"  Action: SHORT - Balance = previous_balance × {2 - price_ratio:.6f}")
                 else:
-                    print(f"  No trading this hour (holding period: {holding_period} hours)")
+                    print(f"  No trading this day (holding period: {holding_period} days)")
                 print(f"  Balance: ${balance:,.2f}")
         
         final_balance = balance
