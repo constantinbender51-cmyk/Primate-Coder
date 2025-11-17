@@ -1,4 +1,5 @@
-
+[file name]: html_template (5).py
+[file content begin]
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -158,6 +159,31 @@ HTML_TEMPLATE = """
 
         .menu-item:last-child {
             border-bottom: none;
+        }
+
+        /* TTS Toggle Button Styles */
+        .tts-toggle {
+            background: transparent;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px;
+            color: var(--text-secondary);
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+            transition: color 0.2s;
+        }
+
+        .tts-toggle.active {
+            color: var(--accent);
+        }
+
+        .tts-toggle:hover {
+            color: var(--accent);
         }
 
         /* Updated tabs positioning */
@@ -520,7 +546,11 @@ HTML_TEMPLATE = """
     <div class="app">
         <div class="header">
             <h1>Prima<span class="highlight">t</span>e Coder</h1>
-            <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
+            <div>
+                <!-- TTS Toggle Button -->
+                <button class="tts-toggle" id="ttsToggle" onclick="toggleTTS()" title="Toggle Text-to-Speech">🔊</button>
+                <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
+            </div>
         </div>
 
         <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
@@ -529,6 +559,10 @@ HTML_TEMPLATE = """
             <div class="menu-item" onclick="toggleTheme()">
                 <span id="themeIcon">☀️</span>
                 <span id="themeLabel">Switch to Light Mode</span>
+            </div>
+            <div class="menu-item" onclick="toggleTTS()">
+                <span id="ttsMenuIcon">🔊</span>
+                <span id="ttsMenuLabel">TTS: On</span>
             </div>
             <div class="menu-item" onclick="clearMemory()">
                 <span>🧹</span>
@@ -580,6 +614,8 @@ HTML_TEMPLATE = """
         let activeView = 'chat';
         let debugLogs = [];
         let shouldAutoScroll = true;
+        let ttsEnabled = true;
+        let currentAudio = null;
 
         // Configure marked.js
         marked.setOptions({ breaks: true, gfm: true });
@@ -587,6 +623,13 @@ HTML_TEMPLATE = """
         // Initialize theme
         document.documentElement.setAttribute('data-theme', theme);
         updateThemeUI();
+
+        // Load TTS preference
+        const savedTTSPref = localStorage.getItem('primateTTSEnabled');
+        if (savedTTSPref !== null) {
+            ttsEnabled = savedTTSPref === 'true';
+        }
+        updateTTSUI();
 
         // Load chat history
         const savedHistory = localStorage.getItem('primateChatHistory');
@@ -633,6 +676,66 @@ HTML_TEMPLATE = """
             } else {
                 icon.textContent = '🌙';
                 label.textContent = 'Switch to Dark Mode';
+            }
+        }
+
+        function toggleTTS() {
+            ttsEnabled = !ttsEnabled;
+            localStorage.setItem('primateTTSEnabled', ttsEnabled);
+            updateTTSUI();
+            
+            // Stop current audio if TTS is disabled
+            if (!ttsEnabled && currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            
+            addDebugLog('TTS Toggled', 'TTS is now ' + (ttsEnabled ? 'enabled' : 'disabled'));
+        }
+
+        function updateTTSUI() {
+            const toggleBtn = document.getElementById('ttsToggle');
+            const menuIcon = document.getElementById('ttsMenuIcon');
+            const menuLabel = document.getElementById('ttsMenuLabel');
+            
+            if (ttsEnabled) {
+                toggleBtn.classList.add('active');
+                toggleBtn.title = 'Text-to-Speech: On';
+                menuIcon.textContent = '🔊';
+                menuLabel.textContent = 'TTS: On';
+            } else {
+                toggleBtn.classList.remove('active');
+                toggleBtn.title = 'Text-to-Speech: Off';
+                menuIcon.textContent = '🔇';
+                menuLabel.textContent = 'TTS: Off';
+            }
+        }
+
+        function playAudio(audioData) {
+            if (!ttsEnabled || !audioData) return;
+            
+            // Stop any currently playing audio
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            
+            try {
+                currentAudio = new Audio(audioData);
+                currentAudio.play().catch(err => {
+                    console.error('Error playing audio:', err);
+                    addDebugLog('TTS Error', 'Failed to play audio: ' + err.message);
+                });
+                
+                currentAudio.onended = () => {
+                    currentAudio = null;
+                    addDebugLog('TTS Completed', 'Audio playback finished');
+                };
+                
+                addDebugLog('TTS Started', 'Playing audio response');
+            } catch (error) {
+                console.error('Error creating audio:', error);
+                addDebugLog('TTS Error', 'Failed to create audio: ' + error.message);
             }
         }
 
@@ -834,6 +937,11 @@ HTML_TEMPLATE = """
                         addMessage(htmlContent, 'assistant');
                         chatHistory.push({ role: 'assistant', content: data.deepseek_response });
                         saveChatHistory();
+                        
+                        // Play TTS audio if available and enabled
+                        if (data.audio) {
+                            playAudio(data.audio);
+                        }
                     }
                 }
             } catch (error) {
@@ -895,3 +1003,4 @@ HTML_TEMPLATE = """
 </body>
 </html>
 """
+[file content end]
