@@ -106,7 +106,13 @@ For MULTIPLE file operations, use SEPARATE JSON objects:
 }
 
 Current files in the repository:
-""" + "\n".join([f"- {name}: {len(content)} characters" for name, content in file_contents.items()])
+"""
+    
+    # Filter out component files from file_contents display
+    hidden_files = ['main.py', 'html_template.py', 'github_api.py', 'deepseek_api.py']
+    visible_files = {name: content for name, content in file_contents.items() if name not in hidden_files}
+    
+    system_prompt += "\n".join([f"- {name}: {len(content)} characters" for name, content in visible_files.items()])
 
     if script_output_text:
         system_prompt += f"\n\nCurrent script.py output:\n{script_output_text}"
@@ -117,8 +123,9 @@ Current files in the repository:
         "Content-Type": "application/json"
     }
     
+    # Only show visible files in context
     context_parts = []
-    for name, content in file_contents.items():
+    for name, content in visible_files.items():
         lines = content.split('\n')
         if len(lines) > 50:
             numbered_content = '\n'.join([f"{i+1}: {line}" for i, line in enumerate(lines)])
@@ -129,6 +136,7 @@ Current files in the repository:
     context = "\n\n".join(context_parts)
     full_message = f"{context}\n\n=== User Request ===\n{user_message}"
     
+    # Include system prompt in messages for chat history
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(chat_history)
     messages.append({"role": "user", "content": full_message})
