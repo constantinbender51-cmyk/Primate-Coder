@@ -73,24 +73,6 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
     
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
     
-    # Convert to DataFrame
-    df = pd.DataFrame(all_data, columns=[
-        'open_time', 'open', 'high', 'low', 'close', 'volume',
-        'close_time', 'quote_asset_volume', 'number_of_trades',
-        'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
-    ])
-    
-    # Convert to numeric types
-    numeric_cols = ['open', 'high', 'low', 'close', 'volume']
-    for col in numeric_cols:
-        df[col] = pd.to_numeric(df[col])
-    
-    # Convert timestamp to datetime
-    df['date'] = pd.to_datetime(df['open_time'], unit='ms')
-    
-    # Sort by date (oldest first)
-    df = df.sort_values('date').reset_index(drop=True)
-    
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 def fetch_yahoo_data(symbol, periods=2500, start_date='2022-01-01'):
     """Fetch data from Yahoo Finance"""
@@ -197,13 +179,6 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period
     df = df.dropna()
     
     return df
-    # Target: Next N-period price direction (1 = up, 0 = down)
-    df['target'] = (df['close'].shift(-holding_period) > df['close']).astype(int)
-    
-    # Drop NaN values
-    df = df.dropna()
-    
-    return df
 
 def add_polynomial_features(X):
     """Add squared and cubic versions of key features to capture non-linear relationships"""
@@ -214,7 +189,7 @@ def add_polynomial_features(X):
         'price_change', 'volatility_24', 'volatility_48', 
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
         'altcoin_momentum', 'macd_histogram'
-    
+    ]
     # Add squared features
     for feature in features_for_poly:
         if feature in X.columns:
@@ -238,7 +213,7 @@ def add_lagged_features_selected(X):
         'price_change', 'price_vs_sma24', 'volume_ratio', 'volatility_24', 'volatility_48',
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
         'altcoin_momentum', 'macd_histogram'
-    
+    ]
     # Lag periods - removed 24
     lag_periods = [1, 3, 12]  # 30-minute periods
     
@@ -255,7 +230,6 @@ def add_lagged_features_selected(X):
     X_lagged = X_lagged.iloc[12:]
     
     return X_lagged, lagged_features_added
-    return X_lagged, lagged_features_added
 
 def normalize_features(X):
     """Normalize features based on their value ranges"""
@@ -265,7 +239,7 @@ def normalize_features(X):
     negative_features = [
         'price_change', 'eth_price_change', 'xrp_price_change', 'ada_price_change', 
         'altcoin_momentum', 'macd_line', 'macd_signal', 'macd_histogram'
-    
+    ]
     # Features that are always positive (normalize to [0, 1])
     positive_features = [
         'high_low_ratio', 'close_open_ratio',
@@ -276,7 +250,7 @@ def normalize_features(X):
         'xrp_volume_ratio', 'btc_xrp_ratio',
         'ada_volume_ratio', 'btc_ada_ratio',
         'altcoin_volume_strength'
-    
+    ]
     # Add polynomial features to appropriate categories
     poly_features = [col for col in X.columns if col.endswith('_squared') or col.endswith('_cubed')]
     for feature in poly_features:
@@ -310,7 +284,6 @@ def normalize_features(X):
     
     return X_normalized
 
-def main(holding_period=1):
 def main(holding_period=1):
     # Set start date to None to fetch data up to current time
     start_date = None
@@ -398,8 +371,6 @@ def main(holding_period=1):
     # Train and evaluate models
     results = {}
     
-    # Train and evaluate models
-    results = {}
     
     print("\nModel Performance:")
     for name, model_info in models.items():
@@ -422,9 +393,6 @@ def main(holding_period=1):
         print(f"  Accuracy: {accuracy:.4f}")
         print(f"  F1-Score: {f1:.4f}")
     
-    # Find best model by F1 score
-    best_model = max(results, key=lambda x: results[x]['f1_score'])
-    print(f"\nBest Model: {best_model}")
     # Find best model by F1 score
     best_model = max(results, key=lambda x: results[x]['f1_score'])
     print(f"\nBest Model: {best_model}")
@@ -483,8 +451,6 @@ def main(holding_period=1):
                 period_return = (portfolio_values[-1] - portfolio_values[-2]) / portfolio_values[-2]
                 returns.append(period_return)
         # Calculate performance metrics
-        # Calculate performance metrics
-        total_return = (balance - initial_balance) / initial_balance * 100
         buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
         
         # Calculate Sharpe ratio
