@@ -421,39 +421,39 @@ def run_test(start_date=None, test_name="Current"):
     return results
 
 def main():
-    # Run current test (from now)
-    current_results = run_test(start_date=None, test_name="Current Data")
+    # Run test for May 2023
+    may_2023_results = run_test(start_date='2023-05-01', test_name="May 2023 Data")
     
-    # Run historical test (from 2022)
-    historical_results = run_test(start_date='2022-01-01', test_name="2022 Historical Data")
+    # Run test for May 2021
+    may_2021_results = run_test(start_date='2021-05-01', test_name="May 2021 Data")
     
     # Compare results
     print(f"\n{'='*50}")
-    print("COMPARISON: CURRENT vs 2022 HISTORICAL")
+    print("COMPARISON: MAY 2023 vs MAY 2021")
     print(f"{'='*50}")
     
-    print(f"\n{'Model':<20} {'Metric':<12} {'Current':<10} {'2022':<10} {'Change':<10}")
+    print(f"\n{'Model':<20} {'Metric':<12} {'May 2023':<10} {'May 2021':<10} {'Change':<10}")
     print("-" * 62)
     
     for model_name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
-        current = current_results[model_name]
-        historical = historical_results[model_name]
+        may_2023 = may_2023_results[model_name]
+        may_2021 = may_2021_results[model_name]
         
         # Accuracy comparison
-        acc_change = current['accuracy'] - historical['accuracy']
-        print(f"{model_name:<20} {'Accuracy':<12} {current['accuracy']:.4f}    {historical['accuracy']:.4f}    {acc_change:+.4f}")
+        acc_change = may_2023['accuracy'] - may_2021['accuracy']
+        print(f"{model_name:<20} {'Accuracy':<12} {may_2023['accuracy']:.4f}    {may_2021['accuracy']:.4f}    {acc_change:+.4f}")
         
         # F1 score comparison
-        f1_change = current['f1_score'] - historical['f1_score']
-        print(f"{model_name:<20} {'F1 Score':<12} {current['f1_score']:.4f}    {historical['f1_score']:.4f}    {f1_change:+.4f}")
+        f1_change = may_2023['f1_score'] - may_2021['f1_score']
+        print(f"{model_name:<20} {'F1 Score':<12} {may_2023['f1_score']:.4f}    {may_2021['f1_score']:.4f}    {f1_change:+.4f}")
         
         # Return comparison
-        ret_change = current['total_return'] - historical['total_return']
-        print(f"{model_name:<20} {'Return':<12} {current['total_return']:.4f}    {historical['total_return']:.4f}    {ret_change:+.4f}")
+        ret_change = may_2023['total_return'] - may_2021['total_return']
+        print(f"{model_name:<20} {'Return':<12} {may_2023['total_return']:.4f}    {may_2021['total_return']:.4f}    {ret_change:+.4f}")
         
         # Sharpe ratio comparison
-        sharpe_change = current['sharpe_ratio'] - historical['sharpe_ratio']
-        print(f"{model_name:<20} {'Sharpe':<12} {current['sharpe_ratio']:.4f}    {historical['sharpe_ratio']:.4f}    {sharpe_change:+.4f}")
+        sharpe_change = may_2023['sharpe_ratio'] - may_2021['sharpe_ratio']
+        print(f"{model_name:<20} {'Sharpe':<12} {may_2023['sharpe_ratio']:.4f}    {may_2021['sharpe_ratio']:.4f}    {sharpe_change:+.4f}")
         print()
     
     print("\n=== COMPLETE ===")
