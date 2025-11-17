@@ -271,18 +271,19 @@ def main(holding_period=1):
     start_date = datetime.date(random_year, random_month, random_day).strftime('%Y-%m-%d')
     
     # Fetch Bitcoin data
-    print(f"Fetching 2,500 hours of Bitcoin data from {start_date}...")
-    btc_df = fetch_crypto_data_chunked('BTCUSDT', 2500, start_date)
+    # Fetch Bitcoin data
+    print(f"Fetching 5,000 hours of Bitcoin data from {start_date}...")
+    btc_df = fetch_crypto_data_chunked('BTCUSDT', 5000, start_date)
     
     # Fetch altcoin data
     print(f"\nFetching Ethereum data from {start_date}...")
-    eth_df = fetch_crypto_data_chunked('ETHUSDT', 2500, start_date)
+    eth_df = fetch_crypto_data_chunked('ETHUSDT', 5000, start_date)
     
     print(f"\nFetching Ripple data from {start_date}...")
-    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 2500, start_date)
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 5000, start_date)
     
     print(f"\nFetching Cardano data from {start_date}...")
-    ada_df = fetch_crypto_data_chunked('ADAUSDT', 2500, start_date)
+    ada_df = fetch_crypto_data_chunked('ADAUSDT', 5000, start_date)
     # Create features with altcoin data
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period)
     
