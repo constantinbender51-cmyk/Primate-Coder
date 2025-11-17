@@ -10,15 +10,22 @@ import warnings
 import time
 warnings.filterwarnings('ignore')
 
-def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500):
-    """Fetch OHLCV data for any cryptocurrency from Binance using chunking - HOURLY DATA"""
+def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
+    """Fetch OHLCV data for any cryptocurrency from Binance using chunking - 4-HOUR DATA"""
     client = Spot()
     
     all_data = []
     chunk_size = 1000  # Binance API limit per request
     
-    # Calculate end time (current time)
-    end_time = None
+    # Calculate end time (current time or specified start date)
+    if start_date:
+        # Convert start_date to timestamp in milliseconds
+        import datetime
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+        end_time = int(start_date.timestamp() * 1000)
+    else:
+        end_time = None  # Current time
     
     for i in range(0, hours_to_fetch, chunk_size):
         limit = min(chunk_size, hours_to_fetch - i)
@@ -26,7 +33,7 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500):
         try:
             klines = client.klines(
                 symbol=symbol,
-                interval='4h',  # Changed from '1h' to '4h' for 4-hour data
+                interval='4h',  # 4-hour data
                 limit=limit,
                 endTime=end_time
             )
@@ -255,20 +262,22 @@ def normalize_features(X):
     return X_normalized
 
 def main(holding_period=1):
+    # Specify start date (e.g., '2024-01-01' for January 1st, 2024)
+    start_date = '2024-01-01'  # Change this to your desired start date
+    
     # Fetch Bitcoin data
-    print("Fetching 2,500 hours of Bitcoin data...")
-    btc_df = fetch_crypto_data_chunked('BTCUSDT', 2500)  # Changed to 2,500 hours
+    print(f"Fetching 2,500 hours of Bitcoin data from {start_date}...")
+    btc_df = fetch_crypto_data_chunked('BTCUSDT', 2500, start_date)
     
     # Fetch altcoin data
-    print("\nFetching Ethereum data...")
-    eth_df = fetch_crypto_data_chunked('ETHUSDT', 2500)  # Changed to 2,500 hours
+    print(f"\nFetching Ethereum data from {start_date}...")
+    eth_df = fetch_crypto_data_chunked('ETHUSDT', 2500, start_date)
     
-    print("\nFetching Ripple data...")
-    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 2500)  # Changed to 2,500 hours
+    print(f"\nFetching Ripple data from {start_date}...")
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 2500, start_date)
     
-    print("\nFetching Cardano data...")
-    ada_df = fetch_crypto_data_chunked('ADAUSDT', 2500)  # Changed to 2,500 hours
-    
+    print(f"\nFetching Cardano data from {start_date}...")
+    ada_df = fetch_crypto_data_chunked('ADAUSDT', 2500, start_date)
     # Create features with altcoin data
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period)
     
