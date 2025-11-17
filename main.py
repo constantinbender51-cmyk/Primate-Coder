@@ -34,6 +34,7 @@ script_is_running = False
 tracked_files = ["script.py", "requirements.txt"]
 debug_logs = Queue()
 auto_retry_in_progress = False
+auto_retry_messages = Queue()  # New queue for auto-retry messages to frontend
 
 # ==================== SCRIPT EXECUTION ====================
 
@@ -99,9 +100,26 @@ def start_script_thread():
 def wait_for_script_completion(timeout=300):
     """Wait for script to complete execution with timeout."""
     start_time = time.time()
-    while script_is_running and (time.time() - start_time) < timeout:
+    debug_logs.put({
+        "type": "Wait for Script",
+        "data": f"Waiting for script to complete (timeout: {timeout}s)..."
+    })
+    
+    # Wait until script is no longer running AND has an exit code
+    while (time.time() - start_time) < timeout:
+        if not script_is_running and script_exit_code is not None:
+            debug_logs.put({
+                "type": "Script Completed",
+                "data": f"Script finished with exit code {script_exit_code}"
+            })
+            return True
         time.sleep(1)
-    return not script_is_running
+    
+    debug_logs.put({
+        "type": "Wait Timeout",
+        "data": f"Script did not complete within {timeout} seconds"
+    })
+    return False
 
 
 # ==================== FLASK ROUTES ====================
@@ -335,16 +353,27 @@ def generate():
 
 def auto_retry_loop(chat_history, original_user_message, assistant_response):
     """Auto-retry loop that analyzes script output and fixes issues."""
-    global auto_retry_in_progress
+    global auto_retry_in_progress, script_exit_code
     
     if auto_retry_in_progress:
+        debug_logs.put({
+            "type": "Auto-Retry",
+            "data": "Already in progress, skipping duplicate"
+        })
         return
     
     auto_retry_in_progress = True
     
     try:
-        # Wait for Railway to redeploy and script to start (give it some time)
+        # Wait for Railway to redeploy and script to start
+        debug_logs.put({
+            "type": "Auto-Retry",
+            "data": "Waiting 15s for Railway redeployment..."
+        })
         time.sleep(15)
+        
+        # Reset script state before starting auto-retry
+        script_exit_code = None
         
         for attempt in range(1, MAX_AUTO_RETRY_ATTEMPTS + 1):
             debug_logs.put({
@@ -372,10 +401,19 @@ def auto_retry_loop(chat_history, original_user_message, assistant_response):
                 })
                 break
             
+            # Check if output contains the completion marker
+            if "[Process exited with code" not in script_output_text:
+                debug_logs.put({
+                    "type": "Auto-Retry",
+                    "data": f"Attempt {attempt}: Script still running, waiting..."
+                })
+                time.sleep(5)
+                continue
+            
             # Analyze the output with DeepSeek
             debug_logs.put({
                 "type": "Auto-Retry",
-                "data": f"Attempt {attempt}: Analyzing output with DeepSeek..."
+                "data": f"Attempt {attempt}: Script completed, analyzing output with DeepSeek..."
             })
             
             # Get current files
@@ -433,6 +471,8 @@ def auto_retry_loop(chat_history, original_user_message, assistant_response):
                 
                 # Wait for redeployment
                 time.sleep(15)
+                # Reset exit code for next iteration
+                script_exit_code = None
             else:
                 break
         
