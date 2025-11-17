@@ -333,12 +333,12 @@ def run_test(start_date=None, test_name="Current"):
             'params': 'C=1.0, max_iter=5000'
         },
         'Random Forest': {
-            'model': RandomForestClassifier(n_estimators=700, random_state=42),  # Changed to 700
-            'params': 'n_estimators=700, max_depth=None'
+            'model': RandomForestClassifier(n_estimators=200, random_state=42),
+            'params': 'n_estimators=200, max_depth=None'
         },
         'Gradient Boosting': {
-            'model': GradientBoostingClassifier(n_estimators=700, learning_rate=0.05, random_state=42),  # Changed to 700
-            'params': 'n_estimators=700, learning_rate=0.05'
+            'model': GradientBoostingClassifier(n_estimators=200, learning_rate=0.05, random_state=42),
+            'params': 'n_estimators=200, learning_rate=0.05'
         }
     }
     print(f"\nModel Hyperparameters:")
@@ -451,15 +451,6 @@ def run_test(start_date=None, test_name="Current"):
         result = results[name]
         print(f"{name:<20} {result['accuracy']:.4f}    {result['f1_score']:.4f}    {result['total_return']:.4f}    {result['sharpe_ratio']:.4f}    ${result['final_balance']:.2f}")
     return results
-def main():
-    # Run test for May 2023
-    run_test(start_date='2023-05-01', test_name="May 2023 Data")
-    
-    # Run test for May 2021
-    run_test(start_date='2021-05-01', test_name="May 2021 Data")
-    
-    print("\n=== COMPLETE ===")
-
 def main():
     # Run test for May 2023
     run_test(start_date='2023-05-01', test_name="May 2023 Data")
