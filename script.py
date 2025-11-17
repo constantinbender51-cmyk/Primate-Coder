@@ -402,6 +402,7 @@ def run_test(start_date=None, test_name="Current"):
                         worst_trade_entry = entry_price
                         worst_trade_exit = next_close
             else:
+            else:
                 # Exit position after one period
                 if position == 1:
                     trade_return = (next_close - entry_price) / entry_price
@@ -418,11 +419,8 @@ def run_test(start_date=None, test_name="Current"):
                     worst_trade_entry = entry_price
                     worst_trade_exit = next_close
                 
-                # Reset position
+                # Reset position for next trade
                 position = 0
-                # Already in position, just hold
-                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = 0
-        
         # Print worst trade information
         if worst_trade_date is not None:
             print(f"\n{model_name} - WORST TRADE:")
