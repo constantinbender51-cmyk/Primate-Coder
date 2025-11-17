@@ -312,10 +312,8 @@ def normalize_features(X):
 
 def main(holding_period=1):
 def main(holding_period=1):
-    # Set fixed start date to 2022
-    import datetime
-    start_date = datetime.date(2022, 1, 1).strftime('%Y-%m-%d')
-    
+    # Set start date to None to fetch data up to current time
+    start_date = None
     # Fetch Bitcoin data
     btc_df = fetch_crypto_data_chunked('BTCUSDT', 2500, start_date)
     
