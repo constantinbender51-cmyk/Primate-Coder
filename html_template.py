@@ -1411,6 +1411,31 @@ HTML_TEMPLATE = """
                 console.error('Error fetching debug logs:', error);
             }
         }, 1000);
+
+        // Poll for auto-retry messages
+        setInterval(async () => {
+            try {
+                const response = await fetch('/get_auto_retry_messages');
+                const data = await response.json();
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        if (msg.type === 'assistant') {
+                            addMessage(msg.content, 'assistant', false);
+                        } else if (msg.type === 'system') {
+                            addMessageSimple(msg.content, 'system', false);
+                        } else if (msg.type === 'error') {
+                            addMessageSimple(msg.content, 'error', false);
+                        } else if (msg.type === 'status') {
+                            addMessageSimple(msg.content, 'status', false);
+                        } else if (msg.type === 'auto-retry') {
+                            addMessageSimple(msg.content, 'auto-retry', false);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching auto-retry messages:', error);
+            }
+        }, 1000);
     </script>
 </body>
 </html>
