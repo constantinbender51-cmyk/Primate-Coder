@@ -460,5 +460,17 @@ def main():
     
     print("\n=== COMPLETE ===")
 
+def main():
+    # Run test for May 2023
+    run_test(start_date='2023-05-01', test_name="May 2023 Data")
+    
+    # Run test for May 2021
+    run_test(start_date='2021-05-01', test_name="May 2021 Data")
+    
+    # Run test for December 2024
+    run_test(start_date='2024-12-01', test_name="December 2024 Data")
+    
+    print("\n=== COMPLETE ===")
+
 if __name__ == "__main__":
     main()
