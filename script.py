@@ -104,6 +104,13 @@ def fetch_yahoo_data(symbol, periods=2500, start_date='2022-01-01'):
         print(f"Error fetching {symbol}: {e}")
         # Return empty DataFrame with required columns
         return pd.DataFrame(columns=['date', 'open', 'high', 'low', 'close', 'volume'])
+def fetch_gold_data(periods=2500, start_date='2022-01-01'):
+    """Fetch gold data (XAU/USD) from Yahoo Finance"""
+    return fetch_yahoo_data('GC=F', periods, start_date)
+
+def fetch_hang_seng_data(periods=2500, start_date='2022-01-01'):
+    """Fetch Hang Seng index data from Yahoo Finance"""
+    return fetch_yahoo_data('^HSI', periods, start_date)
 
 def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
     """Calculate MACD indicator"""
