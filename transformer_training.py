@@ -273,8 +273,8 @@ def create_sequences_memory_efficient(data, sequence_length=60, prediction_horiz
     print(f"Successfully created {len(X):,} sequences")
     return np.array(X), np.array(y)
 
-def build_transformer_model(input_shape, num_layers=4, d_model=128, num_heads=8, 
-                          dff=512, dropout_rate=0.1):
+def build_transformer_model(input_shape, num_layers=4, d_model=256, num_heads=16, 
+                          dff=1024, dropout_rate=0.1):
     """Build the transformer model for time series classification"""
     
     inputs = keras.Input(shape=input_shape)
@@ -295,8 +295,10 @@ def build_transformer_model(input_shape, num_layers=4, d_model=128, num_heads=8,
     
     # Global average pooling and classification with better initialization
     x = layers.GlobalAveragePooling1D()(encoder_output)
-    x = layers.Dense(64, activation='relu', kernel_initializer='he_normal')(x)
+    x = layers.Dense(128, activation='relu', kernel_initializer='he_normal')(x)
     x = layers.Dropout(0.3)(x)
+    x = layers.Dense(64, activation='relu', kernel_initializer='he_normal')(x)
+    x = layers.Dropout(0.2)(x)
     x = layers.Dense(32, activation='relu', kernel_initializer='he_normal')(x)
     outputs = layers.Dense(1, activation='sigmoid', kernel_initializer='glorot_normal')(x)
     
@@ -333,12 +335,13 @@ def train_transformer():
     print(f"Test set: {X_test.shape}")
     
     # Build model
+    # Build model
     model = build_transformer_model(
         input_shape=(sequence_length, len(feature_columns)),
         num_layers=4,
-        d_model=128,
-        num_heads=8,
-        dff=512
+        d_model=256,
+        num_heads=16,
+        dff=1024
     )
     
     # Calculate class weights for imbalanced data
