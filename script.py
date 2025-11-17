@@ -541,6 +541,12 @@ def main(holding_period=1):
     print(f"{'Model':<20} {'Total Return':<12} {'Sharpe Ratio':<12}")
     print("-" * 45)
     
+    # Compare all models
+    print("\n=== MODEL COMPARISON SUMMARY ===")
+    print("\nPerformance Comparison:")
+    print(f"{'Model':<20} {'Total Return':<12} {'Sharpe Ratio':<12}")
+    print("-" * 45)
+    
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
         result = backtest_results[name]
         print(f"{name:<20} {result['total_return']:+.2f}%{'':<4} {result['sharpe_ratio']:.4f}")
@@ -555,20 +561,10 @@ def main(holding_period=1):
     
     print(f"\nBest Model by Sharpe Ratio: {best_sharpe_model} ({backtest_results[best_sharpe_model]['sharpe_ratio']:.4f})")
     print(f"Best Model by Total Return: {best_return_model} ({backtest_results[best_return_model]['total_return']:+.2f}%)")
-if __name__ == "__main__":
-    # Change this parameter to set the holding period (1, 2, 3, etc.)
-    main(holding_period=2)  # Set to 2 for 2-hour holding period
-    
-    print(f"\nBest Model by Sharpe Ratio: {best_sharpe_model} ({backtest_results[best_sharpe_model]['sharpe_ratio']:.4f})")
-    print(f"Best Model by Total Return: {best_return_model} ({backtest_results[best_return_model]['total_return']:+.2f}%)")
     
     print("\n=== BACKTESTING COMPLETE ===")
 
 if __name__ == "__main__":
     # Change this parameter to set the holding period (1, 2, 3, etc.)
     main(holding_period=2)  # Set to 2 for 2-hour holding period
-    
-    print("\n=== BACKTESTING COMPLETE ===")
-
-if __name__ == "__main__":
     main()
