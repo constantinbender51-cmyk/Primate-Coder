@@ -262,8 +262,13 @@ def normalize_features(X):
     return X_normalized
 
 def main(holding_period=1):
-    # Specify start date (e.g., '2024-01-01' for January 1st, 2024)
-    start_date = '2024-01-01'  # Change this to your desired start date
+    # Generate random start date between 2018 and 2025
+    import random
+    import datetime
+    random_year = random.randint(2018, 2024)  # Up to 2024 since we can't fetch future data
+    random_month = random.randint(1, 12)
+    random_day = random.randint(1, 28)  # Avoid month-end issues
+    start_date = datetime.date(random_year, random_month, random_day).strftime('%Y-%m-%d')
     
     # Fetch Bitcoin data
     print(f"Fetching 2,500 hours of Bitcoin data from {start_date}...")
