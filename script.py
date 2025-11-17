@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 import warnings
 import time
 warnings.filterwarnings('ignore')
+import yfinance as yf
 
 def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
     """Fetch OHLCV data for any cryptocurrency from Binance using chunking - 30-MINUTE DATA"""
@@ -74,6 +75,35 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=2500, start_date=None):
     df = df.sort_values('date').reset_index(drop=True)
     
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
+def fetch_yahoo_data(symbol, periods=2500, start_date='2022-01-01'):
+    """Fetch data from Yahoo Finance for gold or stock indexes"""
+    try:
+        # Download data
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(start=start_date, interval='30m')
+        
+        # If we don't have enough 30m data, try daily and resample
+        if len(df) < periods:
+            df = ticker.history(start=start_date, interval='1d')
+            # Resample daily to 30m by forward filling
+            df = df.resample('30T').ffill()
+        
+        # Ensure we have the required columns
+        df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
+        df.columns = ['open', 'high', 'low', 'close', 'volume']
+        df = df.reset_index()
+        df = df.rename(columns={'Date': 'date'})
+        
+        # Take the last 'periods' rows
+        df = df.tail(periods).reset_index(drop=True)
+        
+        print(f"Fetched {len(df)} periods for {symbol}")
+        return df
+        
+    except Exception as e:
+        print(f"Error fetching {symbol}: {e}")
+        # Return empty DataFrame with required columns
+        return pd.DataFrame(columns=['date', 'open', 'high', 'low', 'close', 'volume'])
 
 def calculate_macd(df, fast_period=12, slow_period=26, signal_period=9):
     """Calculate MACD indicator"""
@@ -105,6 +135,13 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period
     
     # Moving averages (adjusted for 30-minute data - 24h and 48h windows)
     df['sma_24'] = df['close'].rolling(48).mean()  # 24 hours (48 * 30min)
+def fetch_gold_data(periods=2500, start_date='2022-01-01'):
+    """Fetch gold data (XAU/USD)"""
+    return fetch_yahoo_data('GC=F', periods, start_date)
+
+def fetch_hang_seng_data(periods=2500, start_date='2022-01-01'):
+    """Fetch Hang Seng index data"""
+    return fetch_yahoo_data('^HSI', periods, start_date)
     df['sma_48'] = df['close'].rolling(96).mean()  # 48 hours (96 * 30min)
     
     # Price relative to moving averages (derivatives)
@@ -152,16 +189,19 @@ def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period
     df = df.dropna()
     
     return df
-
-def add_polynomial_features(X):
+def create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, gold_df, hsi_df, holding_period=1):
+    """Create technical indicators and features including altcoin data, gold, and Hang Seng - ONLY DERIVATIVES - 30-MINUTE ADJUSTED"""
     """Add squared and cubic versions of key features to capture non-linear relationships"""
     X_poly = X.copy()
     
     # Select key features for polynomial expansion
     features_for_poly = [
+    # Select key features for polynomial expansion
+    features_for_poly = [
         'price_change', 'volatility_24', 'volatility_48', 
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum', 'macd_histogram'
+        'altcoin_momentum', 'macd_histogram', 'gold_price_change', 'hsi_price_change',
+        'gold_momentum', 'hsi_momentum', 'global_momentum'
     ]
     
     # Add squared features
@@ -186,7 +226,8 @@ def add_lagged_features_selected(X):
     selected_features = [
         'price_change', 'price_vs_sma24', 'volume_ratio', 'volatility_24', 'volatility_48',
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum', 'macd_histogram'
+        'altcoin_momentum', 'macd_histogram', 'gold_price_change', 'hsi_price_change',
+        'gold_momentum', 'hsi_momentum', 'global_momentum'
     ]
     
     # Lag periods - removed 24
@@ -197,11 +238,29 @@ def add_lagged_features_selected(X):
     for feature in selected_features:
         if feature in X.columns:
             for lag in lag_periods:
+    # Add gold features
+    df['gold_price_change'] = gold_df['close'].pct_change()
+    df['gold_volume_ratio'] = gold_df['volume'] / gold_df['volume'].rolling(48).mean()
+    df['btc_gold_ratio'] = df['close'] / gold_df['close']  # BTC vs Gold ratio
+    
+    # Add Hang Seng features
+    df['hsi_price_change'] = hsi_df['close'].pct_change()
+    df['hsi_volume_ratio'] = hsi_df['volume'] / hsi_df['volume'].rolling(48).mean()
+    df['btc_hsi_ratio'] = df['close'] / hsi_df['close']  # BTC vs Hang Seng ratio
+    
+    # Add cross-market momentum
+    df['gold_momentum'] = df['gold_price_change'].rolling(12).mean()
+    df['hsi_momentum'] = df['hsi_price_change'].rolling(12).mean()
                 lagged_feature_name = f"{feature}_lag_{lag}"
                 X_lagged[lagged_feature_name] = X[feature].shift(lag)
                 lagged_features_added.append(lagged_feature_name)
     
-    # Drop rows with NaN values created by lagging (drop first 12 rows - maximum lag)
+    # Altcoin momentum indicators
+    df['altcoin_momentum'] = (df['eth_price_change'] + df['xrp_price_change'] + df['ada_price_change']) / 3
+    df['altcoin_volume_strength'] = (df['eth_volume_ratio'] + df['xrp_volume_ratio'] + df['ada_volume_ratio']) / 3
+    
+    # Global market momentum
+    df['global_momentum'] = (df['altcoin_momentum'] + df['gold_momentum'] + df['hsi_momentum']) / 3
     X_lagged = X_lagged.iloc[12:]
     
     return X_lagged, lagged_features_added
@@ -213,7 +272,8 @@ def normalize_features(X):
     # Features that can be negative (normalize to [-1, 1])
     negative_features = [
         'price_change', 'eth_price_change', 'xrp_price_change', 'ada_price_change', 
-        'altcoin_momentum', 'macd_line', 'macd_signal', 'macd_histogram'
+        'altcoin_momentum', 'macd_line', 'macd_signal', 'macd_histogram',
+        'gold_price_change', 'hsi_price_change', 'gold_momentum', 'hsi_momentum', 'global_momentum'
     ]
     
     # Features that are always positive (normalize to [0, 1])
@@ -225,7 +285,8 @@ def normalize_features(X):
         'eth_volume_ratio', 'btc_eth_ratio',
         'xrp_volume_ratio', 'btc_xrp_ratio',
         'ada_volume_ratio', 'btc_ada_ratio',
-        'altcoin_volume_strength'
+        'altcoin_volume_strength', 'gold_volume_ratio', 'btc_gold_ratio',
+        'hsi_volume_ratio', 'btc_hsi_ratio'
     ]
     
     # Add polynomial features to appropriate categories
@@ -267,8 +328,7 @@ def main(holding_period=1):
     start_date = datetime.date(2022, 1, 1).strftime('%Y-%m-%d')
     
     # Fetch Bitcoin data
-    print(f"Fetching 2,500 days of Bitcoin data from {start_date}...")
-    print(f"Fetching 5,000 hours of Bitcoin data from {start_date}...")
+    print(f"Fetching 2,500 periods of Bitcoin data from {start_date}...")
     btc_df = fetch_crypto_data_chunked('BTCUSDT', 2500, start_date)
     
     # Fetch altcoin data
@@ -280,7 +340,16 @@ def main(holding_period=1):
     
     print(f"\nFetching Cardano data from {start_date}...")
     ada_df = fetch_crypto_data_chunked('ADAUSDT', 2500, start_date)
-    # Create features with altcoin data
+    
+    # Fetch gold and Hang Seng data
+    print(f"\nFetching Gold data from {start_date}...")
+    gold_df = fetch_gold_data(2500, start_date)
+    
+    print(f"\nFetching Hang Seng data from {start_date}...")
+    hsi_df = fetch_hang_seng_data(2500, start_date)
+    
+    # Create features with altcoin data, gold, and Hang Seng
+    df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, gold_df, hsi_df, holding_period)
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df, holding_period)
     
     # Dataset information
@@ -291,7 +360,8 @@ def main(holding_period=1):
     print(f"  ETH price range: ${eth_df['close'].min():.2f} - ${eth_df['close'].max():.2f}")
     print(f"  XRP price range: ${xrp_df['close'].min():.4f} - ${xrp_df['close'].max():.4f}")
     print(f"  ADA price range: ${ada_df['close'].min():.4f} - ${ada_df['close'].max():.4f}")
-    
+    print(f"  Gold price range: ${gold_df['close'].min():.2f} - ${gold_df['close'].max():.2f}")
+    print(f"  Hang Seng range: {hsi_df['close'].min():.0f} - {hsi_df['close'].max():.0f}")
     # Prepare features and target (EXCLUDE RAW PRICE DATA)
     exclude_cols = ['date', 'target', 'close', 'open', 'high', 'low', 'volume']
     feature_cols = [col for col in df.columns if col not in exclude_cols]
@@ -318,7 +388,8 @@ def main(holding_period=1):
     selected_features_for_report = [
         'price_change', 'price_vs_sma24', 'volume_ratio', 'volatility_24', 'volatility_48',
         'eth_price_change', 'xrp_price_change', 'ada_price_change',
-        'altcoin_momentum', 'macd_histogram'
+        'altcoin_momentum', 'macd_histogram', 'gold_price_change', 'hsi_price_change',
+        'gold_momentum', 'hsi_momentum', 'global_momentum'
     ]
     
     # Calculate feature counts
@@ -476,13 +547,16 @@ def main(holding_period=1):
             # Update portfolio values
             portfolio_values.append(balance)
             
-            # Calculate daily returns (only when we have a previous value)
+            # Update portfolio values
+            portfolio_values.append(balance)
+            
             # Calculate period returns (only when we have a previous value)
+            if len(portfolio_values) >= 2:
                 period_return = (portfolio_values[-1] - portfolio_values[-2]) / portfolio_values[-2]
                 returns.append(period_return)
             
-            # Print detailed information for first 20 days
             # Print detailed information for first 20 periods
+            if i < 20:
                 print(f"\nPeriod {i+1} ({test_dates[i]}):")
                 if i >= holding_period and (i % holding_period == 0):
                     print(f"  Using prediction from period {i - holding_period + 1}: {prediction_n_periods_ago} ({'UP' if prediction_n_periods_ago == 1 else 'DOWN'})")
@@ -496,8 +570,6 @@ def main(holding_period=1):
                 else:
                     print(f"  No trading this period (holding period: {holding_period} periods)")
                 print(f"  Balance: ${balance:,.2f}")
-        
-        final_balance = balance
         
         # Calculate performance metrics
         total_return = (final_balance - initial_balance) / initial_balance * 100
