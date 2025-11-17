@@ -564,5 +564,5 @@ def main(holding_period=1):
 
 if __name__ == "__main__":
     # Change this parameter to set the holding period (1, 2, 3, etc.)
-    main(holding_period=2)  # Set to 2 for 2-hour holding period
+    main(holding_period=3)  # Set to 3 for 3-hour holding period
     main()
