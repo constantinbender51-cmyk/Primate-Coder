@@ -73,14 +73,12 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=1000, start_date=None):
     
     return df[['date', 'open', 'high', 'low', 'close', 'volume']]
     
-    return df[['date', 'open', 'high', 'low', 'close', 'volume']]
 def fetch_yahoo_data(symbol, periods=1000, start_date='2022-01-01'):
     """Fetch data from Yahoo Finance"""
     try:
         # Download data
         ticker = yf.Ticker(symbol)
         # Download data
-        ticker = yf.Ticker(symbol)
         df = ticker.history(start=start_date, interval='4h')
         
         # If we don't have enough 4h data, try daily and resample
@@ -421,15 +419,17 @@ def run_test(start_date=None, test_name="Current"):
     for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
         result = results[name]
         print(f"{name:<20} {result['accuracy']:.4f}    {result['f1_score']:.4f}    {result['total_return']:.4f}    {result['sharpe_ratio']:.4f}    ${result['final_balance']:.2f}")
-
+    return results
 def main():
     # Run test for May 2023
-    may_2023_results = run_test(start_date='2023-05-01', test_name="May 2023 Data")
+    run_test(start_date='2023-05-01', test_name="May 2023 Data")
     
     # Run test for May 2021
-    may_2021_results = run_test(start_date='2021-05-01', test_name="May 2021 Data")
+    run_test(start_date='2021-05-01', test_name="May 2021 Data")
     
     print("\n=== COMPLETE ===")
 
+if __name__ == "__main__":
+    main()
 if __name__ == "__main__":
     main()
