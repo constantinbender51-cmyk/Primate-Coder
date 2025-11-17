@@ -3,8 +3,9 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-import requests
 import io
+import matplotlib.pyplot as plt
+import gdown
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
@@ -18,18 +19,27 @@ class PositionalEncoding(layers.Layer):
         self.d_model = d_model
         
         # Create positional encoding matrix
-        position = np.arange(max_len)[:, np.newaxis]
-        div_term = np.exp(np.arange(0, d_model, 2) * -(np.log(10000.0) / d_model))
+        position = tf.range(max_len, dtype=tf.float32)[:, tf.newaxis]
+        div_term = tf.exp(tf.range(0, d_model, 2, dtype=tf.float32) * 
+                         -(tf.math.log(10000.0) / d_model))
         
-        pos_encoding = np.zeros((max_len, d_model))
-        pos_encoding[:, 0::2] = np.sin(position * div_term)
-        pos_encoding[:, 1::2] = np.cos(position * div_term)
+        pos_encoding = tf.zeros((max_len, d_model))
+        pos_encoding = tf.tensor_scatter_nd_update(
+            pos_encoding,
+            tf.stack([tf.range(max_len)[:, tf.newaxis] for _ in range(d_model//2)], axis=1)[:, 0],
+            tf.sin(position * div_term)
+        )
+        pos_encoding = tf.tensor_scatter_nd_update(
+            pos_encoding,
+            tf.stack([tf.range(max_len)[:, tf.newaxis] for _ in range(d_model//2)], axis=1)[:, 1],
+            tf.cos(position * div_term)
+        )
         
-        self.pos_encoding = tf.constant(pos_encoding, dtype=tf.float32)
+        self.pos_encoding = pos_encoding[tf.newaxis, ...]
     
     def call(self, x):
         seq_len = tf.shape(x)[1]
-        return x + self.pos_encoding[:seq_len, :]
+        return x + self.pos_encoding[:, :seq_len, :]
 
 class MultiHeadAttention(layers.Layer):
     """Multi-head attention mechanism"""
@@ -139,21 +149,22 @@ class TransformerEncoder(layers.Layer):
         return x
 
 def download_ohlcv_data():
-    """Download OHLCV data from Google Drive"""
+    """Download OHLCV data from Google Drive using gdown"""
     print("Downloading OHLCV data from Google Drive...")
     
     # Google Drive file ID from the URL
     file_id = "1kDCl_29nXyW1mLNUAS-nsJe0O2pOuO6o"
     
-    # Download URL
-    url = f"https://drive.google.com/uc?id={file_id}&export=download"
+    # Output filename
+    output_file = "ohlcv_data.csv"
     
     try:
-        response = requests.get(url)
-        response.raise_for_status()
+        # Download using gdown
+        url = f"https://drive.google.com/uc?id={file_id}"
+        gdown.download(url, output_file, quiet=False)
         
-        # Try to read as CSV
-        data = pd.read_csv(io.BytesIO(response.content))
+        # Load the downloaded CSV
+        data = pd.read_csv(output_file)
         print(f"Successfully downloaded data with shape: {data.shape}")
         print(f"Columns: {data.columns.tolist()}")
         
@@ -191,24 +202,48 @@ def preprocess_data(data):
     """Preprocess OHLCV data for transformer training"""
     print("Preprocessing data...")
     
-    # Ensure timestamp is datetime
-    if 'timestamp' in data.columns:
-        data['timestamp'] = pd.to_datetime(data['timestamp'])
-        data = data.sort_values('timestamp')
+    # Check if we have the expected columns, if not try to find them
+    expected_columns = ['open', 'high', 'low', 'close', 'volume']
+    available_columns = data.columns.tolist()
+    
+    print(f"Available columns: {available_columns}")
+    
+    # Try to find close price column
+    close_col = None
+    for col in available_columns:
+        if 'close' in col.lower():
+            close_col = col
+            break
+    
+    if close_col is None:
+        # If no close column found, use the last numeric column
+        numeric_cols = data.select_dtypes(include=[np.number]).columns
+        if len(numeric_cols) > 0:
+            close_col = numeric_cols[-1]
+        else:
+            raise ValueError("No suitable close price column found")
     
     # Calculate technical indicators
-    data['returns'] = data['close'].pct_change()
+    data['returns'] = data[close_col].pct_change()
     data['volatility'] = data['returns'].rolling(window=20).std()
-    data['sma_20'] = data['close'].rolling(window=20).mean()
-    data['sma_50'] = data['close'].rolling(window=50).mean()
-    data['volume_sma'] = data['volume'].rolling(window=20).mean()
+    data['sma_20'] = data[close_col].rolling(window=20).mean()
+    data['sma_50'] = data[close_col].rolling(window=50).mean()
+    
+    # Find volume column
+    volume_col = None
+    for col in available_columns:
+        if 'volume' in col.lower():
+            volume_col = col
+            break
+    
+    if volume_col:
+        data['volume_sma'] = data[volume_col].rolling(window=20).mean()
+        feature_columns = [close_col, volume_col, 'returns', 'volatility', 'sma_20', 'sma_50', 'volume_sma']
+    else:
+        feature_columns = [close_col, 'returns', 'volatility', 'sma_20', 'sma_50']
     
     # Remove NaN values
     data = data.dropna()
-    
-    # Select features for the model
-    feature_columns = ['open', 'high', 'low', 'close', 'volume', 'returns', 
-                      'volatility', 'sma_20', 'sma_50', 'volume_sma']
     
     # Normalize features
     scaler = StandardScaler()
@@ -225,8 +260,9 @@ def create_sequences(data, sequence_length=60, prediction_horizon=5):
         X.append(data[i:(i + sequence_length)])
         
         # Target: future price movement (1 if price goes up, 0 if down)
-        current_close = data[i + sequence_length - 1, 3]  # close price is at index 3
-        future_close = data[i + sequence_length + prediction_horizon - 1, 3]
+        # Close price is typically the first column after preprocessing
+        current_close = data[i + sequence_length - 1, 0]  # First column is close price
+        future_close = data[i + sequence_length + prediction_horizon - 1, 0]
         
         # Binary classification: 1 if price increases, 0 if decreases
         target = 1 if future_close > current_close else 0
