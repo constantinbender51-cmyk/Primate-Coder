@@ -375,11 +375,14 @@ def main(holding_period=1):
         }
     }
     print(f"\nModel Hyperparameters (Holding Period: {holding_period} hours):")
-    # Print model hyperparameters
-    print(f"\nModel Hyperparameters:")
-    for name, model_info in models.items():
-        print(f"  {name}: {model_info['params']}")
     
+    # Train and evaluate models
+    results = {}
+    
+    print("\nModel Performance:")
+    for name, model_info in models.items():
+        model = model_info['model']
+        
     # Train and evaluate models
     results = {}
     
@@ -403,11 +406,6 @@ def main(holding_period=1):
         print(f"{name}:")
         print(f"  Accuracy: {accuracy:.4f}")
         print(f"  F1-Score: {f1:.4f}")
-    
-    # Find best model by F1 score
-    best_model = max(results, key=lambda x: results[x]['f1_score'])
-    print(f"\nBest Model: {best_model}")
-    
     # Backtesting simulation for ALL models
     print("\n=== BACKTESTING SIMULATION FOR ALL MODELS ===")
     
@@ -434,10 +432,10 @@ def main(holding_period=1):
         
         print(f"\nBacktesting with {holding_period}-hour holding period:")
         print(f"  - Trading every {holding_period} hours")
+        print(f"\nBacktesting with {holding_period}-hour holding period:")
+        print(f"  - Trading every {holding_period} hours")
         print(f"  - Holding positions for {holding_period} hours")
         print(f"  - Total test hours: {len(predictions)}")
-        
-        # Trading simulation with N-hour holding period
         for i in range(len(predictions)):
             current_price = test_prices[i]
             current_prediction = predictions[i]
@@ -468,23 +466,18 @@ def main(holding_period=1):
             
             # Print detailed information for first 20 hours
             if i < 20:
+            # Print detailed information for first 5 hours only
+            if i < 5:
                 print(f"\nHour {i+1} ({test_dates[i]}):")
                 print(f"  Price: ${current_price:,.2f}")
                 if i >= holding_period and (i % holding_period == 0):
                     print(f"  Using prediction from hour {i - holding_period + 1}: {prediction_n_hours_ago} ({'UP' if prediction_n_hours_ago == 1 else 'DOWN'})")
                     print(f"  Entry price (hour {i - holding_period + 1}): ${price_n_hours_ago:,.2f}")
                     print(f"  Current price (hour {i+1}): ${current_price:,.2f}")
-                    print(f"  Price ratio (entry/current): {price_n_hours_ago/current_price:.6f}")
-                    if prediction_n_hours_ago == 1:
-                        print(f"  Action: LONG - Balance = previous_balance × {current_price/price_n_hours_ago:.6f}")
-                    else:
-                        print(f"  Action: SHORT - Balance = previous_balance × {2 - current_price/price_n_hours_ago:.6f}")
+                    print(f"  Balance: ${balance:,.2f}")
                 else:
                     print(f"  No trading this hour (holding period: {holding_period} hours)")
-                print(f"  Balance: ${balance:,.2f}")
-        
-        final_balance = balance
-        
+                    print(f"  Balance: ${balance:,.2f}")
         # Calculate performance metrics
         total_return = (final_balance - initial_balance) / initial_balance * 100
         buy_hold_return = (test_prices[-1] - test_prices[0]) / test_prices[0] * 100
@@ -520,25 +513,16 @@ def main(holding_period=1):
         # Print results
         print(f"\nTrading Simulation Results:")
         print(f"  Initial Balance: ${10000:,.2f}")
-        print(f"  Final Balance: ${result['final_balance']:,.2f}")
-        print(f"  Total Return: {result['total_return']:+.2f}%")
-        print(f"  Buy & Hold Return: {result['buy_hold_return']:+.2f}%")
-        print(f"  Sharpe Ratio: {result['sharpe_ratio']:.4f}")
+        # Run backtest
+        result = run_backtest(predictions, name, test_dates, test_prices)
+        backtest_results[name] = result
         
-        # Compare strategy vs buy & hold
-        if result['total_return'] > result['buy_hold_return']:
-            outperformance = result['total_return'] - result['buy_hold_return']
-            print(f"  Strategy Outperformance: +{outperformance:.2f}% vs Buy & Hold")
-        else:
-            underperformance = result['buy_hold_return'] - result['total_return']
-            print(f"  Strategy Underperformance: -{underperformance:.2f}% vs Buy & Hold")
-    
-    # Compare all models
-    print("\n=== MODEL COMPARISON SUMMARY ===")
-    print("\nPerformance Comparison:")
-    print(f"{'Model':<20} {'Total Return':<12} {'Sharpe Ratio':<12}")
-    print("-" * 45)
-    
+        # Print results
+        print(f"\n{name} Results:")
+        print(f"  Accuracy: {results[name]['accuracy']:.4f}")
+        print(f"  F1-Score: {results[name]['f1_score']:.4f}")
+        print(f"  Final Balance: ${result['final_balance']:,.2f}")
+        print(f"  Sharpe Ratio: {result['sharpe_ratio']:.4f}")
     # Compare all models
     print("\n=== MODEL COMPARISON SUMMARY ===")
     print("\nPerformance Comparison:")
@@ -550,18 +534,13 @@ def main(holding_period=1):
         print(f"{name:<20} {result['total_return']:+.2f}%{'':<4} {result['sharpe_ratio']:.4f}")
     
     # Find best model by Sharpe ratio
-    best_sharpe_model = max(backtest_results.keys(), 
-                           key=lambda x: backtest_results[x]['sharpe_ratio'])
+    # Final results summary
+    print("\n=== FINAL RESULTS SUMMARY ===")
+    print(f"\n{'Model':<20} {'Accuracy':<10} {'F1-Score':<10} {'Sharpe':<10} {'Final Balance':<15}")
+    print("-" * 65)
     
-    # Find best model by Total Return
-    best_return_model = max(backtest_results.keys(),
-                           key=lambda x: backtest_results[x]['total_return'])
-    
-    print(f"\nBest Model by Sharpe Ratio: {best_sharpe_model} ({backtest_results[best_sharpe_model]['sharpe_ratio']:.4f})")
-    print(f"Best Model by Total Return: {best_return_model} ({backtest_results[best_return_model]['total_return']:+.2f}%)")
+    for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
+        result = backtest_results[name]
+        print(f"{name:<20} {results[name]['accuracy']:.4f}    {results[name]['f1_score']:.4f}    {result['sharpe_ratio']:.4f}    ${result['final_balance']:>10,.2f}")
     
     print("\n=== BACKTESTING COMPLETE ===")
-
-if __name__ == "__main__":
-    # Change this parameter to set the holding period (1, 2, 3, etc.)
-    main(holding_period=1)  # Set to 1 for 1-hour holding period
