@@ -92,7 +92,7 @@ def train_model():
     # Train Random Forest classifier
     print("\nTraining Random Forest classifier...")
     rf_classifier = RandomForestClassifier(
-        n_estimators=100,
+        n_estimators=200,
         max_depth=10,
         random_state=42,
         class_weight='balanced'
