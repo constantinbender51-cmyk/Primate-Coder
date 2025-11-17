@@ -1,4 +1,3 @@
-
 import json
 import re
 import base64
@@ -9,7 +8,7 @@ from gtts import gTTS
 def call_deepseek_api(user_message, file_contents, script_output_text, chat_history, deepseek_api_key, debug_logs):
     """Call DeepSeek API with coding agent prompt."""
     
-    system_prompt = """You are a coding agent with the ability to create and edit files.
+    system_prompt = """You are a coding agent with the ability to create, edit, and delete files.
 
 IMPORTANT WORKFLOW:
 1. ASK before EVERY code change for user confirmation before providing JSON with file changes and only proceed once the user has confirmed 
@@ -22,7 +21,7 @@ CRITICAL - DEPENDENCY MANAGEMENT:
 - Do NOT include flask, requests, or gtts in requirements.txt as they are already available
 - Format: one package per line, optionally with version (e.g., "numpy==1.24.0" or just "numpy")
 
-FILE EDITING - THREE FORMATS:
+FILE EDITING - FOUR FORMATS:
 
 CRITICAL - JSON STRUCTURE:
 Each JSON object must be a TOP-LEVEL object, NOT nested inside filename keys.
@@ -125,6 +124,12 @@ For INSERTING code at a specific line (pushes existing lines down), use INSERT f
   "content": "new code to insert"
 }
 
+For DELETING a file, use DELETE format:
+{
+  "file": "filename.py",
+  "operation": "delete"
+}
+
 For MULTIPLE file operations, use SEPARATE JSON objects:
 {
   "file": "script.py",
@@ -132,6 +137,10 @@ For MULTIPLE file operations, use SEPARATE JSON objects:
   "start_line": 10,
   "end_line": 15,
   "content": "code"
+}
+{
+  "file": "unused_file.py",
+  "operation": "delete"
 }
 {
   "requirements.txt": "numpy\\npandas"
