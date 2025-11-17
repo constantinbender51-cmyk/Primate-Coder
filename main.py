@@ -44,6 +44,7 @@ def run_script():
     if not os.path.exists('script.py'):
         script_output.put("script.py not found\n")
         script_is_running = False
+        script_exit_code = -1
         return
     
     with open('script.py', 'r') as f:
@@ -51,10 +52,12 @@ def run_script():
         if not content:
             script_output.put("script.py is empty\n")
             script_is_running = False
+            script_exit_code = -1
             return
     
     try:
         script_is_running = True
+        script_exit_code = None  # Reset exit code
         script_process = subprocess.Popen(
             ['python', 'script.py'],
             stdout=subprocess.PIPE,
@@ -72,10 +75,19 @@ def run_script():
         script_exit_code = script_process.returncode
         script_output.put(f"\n[Process exited with code {script_exit_code}]\n")
         script_is_running = False
+        debug_logs.put({
+            "type": "Script Completed",
+            "data": f"script.py finished with exit code {script_exit_code}"
+        })
         
     except Exception as e:
         script_output.put(f"Error running script.py: {str(e)}\n")
         script_is_running = False
+        script_exit_code = -1
+        debug_logs.put({
+            "type": "Script Error",
+            "data": f"script.py error: {str(e)}"
+        })
 
 
 def start_script_thread():
