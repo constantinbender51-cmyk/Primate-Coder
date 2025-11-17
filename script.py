@@ -328,18 +328,20 @@ def run_test(start_date=None, test_name="Current"):
     
     # Initialize classification models with parameters
     models = {
+    models = {
         'Logistic Regression': {
-            'model': LogisticRegression(random_state=42, max_iter=5000),
-            'params': 'C=1.0, max_iter=5000'
+            'model': LogisticRegression(random_state=42, max_iter=200),
+            'params': 'C=1.0, max_iter=200'
         },
         'Random Forest': {
             'model': RandomForestClassifier(n_estimators=200, random_state=42),
             'params': 'n_estimators=200, max_depth=None'
         },
         'Gradient Boosting': {
-            'model': GradientBoostingClassifier(n_estimators=200, learning_rate=0.05, random_state=42),
-            'params': 'n_estimators=200, learning_rate=0.05'
+            'model': GradientBoostingClassifier(n_estimators=200, learning_rate=0.1, random_state=42),
+            'params': 'n_estimators=200, learning_rate=0.1'
         }
+    }
     }
     print(f"\nModel Hyperparameters:")
     for name, model_info in models.items():
