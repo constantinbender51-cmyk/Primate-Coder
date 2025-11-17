@@ -242,7 +242,7 @@ def preprocess_data(data):
     
     return scaled_features, scaler, feature_columns
 
-def create_sequences_memory_efficient(data, sequence_length=60, prediction_horizon=5, max_sequences=50000):
+def create_sequences_memory_efficient(data, sequence_length=60, prediction_horizon=5, max_sequences=40000):
     """Create sequences with memory limits to prevent SIGKILL errors"""
     X, y = [], []
     
@@ -273,8 +273,8 @@ def create_sequences_memory_efficient(data, sequence_length=60, prediction_horiz
     print(f"Successfully created {len(X):,} sequences")
     return np.array(X), np.array(y)
 
-def build_transformer_model(input_shape, num_layers=4, d_model=256, num_heads=16, 
-                          dff=1024, dropout_rate=0.1):
+def build_transformer_model(input_shape, num_layers=3, d_model=128, num_heads=8, 
+                          dff=512, dropout_rate=0.1):
     """Build the transformer model for time series classification"""
     
     inputs = keras.Input(shape=input_shape)
@@ -321,7 +321,7 @@ def train_transformer():
     sequence_length = 60  # 60 minutes of historical data
     prediction_horizon = 5  # Predict 5 minutes ahead
     
-    X, y = create_sequences_memory_efficient(scaled_features, sequence_length, prediction_horizon, max_sequences=20000)
+    X, y = create_sequences_memory_efficient(scaled_features, sequence_length, prediction_horizon, max_sequences=40000)
     
     print(f"Sequences created: {X.shape}")
     print(f"Target distribution: {np.unique(y, return_counts=True)}")
@@ -338,10 +338,10 @@ def train_transformer():
     # Build model
     model = build_transformer_model(
         input_shape=(sequence_length, len(feature_columns)),
-        num_layers=4,
-        d_model=256,
-        num_heads=16,
-        dff=1024
+        num_layers=3,
+        d_model=128,
+        num_heads=8,
+        dff=512
     )
     
     # Calculate class weights for imbalanced data
