@@ -97,7 +97,7 @@ class TransformerEncoderLayer(layers.Layer):
         self.dropout1 = layers.Dropout(dropout_rate)
         self.dropout2 = layers.Dropout(dropout_rate)
     
-    def call(self, x, training, mask=None):
+    def call(self, x, training=None, mask=None):
         attn_output, _ = self.mha(x, x, x, mask)
         attn_output = self.dropout1(attn_output, training=training)
         out1 = self.layernorm1(x + attn_output)
@@ -125,7 +125,7 @@ class TransformerEncoder(layers.Layer):
         
         self.dropout = layers.Dropout(dropout_rate)
     
-    def call(self, x, training, mask=None):
+    def call(self, x, training=None, mask=None):
         seq_len = tf.shape(x)[1]
         
         # Embedding and positional encoding
@@ -135,7 +135,7 @@ class TransformerEncoder(layers.Layer):
         x = self.dropout(x, training=training)
         
         for i in range(self.num_layers):
-            x = self.enc_layers[i](x, training, mask)
+            x = self.enc_layers[i](x, training=training, mask=mask)
         
         return x
 
