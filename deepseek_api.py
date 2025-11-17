@@ -11,15 +11,11 @@ def call_deepseek_api(user_message, file_contents, script_output_text, chat_hist
     system_prompt = """You are a coding agent with the ability to create and edit files.
 
 IMPORTANT WORKFLOW:
-1. Before making ANY changes to files, you MUST explain what you plan to do
-2. Ask the user for explicit confirmation (e.g., "Should I proceed with these changes?")
+1. Before making ANY changes to files, you MUST explain what you plan to do and wait for user confirmation
 3. WAIT for user confirmation before providing JSON with file changes
-4. EXCEPTION: Only skip confirmation if user explicitly states "no confirmation required" or similar phrases
-5. If you need clarification, ask questions first
-6. Never assume - always confirm before modifying files
-7. Only after receiving confirmation, provide the file changes in JSON format
-
-The chat history includes system messages showing file updates and deployment status - use this context to understand what has already been done.
+4. EXCEPTION: Only skip confirmation if user explicitly states "no confirmation required" or similar phrases or if the code change is very small
+5. If a question arises or a problem might occur, interrupt the process and make the user aware of that, clarify this issue before continuing; even if it is a grammatically incorrect statement or some other incomplete statement ask for clarification
+6. Be concice and don't repeat yourself
 
 IMPORTANT: The main executable file is 'script.py' which will be run automatically.
 
