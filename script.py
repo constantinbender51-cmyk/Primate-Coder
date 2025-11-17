@@ -357,7 +357,7 @@ def run_test(start_date=None, test_name="Current"):
         test_df['strategy_return'] = 0.0
         test_df['actual_return'] = test_df['close'].pct_change().shift(-1)
         
-        # Strategy: Buy when prediction is 1, hold for one period with stop loss
+        # Strategy: Buy when prediction is 1, Short when prediction is 0, hold for one period with stop loss
         for i in range(len(test_df) - 1):
             current_price = test_df.iloc[i]['close']
             next_open = test_df.iloc[i + 1]['open']
@@ -365,7 +365,7 @@ def run_test(start_date=None, test_name="Current"):
             next_low = test_df.iloc[i + 1]['low']
             next_close = test_df.iloc[i + 1]['close']
             
-            # Buy signal (prediction = 1)
+            # Long position (prediction = 1)
             if test_df.iloc[i]['prediction'] == 1:
                 entry_price = current_price
                 
@@ -380,9 +380,20 @@ def run_test(start_date=None, test_name="Current"):
                     # No stop loss - exit at next close
                     test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (next_close - entry_price) / entry_price
             
-            # Short selling (prediction = 0) - if we were to implement shorting
-            # For now, we only go long when prediction is 1, and do nothing when prediction is 0
-        
+            # Short position (prediction = 0)
+            else:
+                entry_price = current_price
+                
+                # Calculate stop loss price (2% above entry for short positions)
+                stop_loss_price = entry_price * 1.02
+                
+                # Check if stop loss is triggered in next candle
+                if next_high >= stop_loss_price:
+                    # Stop loss triggered - exit at stop loss price
+                    test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (entry_price - stop_loss_price) / entry_price
+                else:
+                    # No stop loss - exit at next close
+                    test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = (entry_price - next_close) / entry_price
         # Calculate performance metrics
         total_return = test_df['strategy_return'].sum()
         
