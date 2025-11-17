@@ -195,7 +195,7 @@ Current files in the repository:
     })
     
     response = requests.post(url, json=payload, headers=headers)
-    debug_logs.put({"type": "← DeepSeek API", "data": f"Status: {response.status_code}"})
+    debug_logs.put({"type": "← DeepSeek API", "data": f"Status: {response}"})
     
     response.raise_for_status()
     
