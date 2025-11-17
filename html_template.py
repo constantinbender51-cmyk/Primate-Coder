@@ -49,12 +49,17 @@ HTML_TEMPLATE = """
             background: var(--bg-secondary);
             color: var(--text-primary);
             overflow: hidden;
+            /* Fix for mobile browsers */
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
 
         .app {
             display: flex;
             flex-direction: column;
             height: 100vh;
+            height: 100dvh; /* Dynamic viewport height for mobile */
             max-width: 100%;
             margin: 0 auto;
             background: var(--bg-primary);
@@ -63,17 +68,16 @@ HTML_TEMPLATE = """
         .header {
             background: var(--bg-primary);
             border-bottom: 1px solid var(--border);
-            padding: 12px 16px;
+            padding: 10px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            flex-shrink: 0;
+            min-height: 44px;
         }
 
         .header h1 {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 500;
             color: var(--text-primary);
         }
@@ -126,6 +130,8 @@ HTML_TEMPLATE = """
             transform: translateY(100%);
             transition: transform 0.3s;
             box-shadow: 0 -4px 12px var(--shadow);
+            max-height: 80vh;
+            overflow-y: auto;
         }
 
         .menu.show {
@@ -159,38 +165,14 @@ HTML_TEMPLATE = """
             border-bottom: none;
         }
 
-        /* TTS Toggle Button Styles */
-        .tts-toggle {
-            background: transparent;
-            border: none;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 8px;
-            color: var(--text-secondary);
-            min-width: 44px;
-            min-height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 8px;
-            transition: color 0.2s;
-        }
-
-        .tts-toggle.active {
-            color: var(--accent);
-        }
-
-        .tts-toggle:hover {
-            color: var(--accent);
-        }
-
-        /* Updated tabs positioning */
+        /* Tabs positioned above input area */
         .tabs {
             display: flex;
             background: var(--bg-secondary);
             border-top: 1px solid var(--border);
             justify-content: flex-end;
             padding: 0 16px;
+            flex-shrink: 0;
         }
 
         .tab {
@@ -199,10 +181,10 @@ HTML_TEMPLATE = """
             border: none;
             border-bottom: 2px solid transparent;
             color: var(--text-secondary);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.2s;
-            min-height: 40px;
+            min-height: 36px;
         }
 
         .tab.active {
@@ -216,6 +198,7 @@ HTML_TEMPLATE = """
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            min-height: 0;
         }
 
         .view {
@@ -223,6 +206,7 @@ HTML_TEMPLATE = """
             overflow-y: auto;
             display: none;
             flex-direction: column;
+            min-height: 0;
         }
 
         .view.active {
@@ -232,19 +216,21 @@ HTML_TEMPLATE = """
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
             gap: 12px;
+            -webkit-overflow-scrolling: touch;
         }
 
         .message {
-            padding: 12px 16px;
+            padding: 10px 14px;
             border-radius: 8px;
             max-width: 85%;
-            line-height: 1.5;
-            font-size: 0.95rem;
+            line-height: 1.45;
+            font-size: 0.9rem;
             word-wrap: break-word;
+            white-space: pre-wrap;
         }
 
         .message.user {
@@ -259,6 +245,19 @@ HTML_TEMPLATE = """
             color: var(--text-primary);
             margin-right: auto;
             border-bottom-left-radius: 4px;
+            padding: 14px 16px;
+        }
+
+        .message.assistant p {
+            margin: 8px 0;
+        }
+
+        .message.assistant p:first-child {
+            margin-top: 0;
+        }
+
+        .message.assistant p:last-child {
+            margin-bottom: 0;
         }
 
         .message.assistant code {
@@ -266,7 +265,8 @@ HTML_TEMPLATE = """
             padding: 2px 6px;
             border-radius: 3px;
             color: var(--accent);
-            font-size: 0.9em;
+            font-size: 0.85em;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
         }
 
         .message.assistant pre {
@@ -282,18 +282,29 @@ HTML_TEMPLATE = """
             padding: 0;
         }
 
+        .message.assistant ul,
+        .message.assistant ol {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .message.assistant li {
+            margin: 4px 0;
+        }
+
         .message.system {
             background: transparent;
             color: var(--success);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             text-align: center;
             margin: 0 auto;
+            max-width: 90%;
         }
 
         .message.status {
             background: transparent;
             color: var(--text-tertiary);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-style: italic;
             text-align: center;
             margin: 0 auto;
@@ -302,36 +313,50 @@ HTML_TEMPLATE = """
         .message.error {
             background: transparent;
             color: var(--error);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             margin: 0 auto;
             text-align: center;
+            max-width: 90%;
+        }
+
+        .message.auto-retry {
+            background: var(--bg-tertiary);
+            color: var(--accent);
+            font-size: 0.85rem;
+            text-align: center;
+            margin: 0 auto;
+            max-width: 90%;
+            padding: 10px 14px;
+            border-left: 3px solid var(--accent);
         }
 
         .output-container {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 12px;
             background: var(--bg-tertiary);
             font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: var(--accent);
             white-space: pre-wrap;
             word-wrap: break-word;
+            -webkit-overflow-scrolling: touch;
         }
 
         .debug-container {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 12px;
             background: var(--bg-tertiary);
             font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: var(--text-secondary);
+            -webkit-overflow-scrolling: touch;
         }
 
         .debug-entry {
-            margin-bottom: 16px;
-            padding: 12px;
+            margin-bottom: 12px;
+            padding: 10px;
             background: var(--bg-primary);
             border-left: 3px solid var(--accent);
             border-radius: 4px;
@@ -341,36 +366,44 @@ HTML_TEMPLATE = """
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .debug-timestamp {
             color: var(--accent);
             font-weight: 600;
+            font-size: 0.7rem;
         }
 
         .debug-type {
             color: var(--success);
             font-weight: 600;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
+            font-size: 0.75rem;
         }
 
         .debug-data {
             color: var(--text-primary);
+            word-wrap: break-word;
+            font-size: 0.75rem;
         }
 
         .debug-expand-btn {
             background: var(--bg-secondary);
             border: 1px solid var(--border);
             color: var(--text-secondary);
-            padding: 6px 12px;
+            padding: 4px 10px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             transition: all 0.2s;
+            white-space: nowrap;
         }
 
-        .debug-expand-btn:hover {
+        .debug-expand-btn:hover,
+        .debug-expand-btn:active {
             border-color: var(--accent);
             color: var(--accent);
         }
@@ -382,12 +415,12 @@ HTML_TEMPLATE = """
         }
 
         .debug-full-data {
-            margin-top: 10px;
-            padding: 10px;
+            margin-top: 8px;
+            padding: 8px;
             background: var(--bg-tertiary);
             border: 1px solid var(--border);
             border-radius: 4px;
-            max-height: 400px;
+            max-height: 300px;
             overflow: auto;
             display: none;
         }
@@ -400,13 +433,17 @@ HTML_TEMPLATE = """
             margin: 0;
             white-space: pre-wrap;
             word-wrap: break-word;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         }
 
         .input-area {
-            padding: 16px;
+            padding: 12px 16px;
             background: var(--bg-primary);
             border-top: 1px solid var(--border);
+            flex-shrink: 0;
+            /* Ensure it stays at bottom on mobile */
+            position: relative;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
         }
 
         .input-wrapper {
@@ -417,16 +454,18 @@ HTML_TEMPLATE = """
 
         .input {
             flex: 1;
-            padding: 12px;
+            padding: 10px 12px;
             border: 1px solid var(--border);
             border-radius: 8px;
             background: var(--bg-secondary);
             color: var(--text-primary);
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-family: inherit;
             resize: none;
-            min-height: 48px;
-            max-height: 120px;
+            min-height: 44px;
+            max-height: 30vh;
+            overflow-y: auto;
+            line-height: 1.4;
         }
 
         .input:focus {
@@ -435,17 +474,18 @@ HTML_TEMPLATE = """
         }
 
         .send-btn {
-            padding: 12px 20px;
+            padding: 10px 18px;
             background: var(--accent);
             color: white;
             border: none;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 500;
             cursor: pointer;
-            min-height: 48px;
-            min-width: 72px;
+            min-height: 44px;
+            min-width: 68px;
             transition: background 0.2s;
+            flex-shrink: 0;
         }
 
         .send-btn:active {
@@ -474,7 +514,12 @@ HTML_TEMPLATE = """
             100% { transform: rotate(360deg); }
         }
 
+        /* Desktop styles */
         @media (min-width: 768px) {
+            body {
+                position: static;
+            }
+
             .app {
                 max-width: 1200px;
                 margin: 0 auto;
@@ -495,7 +540,6 @@ HTML_TEMPLATE = """
             }
 
             .tabs {
-                display: flex;
                 padding: 0 24px;
             }
 
@@ -528,14 +572,36 @@ HTML_TEMPLATE = """
 
             .message {
                 max-width: 70%;
+                font-size: 0.95rem;
             }
 
             .output-container, .debug-container {
                 padding: 24px;
+                font-size: 0.85rem;
             }
 
             .input-area {
                 padding: 20px 24px;
+            }
+
+            .input {
+                font-size: 1rem;
+            }
+
+            .send-btn {
+                font-size: 1rem;
+            }
+        }
+
+        /* iOS safe area support */
+        @supports (padding: max(0px)) {
+            .app {
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
+            
+            .header {
+                padding-top: max(10px, env(safe-area-inset-top));
             }
         }
     </style>
@@ -545,8 +611,6 @@ HTML_TEMPLATE = """
         <div class="header">
             <h1>Prima<span class="highlight">t</span>e Coder</h1>
             <div>
-                <!-- TTS Toggle Button -->
-                <button class="tts-toggle" id="ttsToggle" onclick="toggleTTS()" title="Toggle Text-to-Speech">🔊</button>
                 <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
             </div>
         </div>
@@ -586,7 +650,6 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
-        <!-- Tabs moved to bottom right above input area -->
         <div class="tabs">
             <button class="tab active" onclick="switchView('chat')">Chat</button>
             <button class="tab" onclick="switchView('output')">Output</button>
@@ -614,6 +677,7 @@ HTML_TEMPLATE = """
         let shouldAutoScroll = true;
         let ttsEnabled = true;
         let currentAudio = null;
+        let isProcessing = false;
 
         // Configure marked.js
         marked.setOptions({ breaks: true, gfm: true });
@@ -649,6 +713,13 @@ HTML_TEMPLATE = """
                 chatHistory = [];
             }
         }
+
+        // Auto-resize textarea
+        const textarea = document.getElementById('userInput');
+        textarea.addEventListener('input', function() {
+            this.style.height = '44px';
+            this.style.height = Math.min(this.scrollHeight, window.innerHeight * 0.3) + 'px';
+        });
 
         function toggleMenu() {
             const menu = document.getElementById('menu');
@@ -689,21 +760,22 @@ HTML_TEMPLATE = """
             }
             
             addDebugLog('TTS Toggled', 'TTS is now ' + (ttsEnabled ? 'enabled' : 'disabled'));
+            
+            // Close menu if it's open
+            const menu = document.getElementById('menu');
+            if (menu.classList.contains('show')) {
+                toggleMenu();
+            }
         }
 
         function updateTTSUI() {
-            const toggleBtn = document.getElementById('ttsToggle');
             const menuIcon = document.getElementById('ttsMenuIcon');
             const menuLabel = document.getElementById('ttsMenuLabel');
             
             if (ttsEnabled) {
-                toggleBtn.classList.add('active');
-                toggleBtn.title = 'Text-to-Speech: On';
                 menuIcon.textContent = '🔊';
                 menuLabel.textContent = 'TTS: On';
             } else {
-                toggleBtn.classList.remove('active');
-                toggleBtn.title = 'Text-to-Speech: Off';
                 menuIcon.textContent = '🔇';
                 menuLabel.textContent = 'TTS: Off';
             }
@@ -827,7 +899,7 @@ HTML_TEMPLATE = """
                 html += '<div class="debug-entry">';
                 html += '<div class="debug-header">';
                 html += '<div><div class="debug-timestamp">' + log.timestamp + '</div>';
-                html += '<div class="debug-type">' + log.type + '</div></div>';
+                html += '<div class="debug-type">' + escapeHtml(log.type) + '</div></div>';
                 if (log.fullData) {
                     html += '<button class="debug-expand-btn" onclick="toggleDebugData(' + index + ')">Show Details</button>';
                 }
@@ -846,8 +918,9 @@ HTML_TEMPLATE = """
 
         function toggleDebugData(index) {
             const elem = document.getElementById('debug-full-' + index);
-            const btn = document.querySelectorAll('.debug-expand-btn')[debugLogs.length - 1 - index];
-            if (elem) {
+            const buttons = document.querySelectorAll('.debug-expand-btn');
+            const btn = buttons[index];
+            if (elem && btn) {
                 elem.classList.toggle('visible');
                 btn.classList.toggle('expanded');
                 btn.textContent = elem.classList.contains('visible') ? 'Hide Details' : 'Show Details';
@@ -861,17 +934,22 @@ HTML_TEMPLATE = """
         }
 
         async function sendMessage() {
+            if (isProcessing) return;
+            
             const input = document.getElementById('userInput');
             const btn = document.getElementById('sendBtn');
             const message = input.value.trim();
             
             if (!message) return;
             
-            addMessage(message, 'user');
+            isProcessing = true;
+            
+            addMessage(escapeHtml(message), 'user');
             chatHistory.push({ role: 'user', content: message });
             saveChatHistory();
             
             input.value = '';
+            input.style.height = '44px';
             btn.disabled = true;
             
             const statusMsg = addMessage('<span class="loading"></span>Processing your request...', 'status');
@@ -917,6 +995,7 @@ HTML_TEMPLATE = """
                     );
                     addMessage('Error: Invalid JSON response from server', 'error');
                     btn.disabled = false;
+                    isProcessing = false;
                     return;
                 }
                 
@@ -928,6 +1007,11 @@ HTML_TEMPLATE = """
                         addDebugLog('Files Updated', 'Updated: ' + data.files_updated.join(', '));
                         addMessage('Updated files: ' + data.files_updated.join(', '), 'system');
                         addMessage('Files pushed to GitHub. Railway redeploying...', 'system');
+                        
+                        // Show auto-retry message
+                        if (!data.script_confirmed_working) {
+                            addMessage('🔄 Auto-retry enabled: Will monitor script output and fix any errors automatically', 'auto-retry');
+                        }
                     }
                     
                     // Handle deleted files
@@ -947,6 +1031,15 @@ HTML_TEMPLATE = """
                             playAudio(data.audio);
                         }
                     }
+                    
+                    // Handle auto-retry status messages
+                    if (data.is_auto_retry) {
+                        if (data.script_confirmed_working) {
+                            addMessage('✅ Auto-retry complete: Script is now working correctly!', 'system');
+                        } else {
+                            addMessage('🔄 Auto-retry attempt ' + data.retry_attempt + ': Applying fixes...', 'auto-retry');
+                        }
+                    }
                 }
             } catch (error) {
                 statusMsg.remove();
@@ -959,13 +1052,14 @@ HTML_TEMPLATE = """
             }
             
             btn.disabled = false;
+            isProcessing = false;
         }
 
-        // Enter key to send
+        // Prevent Enter from sending - only button click sends
         document.getElementById('userInput').addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+                // Allow Enter to create new line (default behavior)
+                // Do NOT prevent default or send message
             }
         });
 
@@ -997,7 +1091,14 @@ HTML_TEMPLATE = """
                 const response = await fetch('/get_debug_logs');
                 const data = await response.json();
                 if (data.logs && data.logs.length > 0) {
-                    data.logs.forEach(log => addDebugLog(log.type, log.data));
+                    data.logs.forEach(log => {
+                        // Check if log has fullData property
+                        if (log.fullData !== undefined) {
+                            addDebugLog(log.type, log.data, log.fullData);
+                        } else {
+                            addDebugLog(log.type, log.data);
+                        }
+                    });
                 }
             } catch (error) {
                 console.error('Error fetching debug logs:', error);
