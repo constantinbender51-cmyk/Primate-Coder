@@ -187,8 +187,27 @@ def generate():
             if current_content is None:
                 continue
             
-            # Apply each edit sequentially
-            for edit in edits:
+            # CRITICAL FIX: Sort edits by line number in DESCENDING order
+            # This ensures we edit from bottom to top, so line numbers stay valid
+            def get_sort_key(edit):
+                operation = edit["operation"]
+                data = edit["data"]
+                if operation == "replace_lines":
+                    return data.get("start_line", 0)
+                elif operation == "insert_at_line":
+                    return data.get("line", 0)
+                return 0
+            
+            # Sort in descending order (highest line numbers first)
+            edits_sorted = sorted(edits, key=get_sort_key, reverse=True)
+            
+            debug_logs.put({
+                "type": "Edit Sorting", 
+                "data": f"{filename}: Applying {len(edits_sorted)} edits from bottom to top"
+            })
+            
+            # Apply each edit sequentially from bottom to top
+            for edit in edits_sorted:
                 operation = edit["operation"]
                 data = edit["data"]
                 
@@ -199,6 +218,11 @@ def generate():
                     
                     if start_line is None or end_line is None:
                         continue
+                    
+                    debug_logs.put({
+                        "type": "Replace Lines",
+                        "data": f"{filename}: Lines {start_line}-{end_line}"
+                    })
                     
                     lines = current_content.split('\n')
                     new_lines = content.split('\n') if content else []
@@ -211,6 +235,11 @@ def generate():
                     
                     if line_number is None:
                         continue
+                    
+                    debug_logs.put({
+                        "type": "Insert at Line",
+                        "data": f"{filename}: Line {line_number}"
+                    })
                     
                     lines = current_content.split('\n')
                     new_lines = content.split('\n') if content else []
