@@ -251,11 +251,22 @@ def preprocess_data(data):
     
     return scaled_features, scaler, feature_columns
 
-def create_sequences(data, sequence_length=60, prediction_horizon=5):
-    """Create sequences for time series forecasting"""
+def create_sequences_memory_efficient(data, sequence_length=60, prediction_horizon=5, max_sequences=50000):
+    """Create sequences with memory limits to prevent SIGKILL errors"""
     X, y = [], []
     
-    for i in range(len(data) - sequence_length - prediction_horizon):
+    # Calculate how many sequences we can create
+    total_possible = len(data) - sequence_length - prediction_horizon
+    sample_rate = max(1, total_possible // max_sequences)
+    
+    print(f"Total possible sequences: {total_possible:,}")
+    print(f"Sampling 1 in every {sample_rate} sequences to limit memory usage")
+    print(f"Creating maximum of {max_sequences:,} sequences")
+    
+    for i in range(0, total_possible, sample_rate):
+        if len(X) >= max_sequences:
+            break
+            
         # Input sequence
         X.append(data[i:(i + sequence_length)])
         
@@ -268,6 +279,7 @@ def create_sequences(data, sequence_length=60, prediction_horizon=5):
         target = 1 if future_close > current_close else 0
         y.append(target)
     
+    print(f"Successfully created {len(X):,} sequences")
     return np.array(X), np.array(y)
 
 def build_transformer_model(input_shape, num_layers=4, d_model=128, num_heads=8, 
@@ -316,7 +328,7 @@ def train_transformer():
     sequence_length = 60  # 60 minutes of historical data
     prediction_horizon = 5  # Predict 5 minutes ahead
     
-    X, y = create_sequences(scaled_features, sequence_length, prediction_horizon)
+    X, y = create_sequences_memory_efficient(scaled_features, sequence_length, prediction_horizon, max_sequences=50000)
     
     print(f"Sequences created: {X.shape}")
     print(f"Target distribution: {np.unique(y, return_counts=True)}")
