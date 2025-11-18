@@ -11,25 +11,28 @@ import time
 warnings.filterwarnings('ignore')
 import yfinance as yf
 
-def fetch_crypto_data_chunked(symbol, hours_to_fetch=1000, start_date=None):
+def fetch_crypto_data_chunked(symbol, periods_to_fetch=None, start_date=None):
     """Fetch OHLCV data for any cryptocurrency from Binance using chunking - 1-WEEK DATA"""
     client = Spot()
     
     all_data = []
     chunk_size = 1000  # Binance API limit per request
     
-    # Calculate end time (current time or specified start date)
-    if start_date:
-        # Convert start_date to timestamp in milliseconds
+    # Calculate periods to fetch if not specified
+    if periods_to_fetch is None:
+        # Calculate weeks between 2018-01-01 and now
         import datetime
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-        end_time = int(start_date.timestamp() * 1000)
-    else:
-        end_time = None  # Current time
+        start_2018 = datetime.datetime(2018, 1, 1)
+        now = datetime.datetime.now()
+        weeks_diff = (now - start_2018).days // 7
+        periods_to_fetch = max(weeks_diff, 100)  # Minimum 100 periods
+        print(f"  Calculating periods: {weeks_diff} weeks since 2018-01-01")
     
-    for i in range(0, hours_to_fetch, chunk_size):
-        limit = min(chunk_size, hours_to_fetch - i)
+    # Start from current time (most recent data)
+    end_time = None  # Current time
+    
+    for i in range(0, periods_to_fetch, chunk_size):
+        limit = min(chunk_size, periods_to_fetch - i)
         
         try:
             klines = client.klines(
@@ -51,6 +54,7 @@ def fetch_crypto_data_chunked(symbol, hours_to_fetch=1000, start_date=None):
             time.sleep(0.1)
             
         except Exception as e:
+            print(f"  Error fetching {symbol}: {e}")
             break
     
     # Convert to DataFrame
@@ -589,13 +593,17 @@ def run_comprehensive_test():
     print(f"COMPREHENSIVE TEST: All Data Since 2018 (20% Train / 80% Test)")
     print(f"{'='*60}")
     
-    # Fetch Bitcoin data since 2018
-    btc_df = fetch_crypto_data_chunked('BTCUSDT', 5000, '2018-01-01')
+    # Fetch Bitcoin data since 2018 (calculate periods automatically)
+    print("\nFetching Bitcoin data...")
+    btc_df = fetch_crypto_data_chunked('BTCUSDT')
     
     # Fetch altcoin data since 2018
-    eth_df = fetch_crypto_data_chunked('ETHUSDT', 5000, '2018-01-01')
-    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 5000, '2018-01-01')
-    ada_df = fetch_crypto_data_chunked('ADAUSDT', 5000, '2018-01-01')
+    print("Fetching Ethereum data...")
+    eth_df = fetch_crypto_data_chunked('ETHUSDT')
+    print("Fetching Ripple data...")
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT')
+    print("Fetching Cardano data...")
+    ada_df = fetch_crypto_data_chunked('ADAUSDT')
     
     print(f"\nData Summary:")
     print(f"  Bitcoin data points: {len(btc_df)}")
