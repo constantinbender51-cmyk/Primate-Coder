@@ -381,21 +381,46 @@ def run_test(start_date=None, test_name="Current"):
         
         for i in range(len(test_df) - 1):
             current_price = test_df.iloc[i]['close']
+            next_open = test_df.iloc[i + 1]['open']
+            next_high = test_df.iloc[i + 1]['high']
+            next_low = test_df.iloc[i + 1]['low']
             next_close = test_df.iloc[i + 1]['close']
             current_date = test_df.iloc[i]['date']
             prediction = test_df.iloc[i]['prediction']
             
             # Simple strategy: LONG if prediction=1, SHORT if prediction=0
             if prediction == 1:
-                # LONG position
-                trade_return = (next_close - current_price) / current_price
-                action = "LONG"
-                direction = "LONG"
+                # LONG position with 3% stop loss
+                entry_price = current_price
+                stop_loss_price = entry_price * 0.97  # 3% stop loss
+                
+                # Check if stop loss was hit during the next bar
+                if next_low <= stop_loss_price:
+                    # Stop loss triggered
+                    trade_return = (stop_loss_price - entry_price) / entry_price
+                    action = "LONG STOP"
+                    direction = "LONG"
+                else:
+                    # Normal long trade
+                    trade_return = (next_close - entry_price) / entry_price
+                    action = "LONG"
+                    direction = "LONG"
             else:
-                # SHORT position  
-                trade_return = (current_price - next_close) / current_price
-                action = "SHORT"
-                direction = "SHORT"
+                # SHORT position with 3% stop loss  
+                entry_price = current_price
+                stop_loss_price = entry_price * 1.03  # 3% stop loss for short
+                
+                # Check if stop loss was hit during the next bar
+                if next_high >= stop_loss_price:
+                    # Stop loss triggered
+                    trade_return = (entry_price - stop_loss_price) / entry_price
+                    action = "SHORT STOP"
+                    direction = "SHORT"
+                else:
+                    # Normal short trade
+                    trade_return = (entry_price - next_close) / entry_price
+                    action = "SHORT"
+                    direction = "SHORT"
             
             # Track worst trade
             if trade_return < worst_trade_return:
@@ -411,7 +436,6 @@ def run_test(start_date=None, test_name="Current"):
             
             # Print trade details
             print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {direction:<12} {action:<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
-        print("=" * 80)
         
         # Print worst trade information
         if worst_trade_date is not None:
@@ -493,16 +517,37 @@ def analyze_capital_development(df, predictions, model_name):
     
     for i in range(len(test_df) - 1):
         current_price = test_df.iloc[i]['close']
+        next_open = test_df.iloc[i + 1]['open']
+        next_high = test_df.iloc[i + 1]['high']
+        next_low = test_df.iloc[i + 1]['low']
         next_close = test_df.iloc[i + 1]['close']
         current_date = test_df.iloc[i]['date']
         
         # Simple strategy: LONG if prediction=1, SHORT if prediction=0
         if test_df.iloc[i]['prediction'] == 1:
-            # LONG position
-            trade_return = (next_close - current_price) / current_price
+            # LONG position with 3% stop loss
+            entry_price = current_price
+            stop_loss_price = entry_price * 0.97  # 3% stop loss
+            
+            # Check if stop loss was hit during the next bar
+            if next_low <= stop_loss_price:
+                # Stop loss triggered
+                trade_return = (stop_loss_price - entry_price) / entry_price
+            else:
+                # Normal long trade
+                trade_return = (next_close - entry_price) / entry_price
         else:
-            # SHORT position  
-            trade_return = (current_price - next_close) / current_price
+            # SHORT position with 3% stop loss  
+            entry_price = current_price
+            stop_loss_price = entry_price * 1.03  # 3% stop loss for short
+            
+            # Check if stop loss was hit during the next bar
+            if next_high >= stop_loss_price:
+                # Stop loss triggered
+                trade_return = (entry_price - stop_loss_price) / entry_price
+            else:
+                # Normal short trade
+                trade_return = (entry_price - next_close) / entry_price
         
         # Update capital with proper compounding
         capital *= (1 + trade_return)
@@ -510,7 +555,6 @@ def analyze_capital_development(df, predictions, model_name):
         # Record capital and date
         capital_history.append(capital)
         dates_history.append(current_date)
-    
     # Create capital development DataFrame
     capital_df = pd.DataFrame({
         'date': dates_history,
@@ -697,21 +741,46 @@ def run_comprehensive_test():
         
         for i in range(len(test_df) - 1):
             current_price = test_df.iloc[i]['close']
+            next_open = test_df.iloc[i + 1]['open']
+            next_high = test_df.iloc[i + 1]['high']
+            next_low = test_df.iloc[i + 1]['low']
             next_close = test_df.iloc[i + 1]['close']
             current_date = test_df.iloc[i]['date']
             prediction = test_df.iloc[i]['prediction']
             
             # Simple strategy: LONG if prediction=1, SHORT if prediction=0
             if prediction == 1:
-                # LONG position
-                trade_return = (next_close - current_price) / current_price
-                action = "LONG"
-                direction = "LONG"
+                # LONG position with 3% stop loss
+                entry_price = current_price
+                stop_loss_price = entry_price * 0.97  # 3% stop loss
+                
+                # Check if stop loss was hit during the next bar
+                if next_low <= stop_loss_price:
+                    # Stop loss triggered
+                    trade_return = (stop_loss_price - entry_price) / entry_price
+                    action = "LONG STOP"
+                    direction = "LONG"
+                else:
+                    # Normal long trade
+                    trade_return = (next_close - entry_price) / entry_price
+                    action = "LONG"
+                    direction = "LONG"
             else:
-                # SHORT position  
-                trade_return = (current_price - next_close) / current_price
-                action = "SHORT"
-                direction = "SHORT"
+                # SHORT position with 3% stop loss  
+                entry_price = current_price
+                stop_loss_price = entry_price * 1.03  # 3% stop loss for short
+                
+                # Check if stop loss was hit during the next bar
+                if next_high >= stop_loss_price:
+                    # Stop loss triggered
+                    trade_return = (entry_price - stop_loss_price) / entry_price
+                    action = "SHORT STOP"
+                    direction = "SHORT"
+                else:
+                    # Normal short trade
+                    trade_return = (entry_price - next_close) / entry_price
+                    action = "SHORT"
+                    direction = "SHORT"
             
             # Track worst trade
             if trade_return < worst_trade_return:
@@ -727,7 +796,6 @@ def run_comprehensive_test():
             
             # Print trade details
             print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {direction:<12} {action:<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
-        print("=" * 80)
         
         # Print worst trade information
         if worst_trade_date is not None:
