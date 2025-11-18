@@ -490,15 +490,335 @@ def run_test(start_date=None, test_name="Current"):
         result = results[name]
         print(f"{name:<20} {result['accuracy']:.4f}    {result['f1_score']:.4f}    {result['total_return']:.4f}    {result['sharpe_ratio']:.4f}    ${result['final_balance']:.2f}")
     return results
+def analyze_capital_development(df, predictions, model_name):
+    """Analyze capital development throughout the backtest period"""
+    # Align predictions with dataframe
+    test_start_idx = len(df) - len(predictions)
+    test_df = df.iloc[test_start_idx:].copy()
+    test_df['prediction'] = predictions
+    
+    # Initialize capital tracking
+    initial_capital = 1000
+    capital = initial_capital
+    capital_history = []
+    dates_history = []
+    
+    # Strategy: Buy when prediction is 1, Short when prediction is 0, hold for one period
+    position = 0  # 0 = no position, 1 = long, -1 = short
+    entry_price = 0
+    
+    for i in range(len(test_df) - 1):
+        current_price = test_df.iloc[i]['close']
+        next_close = test_df.iloc[i + 1]['close']
+        current_date = test_df.iloc[i]['date']
+        
+        # Enter new position if no current position
+        if position == 0:
+            # Long position (prediction = 1)
+            if test_df.iloc[i]['prediction'] == 1:
+                entry_price = current_price
+                position = 1
+                trade_return = (next_close - entry_price) / entry_price
+                capital *= (1 + trade_return)
+            # Short position (prediction = 0)
+            else:
+                entry_price = current_price
+                position = -1
+                trade_return = (entry_price - next_close) / entry_price
+                capital *= (1 + trade_return)
+        else:
+            # Exit position after one period
+            if position == 1:
+                trade_return = (next_close - entry_price) / entry_price
+            else:  # position == -1
+                trade_return = (entry_price - next_close) / entry_price
+            
+            capital *= (1 + trade_return)
+            
+            # Reset position for next trade
+            position = 0
+        
+        # Record capital and date
+        capital_history.append(capital)
+        dates_history.append(current_date)
+    
+    # Create capital development DataFrame
+    capital_df = pd.DataFrame({
+        'date': dates_history,
+        'capital': capital_history
+    })
+    
+    # Calculate key metrics
+    final_capital = capital_history[-1] if capital_history else initial_capital
+    total_return_pct = (final_capital - initial_capital) / initial_capital * 100
+    
+    # Find max drawdown
+    running_max = pd.Series(capital_history).expanding().max()
+    drawdowns = (pd.Series(capital_history) - running_max) / running_max
+    max_drawdown_pct = drawdowns.min() * 100
+    
+    # Find peak and trough
+    peak_idx = running_max.idxmax()
+    trough_idx = drawdowns.idxmin()
+    
+    print(f"\n{model_name} - CAPITAL DEVELOPMENT ANALYSIS:")
+    print(f"  Initial Capital: ${initial_capital:.2f}")
+    print(f"  Final Capital: ${final_capital:.2f}")
+    print(f"  Total Return: {total_return_pct:.2f}%")
+    print(f"  Maximum Drawdown: {max_drawdown_pct:.2f}%")
+    print(f"  Peak Capital: ${running_max.max():.2f}")
+    print(f"  Trough Capital: ${pd.Series(capital_history).min():.2f}")
+    
+    # Print capital at key points
+    if len(capital_history) >= 10:
+        print(f"\n  Key Points:")
+        print(f"    Start: ${capital_history[0]:.2f} ({dates_history[0].strftime('%Y-%m-%d')})")
+        print(f"    Quarter 1: ${capital_history[len(capital_history)//4]:.2f}")
+        print(f"    Halfway: ${capital_history[len(capital_history)//2]:.2f}")
+        print(f"    Quarter 3: ${capital_history[len(capital_history)*3//4]:.2f}")
+        print(f"    End: ${capital_history[-1]:.2f} ({dates_history[-1].strftime('%Y-%m-%d')})")
+    
+    return capital_df
+
+def run_comprehensive_test():
+    """Run comprehensive test with all data since 2018 and 20/80 split"""
+    print(f"\n{'='*60}")
+    print(f"COMPREHENSIVE TEST: All Data Since 2018 (20% Train / 80% Test)")
+    print(f"{'='*60}")
+    
+    # Fetch Bitcoin data since 2018
+    btc_df = fetch_crypto_data_chunked('BTCUSDT', 5000, '2018-01-01')
+    
+    # Fetch altcoin data since 2018
+    eth_df = fetch_crypto_data_chunked('ETHUSDT', 5000, '2018-01-01')
+    xrp_df = fetch_crypto_data_chunked('XRPUSDT', 5000, '2018-01-01')
+    ada_df = fetch_crypto_data_chunked('ADAUSDT', 5000, '2018-01-01')
+    
+    print(f"\nData Summary:")
+    print(f"  Bitcoin data points: {len(btc_df)}")
+    print(f"  Date range: {btc_df['date'].min()} to {btc_df['date'].max()}")
+    print(f"  Training set: 20% ({int(len(btc_df) * 0.2)} weeks)")
+    print(f"  Test set: 80% ({int(len(btc_df) * 0.8)} weeks)")
+    
+    # Create features with altcoin data
+    df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
+    
+    # Prepare features and target (EXCLUDE RAW PRICE DATA)
+    exclude_cols = ['date', 'target', 'close', 'open', 'high', 'low', 'volume']
+    feature_cols = [col for col in df.columns if col not in exclude_cols]
+    X = df[feature_cols]
+    y = df['target']
+    
+    # Add polynomial features (squared and cubed)
+    X_with_poly = add_polynomial_features(X)
+    
+    # Add lagged features for SELECTED features with specific periods
+    X_with_lags, lagged_features_added = add_lagged_features_selected(X_with_poly)
+    
+    # Update target to match lagged features (drop first 8 rows - maximum lag)
+    y_lagged = y.iloc[8:]
+    
+    # Normalize features
+    X_normalized = normalize_features(X_with_lags)
+    
+    # Split data with 20% training, 80% testing (chronological split)
+    split_idx = int(len(X_normalized) * 0.2)
+    X_train = X_normalized.iloc[:split_idx]
+    X_test = X_normalized.iloc[split_idx:]
+    y_train = y_lagged.iloc[:split_idx]
+    y_test = y_lagged.iloc[split_idx:]
+    
+    print(f"\nTraining/Test Split:")
+    print(f"  Training samples: {len(X_train)}")
+    print(f"  Test samples: {len(X_test)}")
+    print(f"  Training period: {df.iloc[8]['date']} to {df.iloc[8 + split_idx - 1]['date']}")
+    print(f"  Test period: {df.iloc[8 + split_idx]['date']} to {df.iloc[-1]['date']}")
+    
+    # Scale features (additional standardization for models that need it)
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    # Initialize classification models with parameters
+    models = {
+        'Logistic Regression': {
+            'model': LogisticRegression(random_state=42, max_iter=200),
+            'params': 'C=1.0, max_iter=200'
+        },
+        'Random Forest': {
+            'model': RandomForestClassifier(n_estimators=200, random_state=42),
+            'params': 'n_estimators=200, max_depth=None'
+        },
+        'Gradient Boosting': {
+            'model': GradientBoostingClassifier(n_estimators=200, learning_rate=0.1, random_state=42),
+            'params': 'n_estimators=200, learning_rate=0.1'
+        }
+    }
+    
+    print(f"\nModel Hyperparameters:")
+    for name, model_info in models.items():
+        print(f"  {name}: {model_info['params']}")
+    
+    # Backtesting function to calculate returns, Sharpe ratio, and final balance
+    def backtest_strategy(df, predictions, model_name):
+        """Backtest trading strategy and calculate performance metrics"""
+        # Align predictions with dataframe
+        test_start_idx = len(df) - len(predictions)
+        test_df = df.iloc[test_start_idx:].copy()
+        test_df['prediction'] = predictions
+        
+        # Calculate returns based on predictions
+        test_df['strategy_return'] = 0.0
+        test_df['actual_return'] = test_df['close'].pct_change().shift(-1)
+        
+        # Strategy: Buy when prediction is 1, Short when prediction is 0, hold for one period
+        position = 0  # 0 = no position, 1 = long, -1 = short
+        entry_price = 0
+        
+        # Track worst trade
+        worst_trade_return = 0
+        worst_trade_date = None
+        worst_trade_direction = None
+        worst_trade_entry = 0
+        worst_trade_exit = 0
+        
+        for i in range(len(test_df) - 1):
+            current_price = test_df.iloc[i]['close']
+            next_close = test_df.iloc[i + 1]['close']
+            current_date = test_df.iloc[i]['date']
+            
+            # Enter new position if no current position
+            if position == 0:
+                # Long position (prediction = 1)
+                if test_df.iloc[i]['prediction'] == 1:
+                    entry_price = current_price
+                    position = 1
+                    trade_return = (next_close - entry_price) / entry_price
+                    test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
+                    
+                    # Track worst trade
+                    if trade_return < worst_trade_return:
+                        worst_trade_return = trade_return
+                        worst_trade_date = current_date
+                        worst_trade_direction = "LONG"
+                        worst_trade_entry = entry_price
+                        worst_trade_exit = next_close
+                # Short position (prediction = 0)
+                else:
+                    entry_price = current_price
+                    position = -1
+                    trade_return = (entry_price - next_close) / entry_price
+                    test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
+                    
+                    # Track worst trade
+                    if trade_return < worst_trade_return:
+                        worst_trade_return = trade_return
+                        worst_trade_date = current_date
+                        worst_trade_direction = "SHORT"
+                        worst_trade_entry = entry_price
+                        worst_trade_exit = next_close
+            else:
+                # Exit position after one period
+                if position == 1:
+                    trade_return = (next_close - entry_price) / entry_price
+                else:  # position == -1
+                    trade_return = (entry_price - next_close) / entry_price
+                
+                test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
+                
+                # Track worst trade
+                if trade_return < worst_trade_return:
+                    worst_trade_return = trade_return
+                    worst_trade_date = current_date
+                    worst_trade_direction = "LONG" if position == 1 else "SHORT"
+                    worst_trade_entry = entry_price
+                    worst_trade_exit = next_close
+                
+                # Reset position for next trade
+                position = 0
+        
+        # Print worst trade information
+        if worst_trade_date is not None:
+            print(f"\n{model_name} - WORST TRADE:")
+            print(f"  Date: {worst_trade_date}")
+            print(f"  Direction: {worst_trade_direction}")
+            print(f"  Entry Price: ${worst_trade_entry:.2f}")
+            print(f"  Exit Price: ${worst_trade_exit:.2f}")
+            print(f"  Return: {worst_trade_return:.2%}")
+            print(f"  Loss: ${abs(worst_trade_return * 1000):.2f} (on $1000 position)")
+        else:
+            print(f"\n{model_name} - No trades executed or all trades were profitable")
+        
+        # Calculate performance metrics
+        total_return = test_df['strategy_return'].sum()
+        
+        # Calculate Sharpe ratio (annualized)
+        returns_series = test_df['strategy_return'].dropna()
+        if len(returns_series) > 1 and returns_series.std() > 0:
+            sharpe_ratio = returns_series.mean() / returns_series.std() * np.sqrt(52)  # Annualize for weekly data
+        else:
+            sharpe_ratio = 0
+        
+        # Calculate final balance (starting with $1000)
+        initial_balance = 1000
+        final_balance = initial_balance * (1 + total_return)
+        
+        return total_return, sharpe_ratio, final_balance
+    
+    results = {}
+    capital_development_data = {}
+    
+    for name, model_info in models.items():
+        model = model_info['model']
+        
+        # Train model
+        if name == 'Logistic Regression':
+            model.fit(X_train_scaled, y_train)
+            y_pred = model.predict(X_test_scaled)
+        else:
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+        
+        # Calculate metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        
+        # Calculate trading performance
+        total_return, sharpe_ratio, final_balance = backtest_strategy(df, y_pred, name)
+        
+        # Analyze capital development
+        capital_df = analyze_capital_development(df, y_pred, name)
+        capital_development_data[name] = capital_df
+        
+        results[name] = {
+            'accuracy': accuracy, 
+            'f1_score': f1, 
+            'model': model, 
+            'predictions': y_pred,
+            'total_return': total_return,
+            'sharpe_ratio': sharpe_ratio,
+            'final_balance': final_balance,
+            'capital_development': capital_df
+        }
+    
+    # Find best model by F1 score
+    best_model = max(results, key=lambda x: results[x]['f1_score'])
+    print(f"\nBest Model: {best_model}")
+    
+    # Compare all models
+    print(f"\n=== COMPREHENSIVE TEST RESULTS ===")
+    print(f"{'Model':<20} {'Accuracy':<10} {'F1':<10} {'Return':<10} {'Sharpe':<10} {'Balance':<12}")
+    print("-" * 75)
+    
+    for name in ['Logistic Regression', 'Random Forest', 'Gradient Boosting']:
+        result = results[name]
+        print(f"{name:<20} {result['accuracy']:.4f}    {result['f1_score']:.4f}    {result['total_return']:.4f}    {result['sharpe_ratio']:.4f}    ${result['final_balance']:.2f}")
+    
+    return results, capital_development_data
+
 def main():
-    # Run test for May 2023
-    run_test(start_date='2023-05-01', test_name="May 2023 Data")
-    
-    # Run test for May 2021
-    run_test(start_date='2021-05-01', test_name="May 2021 Data")
-    
-    # Run test for December 2024
-    run_test(start_date='2024-12-01', test_name="December 2024 Data")
+    # Run comprehensive test with all data since 2018
+    results, capital_data = run_comprehensive_test()
     
     print("\n=== COMPLETE ===")
 
