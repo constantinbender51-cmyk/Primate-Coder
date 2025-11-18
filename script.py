@@ -98,14 +98,22 @@ def display_summary_statistics(all_data):
         print(f"\n📊 {ticker} - {data['Asset'].iloc[0]}")
         print(f"   Period: {data['Datetime'].min()} to {data['Datetime'].max()}")
         print(f"   Total records: {len(data):,}")
-        print(f"   Price range: ${data['Close'].min():.2f} - ${data['Close'].max():.2f}")
-        print(f"   Latest close: ${data['Close'].iloc[-1]:.2f}")
+        
+        # Extract min and max as scalar values
+        close_min = float(data['Close'].min())
+        close_max = float(data['Close'].max())
+        latest_close = float(data['Close'].iloc[-1])
+        
+        print(f"   Price range: ${close_min:.2f} - ${close_max:.2f}")
+        print(f"   Latest close: ${latest_close:.2f}")
         
         if len(data) > 1:
-            price_change = ((data['Close'].iloc[-1] - data['Close'].iloc[0]) / data['Close'].iloc[0]) * 100
+            first_close = float(data['Close'].iloc[0])
+            price_change = ((latest_close - first_close) / first_close) * 100
             print(f"   Total return: {price_change:+.2f}%")
         
-        print(f"   Average volume: {data['Volume'].mean():,.0f}")
+        avg_volume = float(data['Volume'].mean())
+        print(f"   Average volume: {avg_volume:,.0f}")
 
 def main():
     """
