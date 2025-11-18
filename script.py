@@ -1,9 +1,9 @@
 import yfinance as yf
 import pandas as pd
+import numpy as np
 import time
 from datetime import datetime, timedelta
 import os
-
 def fetch_financial_data():
     """
     Fetch 60 days of hourly data for Bitcoin, HSI, S&P 500, and Gold
@@ -62,7 +62,39 @@ def fetch_financial_data():
             continue
     
     return all_data
+    return all_data
 
+def calculate_technical_indicators(all_data):
+    """
+    Calculate 4-hour SMA and EMA for each asset
+    """
+    print("\n" + "=" * 60)
+    print("CALCULATING TECHNICAL INDICATORS")
+    print("=" * 60)
+    
+    for ticker, data in all_data.items():
+        print(f"Calculating indicators for {ticker}...")
+        
+        # Sort by datetime to ensure proper calculation
+        data = data.sort_values('Datetime')
+        
+        # Calculate 4-hour Simple Moving Average (SMA)
+        data['SMA_4H'] = data['Close'].rolling(window=4, min_periods=1).mean()
+        
+        # Calculate 4-hour Exponential Moving Average (EMA)
+        data['EMA_4H'] = data['Close'].ewm(span=4, adjust=False).mean()
+        
+        # Calculate SMA/EMA crossover signals
+        data['SMA_EMA_Crossover'] = np.where(data['SMA_4H'] > data['EMA_4H'], 1, -1)
+        
+        # Update the data in the dictionary
+        all_data[ticker] = data
+        
+        print(f"  ✅ Added 4-hour SMA and EMA for {ticker}")
+    
+    return all_data
+
+def save_data_to_csv(all_data):
 def save_data_to_csv(all_data):
     """
     Save each dataset to individual CSV files
@@ -115,7 +147,21 @@ def display_summary_statistics(all_data):
         
         avg_volume = float(data['Volume'].mean().iloc[0])
         print(f"   Average volume: {avg_volume:,.0f}")
-
+        
+        # Display technical indicators
+        latest_sma = float(data['SMA_4H'].iloc[-1].iloc[0])
+        latest_ema = float(data['EMA_4H'].iloc[-1].iloc[0])
+        crossover_signal = data['SMA_EMA_Crossover'].iloc[-1].iloc[0]
+        
+        print(f"   Latest 4H SMA: ${latest_sma:.2f}")
+        print(f"   Latest 4H EMA: ${latest_ema:.2f}")
+        
+        if crossover_signal == 1:
+            print(f"   SMA/EMA Signal: 📈 SMA above EMA (Bullish)")
+        elif crossover_signal == -1:
+            print(f"   SMA/EMA Signal: 📉 EMA above SMA (Bearish)")
+        else:
+            print(f"   SMA/EMA Signal: ➖ Neutral")
 def main():
     """
     Main function to orchestrate the data fetching process
@@ -136,11 +182,11 @@ def main():
             print("❌ No data was successfully fetched. Please check your internet connection and try again.")
             return
         
+        # Calculate technical indicators
+        all_data = calculate_technical_indicators(all_data)
+        
         # Save data
         save_data_to_csv(all_data)
-        
-        # Display summary
-        display_summary_statistics(all_data)
         
         print("\n" + "=" * 60)
         print("✅ DATA FETCH COMPLETED SUCCESSFULLY!")
