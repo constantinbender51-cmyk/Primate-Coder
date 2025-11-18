@@ -1,40 +1,56 @@
-HTML_TEMPLATE = """
+HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Primate Coder</title>
+    <title>👣 Primate Coder 🐾</title>
     <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+        
         :root {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f5f5f5;
-            --bg-tertiary: #e8e8e8;
-            --text-primary: #1a1a1a;
-            --text-secondary: #666666;
-            --text-tertiary: #999999;
-            --accent: #1669C5;
-            --accent-hover: #1457a8;
-            --border: #d0d0d0;
-            --success: #00aa66;
-            --error: #dd4444;
-            --shadow: rgba(0, 0, 0, 0.1);
+            --bg-primary: #faf8f3;
+            --bg-secondary: #f0ebe0;
+            --bg-tertiary: #e8e0d0;
+            --bg-gradient: linear-gradient(135deg, #faf8f3 0%, #f5f0e8 100%);
+            --text-primary: #2d3436;
+            --text-secondary: #636e72;
+            --text-tertiary: #b2bec3;
+            --accent: #00b894;
+            --accent-hover: #00a383;
+            --accent-light: #55efc4;
+            --primate-brown: #8b6f47;
+            --primate-dark: #5a4a32;
+            --jungle-green: #27ae60;
+            --border: #dfe6e9;
+            --success: #00b894;
+            --error: #ff7675;
+            --shadow: rgba(45, 52, 54, 0.1);
+            --shadow-strong: rgba(45, 52, 54, 0.2);
+            --card-bg: rgba(255, 255, 255, 0.8);
         }
 
         [data-theme="dark"] {
-            --bg-primary: #1a1a1a;
-            --bg-secondary: #2a2a2a;
-            --bg-tertiary: #0a0a0a;
-            --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-tertiary: #888888;
-            --accent: #1669C5;
-            --accent-hover: #1e7de6;
-            --border: #3a3a3a;
-            --success: #00ff88;
-            --error: #ff4444;
+            --bg-primary: #1a2f1a;
+            --bg-secondary: #243324;
+            --bg-tertiary: #2d3e2d;
+            --bg-gradient: linear-gradient(135deg, #1a2f1a 0%, #243324 100%);
+            --text-primary: #ecf0f1;
+            --text-secondary: #b2bec3;
+            --text-tertiary: #636e72;
+            --accent: #55efc4;
+            --accent-hover: #81ecdc;
+            --accent-light: #a8f5e5;
+            --primate-brown: #a98f6d;
+            --primate-dark: #8b7355;
+            --jungle-green: #2ecc71;
+            --border: #3d4f3d;
+            --success: #55efc4;
+            --error: #ff7675;
             --shadow: rgba(0, 0, 0, 0.3);
+            --shadow-strong: rgba(0, 0, 0, 0.5);
+            --card-bg: rgba(36, 51, 36, 0.8);
         }
 
         * {
@@ -45,11 +61,10 @@ HTML_TEMPLATE = """
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-            background: var(--bg-secondary);
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-gradient);
             color: var(--text-primary);
             overflow: hidden;
-            /* Fix for mobile browsers */
             position: fixed;
             width: 100%;
             height: 100%;
@@ -59,45 +74,109 @@ HTML_TEMPLATE = """
             display: flex;
             flex-direction: column;
             height: 100vh;
-            height: 100dvh; /* Dynamic viewport height for mobile */
+            height: 100dvh;
             max-width: 100%;
             margin: 0 auto;
             background: var(--bg-primary);
+            backdrop-filter: blur(10px);
         }
 
         .header {
-            background: var(--bg-primary);
-            border-bottom: 1px solid var(--border);
-            padding: 10px 16px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--jungle-green) 100%);
+            padding: 12px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
-            min-height: 44px;
+            min-height: 60px;
+            box-shadow: 0 4px 20px var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { transform: translateX(-100%); }
+            50% { transform: translateX(100%); }
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: bounceIn 0.6s ease-out;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .paw-icon {
+            font-size: 1.8rem;
+            animation: rotate 3s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        @keyframes rotate {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
         }
 
         .header h1 {
-            font-size: 1rem;
-            font-weight: 500;
-            color: var(--text-primary);
-        }
-
-        .highlight {
-            color: var(--accent);
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            letter-spacing: 0.5px;
         }
 
         .menu-btn {
-            background: transparent;
-            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             font-size: 1.5rem;
             cursor: pointer;
-            padding: 4px 8px;
-            color: var(--text-secondary);
-            min-width: 44px;
-            min-height: 44px;
+            padding: 8px 12px;
+            color: white;
+            min-width: 48px;
+            min-height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .menu-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .menu-btn:active {
+            transform: scale(0.95);
         }
 
         .menu-overlay {
@@ -106,11 +185,12 @@ HTML_TEMPLATE = """
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
             z-index: 200;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.2s, visibility 0.2s;
+            transition: opacity 0.3s, visibility 0.3s;
         }
 
         .menu-overlay.show {
@@ -123,13 +203,14 @@ HTML_TEMPLATE = """
             bottom: 0;
             left: 0;
             right: 0;
-            background: var(--bg-primary);
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
             border-top: 1px solid var(--border);
-            border-radius: 16px 16px 0 0;
+            border-radius: 24px 24px 0 0;
             z-index: 201;
             transform: translateY(100%);
-            transition: transform 0.3s;
-            box-shadow: 0 -4px 12px var(--shadow);
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 -8px 32px var(--shadow-strong);
             max-height: 80vh;
             overflow-y: auto;
         }
@@ -139,33 +220,47 @@ HTML_TEMPLATE = """
         }
 
         .menu-header {
-            padding: 16px;
-            border-bottom: 1px solid var(--border);
-            font-weight: 500;
+            padding: 20px;
+            border-bottom: 2px solid var(--border);
+            font-weight: 600;
+            font-size: 1.1rem;
             color: var(--text-primary);
+            background: linear-gradient(135deg, var(--accent) 0%, var(--jungle-green) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .menu-item {
-            padding: 16px;
+            padding: 18px 20px;
             border-bottom: 1px solid var(--border);
             cursor: pointer;
             color: var(--text-primary);
             display: flex;
             align-items: center;
-            gap: 12px;
-            min-height: 56px;
-            transition: background 0.2s;
+            gap: 14px;
+            min-height: 60px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .menu-item:hover {
+            background: var(--bg-secondary);
+            transform: translateX(5px);
         }
 
         .menu-item:active {
-            background: var(--bg-secondary);
+            background: var(--bg-tertiary);
         }
 
         .menu-item:last-child {
             border-bottom: none;
         }
 
-        /* Tabs positioned above input area */
+        .menu-item span:first-child {
+            font-size: 1.5rem;
+        }
+
         .tabs {
             display: flex;
             background: var(--bg-secondary);
@@ -173,24 +268,32 @@ HTML_TEMPLATE = """
             justify-content: flex-end;
             padding: 0 16px;
             flex-shrink: 0;
+            gap: 8px;
         }
 
         .tab {
-            padding: 8px 16px;
+            padding: 10px 18px;
             background: transparent;
             border: none;
-            border-bottom: 2px solid transparent;
+            border-bottom: 3px solid transparent;
             color: var(--text-secondary);
             font-size: 0.85rem;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-            min-height: 36px;
+            transition: all 0.3s ease;
+            min-height: 40px;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .tab:hover {
+            color: var(--accent);
+            background: var(--bg-tertiary);
         }
 
         .tab.active {
             color: var(--accent);
             border-bottom-color: var(--accent);
-            font-weight: 500;
+            background: var(--bg-primary);
         }
 
         .content {
@@ -199,6 +302,7 @@ HTML_TEMPLATE = """
             display: flex;
             flex-direction: column;
             min-height: 0;
+            background: var(--bg-gradient);
         }
 
         .view {
@@ -216,124 +320,212 @@ HTML_TEMPLATE = """
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 12px;
+            padding: 20px 16px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
             -webkit-overflow-scrolling: touch;
         }
 
+        .message-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            animation: messageSlideIn 0.4s ease-out;
+        }
+
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-wrapper.user {
+            flex-direction: row-reverse;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .avatar.user-avatar {
+            background: linear-gradient(135deg, var(--primate-brown) 0%, var(--primate-dark) 100%);
+        }
+
+        .avatar.ai-avatar {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--jungle-green) 100%);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
         .message {
-            padding: 10px 14px;
-            border-radius: 8px;
-            max-width: 85%;
-            line-height: 1.45;
+            padding: 14px 18px;
+            border-radius: 18px;
+            max-width: 75%;
+            line-height: 1.5;
             font-size: 0.9rem;
             word-wrap: break-word;
             white-space: pre-wrap;
+            box-shadow: 0 2px 12px var(--shadow);
+            position: relative;
         }
 
-        .message.user {
-            background: var(--accent);
+        .message-wrapper.user .message {
+            background: linear-gradient(135deg, var(--primate-brown) 0%, var(--primate-dark) 100%);
             color: white;
-            margin-left: auto;
             border-bottom-right-radius: 4px;
         }
 
-        .message.assistant {
-            background: var(--bg-secondary);
+        .message-wrapper.assistant .message {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
             color: var(--text-primary);
-            margin-right: auto;
             border-bottom-left-radius: 4px;
-            padding: 14px 16px;
+            border: 1px solid var(--border);
         }
 
-        .message.assistant p {
-            margin: 8px 0;
-        }
-
-        .message.assistant p:first-child {
-            margin-top: 0;
-        }
-
-        .message.assistant p:last-child {
-            margin-bottom: 0;
-        }
-
-        .message.assistant code {
-            background: var(--bg-tertiary);
-            padding: 2px 6px;
-            border-radius: 3px;
-            color: var(--accent);
-            font-size: 0.85em;
-            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-        }
-
-        .message.assistant pre {
-            background: var(--bg-tertiary);
-            padding: 12px;
-            border-radius: 4px;
-            overflow-x: auto;
+        .message-wrapper.assistant .message p {
             margin: 10px 0;
         }
 
-        .message.assistant pre code {
+        .message-wrapper.assistant .message p:first-child {
+            margin-top: 0;
+        }
+
+        .message-wrapper.assistant .message p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message-wrapper.assistant .message code {
+            background: var(--bg-tertiary);
+            padding: 3px 8px;
+            border-radius: 6px;
+            color: var(--accent);
+            font-size: 0.85em;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            border: 1px solid var(--border);
+        }
+
+        .message-wrapper.assistant .message pre {
+            background: var(--bg-tertiary);
+            padding: 16px;
+            border-radius: 12px;
+            overflow-x: auto;
+            margin: 12px 0;
+            border: 1px solid var(--border);
+            box-shadow: inset 0 2px 8px var(--shadow);
+        }
+
+        .message-wrapper.assistant .message pre code {
             background: transparent;
             padding: 0;
+            border: none;
         }
 
-        .message.assistant ul,
-        .message.assistant ol {
-            margin: 8px 0;
-            padding-left: 20px;
+        .message-wrapper.assistant .message ul,
+        .message-wrapper.assistant .message ol {
+            margin: 10px 0;
+            padding-left: 24px;
         }
 
-        .message.assistant li {
-            margin: 4px 0;
+        .message-wrapper.assistant .message li {
+            margin: 6px 0;
         }
 
         .message.system {
-            background: transparent;
-            color: var(--success);
-            font-size: 0.8rem;
-            text-align: center;
-            margin: 0 auto;
-            max-width: 90%;
-        }
-
-        .message.status {
-            background: transparent;
-            color: var(--text-tertiary);
-            font-size: 0.8rem;
-            font-style: italic;
-            text-align: center;
-            margin: 0 auto;
-        }
-
-        .message.error {
-            background: transparent;
-            color: var(--error);
-            font-size: 0.8rem;
-            margin: 0 auto;
-            text-align: center;
-            max-width: 90%;
-        }
-
-        .message.auto-retry {
-            background: var(--bg-tertiary);
-            color: var(--accent);
+            background: linear-gradient(135deg, var(--success) 0%, var(--jungle-green) 100%);
+            color: white;
             font-size: 0.85rem;
             text-align: center;
             margin: 0 auto;
             max-width: 90%;
-            padding: 10px 14px;
-            border-left: 3px solid var(--accent);
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
+        }
+
+        .message.status {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-style: italic;
+            text-align: center;
+            margin: 0 auto;
+            border: 1px solid var(--border);
+        }
+
+        .message.error {
+            background: linear-gradient(135deg, var(--error) 0%, #e17055 100%);
+            color: white;
+            font-size: 0.85rem;
+            margin: 0 auto;
+            text-align: center;
+            max-width: 90%;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(255, 118, 117, 0.3);
+        }
+
+        .message.auto-retry {
+            background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent) 100%);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            text-align: center;
+            margin: 0 auto;
+            max-width: 90%;
+            padding: 12px 18px;
+            border-left: 4px solid var(--accent);
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 184, 148, 0.2);
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 6px;
+            padding: 16px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.7; }
+            30% { transform: translateY(-10px); opacity: 1; }
         }
 
         .output-container {
             flex: 1;
             overflow-y: auto;
-            padding: 12px;
+            padding: 16px;
             background: var(--bg-tertiary);
             font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
             font-size: 0.8rem;
@@ -341,12 +533,15 @@ HTML_TEMPLATE = """
             white-space: pre-wrap;
             word-wrap: break-word;
             -webkit-overflow-scrolling: touch;
+            border-radius: 12px;
+            margin: 12px;
+            box-shadow: inset 0 2px 8px var(--shadow);
         }
 
         .debug-container {
             flex: 1;
             overflow-y: auto;
-            padding: 12px;
+            padding: 16px;
             background: var(--bg-tertiary);
             font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
             font-size: 0.75rem;
@@ -355,32 +550,40 @@ HTML_TEMPLATE = """
         }
 
         .debug-entry {
-            margin-bottom: 12px;
-            padding: 10px;
-            background: var(--bg-primary);
-            border-left: 3px solid var(--accent);
-            border-radius: 4px;
+            margin-bottom: 14px;
+            padding: 12px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-left: 4px solid var(--accent);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px var(--shadow);
+            transition: all 0.3s ease;
+        }
+
+        .debug-entry:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px var(--shadow);
         }
 
         .debug-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             flex-wrap: wrap;
             gap: 8px;
         }
 
         .debug-timestamp {
             color: var(--accent);
-            font-weight: 600;
+            font-weight: 700;
             font-size: 0.7rem;
         }
 
         .debug-type {
             color: var(--success);
-            font-weight: 600;
-            margin-bottom: 4px;
+            font-weight: 700;
+            margin-bottom: 6px;
             font-size: 0.75rem;
         }
 
@@ -391,38 +594,44 @@ HTML_TEMPLATE = """
         }
 
         .debug-expand-btn {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-            padding: 4px 10px;
-            border-radius: 4px;
+            background: var(--accent);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 0.7rem;
-            transition: all 0.2s;
+            font-weight: 600;
+            transition: all 0.3s ease;
             white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0, 184, 148, 0.3);
         }
 
-        .debug-expand-btn:hover,
+        .debug-expand-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 184, 148, 0.4);
+        }
+
         .debug-expand-btn:active {
-            border-color: var(--accent);
-            color: var(--accent);
+            transform: translateY(0);
         }
 
         .debug-expand-btn.expanded {
-            background: var(--accent);
-            color: white;
-            border-color: var(--accent);
+            background: var(--primate-brown);
+            box-shadow: 0 2px 6px rgba(139, 111, 71, 0.3);
         }
 
         .debug-full-data {
-            margin-top: 8px;
-            padding: 8px;
+            margin-top: 10px;
+            padding: 10px;
             background: var(--bg-tertiary);
             border: 1px solid var(--border);
-            border-radius: 4px;
+            border-radius: 8px;
             max-height: 300px;
             overflow: auto;
             display: none;
+            box-shadow: inset 0 2px 6px var(--shadow);
         }
 
         .debug-full-data.visible {
@@ -437,73 +646,85 @@ HTML_TEMPLATE = """
         }
 
         .input-area {
-            padding: 12px 16px;
-            background: var(--bg-primary);
+            padding: 16px 20px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
             border-top: 1px solid var(--border);
             flex-shrink: 0;
-            /* Ensure it stays at bottom on mobile */
             position: relative;
-            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
+            box-shadow: 0 -4px 20px var(--shadow);
         }
 
         .input-wrapper {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             align-items: flex-end;
         }
 
         .input {
             flex: 1;
-            padding: 10px 12px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background: var(--bg-secondary);
+            padding: 14px 16px;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            background: var(--bg-primary);
             color: var(--text-primary);
             font-size: 0.95rem;
-            font-family: inherit;
+            font-family: 'Poppins', sans-serif;
             resize: none;
-            min-height: 44px;
+            min-height: 52px;
             max-height: 30vh;
             overflow-y: auto;
-            line-height: 1.4;
+            line-height: 1.5;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 4px var(--shadow);
         }
 
         .input:focus {
             outline: none;
             border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 184, 148, 0.1), inset 0 2px 4px var(--shadow);
         }
 
         .send-btn {
-            padding: 10px 18px;
-            background: var(--accent);
+            padding: 14px 24px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--jungle-green) 100%);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 16px;
             font-size: 0.95rem;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
-            min-height: 44px;
-            min-width: 68px;
-            transition: background 0.2s;
+            min-height: 52px;
+            min-width: 80px;
+            transition: all 0.3s ease;
             flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 184, 148, 0.4);
         }
 
         .send-btn:active {
-            background: var(--accent-hover);
+            transform: translateY(0);
         }
 
         .send-btn:disabled {
             background: var(--border);
             color: var(--text-tertiary);
             cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
         }
 
         .loading {
             display: inline-block;
-            width: 12px;
-            height: 12px;
-            border: 2px solid var(--border);
-            border-top: 2px solid var(--accent);
+            width: 14px;
+            height: 14px;
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-right: 8px;
@@ -512,6 +733,26 @@ HTML_TEMPLATE = """
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-hover);
         }
 
         /* Desktop styles */
@@ -525,18 +766,23 @@ HTML_TEMPLATE = """
                 margin: 0 auto;
                 height: 95vh;
                 margin-top: 2.5vh;
-                border-radius: 8px;
+                border-radius: 20px;
                 overflow: hidden;
-                box-shadow: 0 4px 24px var(--shadow);
+                box-shadow: 0 20px 60px var(--shadow-strong);
             }
 
             .header {
-                border-radius: 8px 8px 0 0;
-                padding: 16px 24px;
+                border-radius: 20px 20px 0 0;
+                padding: 16px 28px;
+                min-height: 70px;
             }
 
             .header h1 {
-                font-size: 1.3rem;
+                font-size: 1.5rem;
+            }
+
+            .paw-icon {
+                font-size: 2rem;
             }
 
             .tabs {
@@ -544,8 +790,8 @@ HTML_TEMPLATE = """
             }
 
             .tab {
-                padding: 10px 20px;
-                font-size: 0.95rem;
+                padding: 12px 24px;
+                font-size: 0.9rem;
             }
 
             .content {
@@ -567,12 +813,19 @@ HTML_TEMPLATE = """
             }
 
             .chat-messages {
-                padding: 24px;
+                padding: 28px 24px;
+                gap: 20px;
             }
 
             .message {
-                max-width: 70%;
+                max-width: 65%;
                 font-size: 0.95rem;
+            }
+
+            .avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 1.3rem;
             }
 
             .output-container, .debug-container {
@@ -581,15 +834,17 @@ HTML_TEMPLATE = """
             }
 
             .input-area {
-                padding: 20px 24px;
+                padding: 24px 28px;
             }
 
             .input {
                 font-size: 1rem;
+                padding: 16px 20px;
             }
 
             .send-btn {
                 font-size: 1rem;
+                padding: 16px 28px;
             }
         }
 
@@ -601,7 +856,7 @@ HTML_TEMPLATE = """
             }
             
             .header {
-                padding-top: max(10px, env(safe-area-inset-top));
+                padding-top: max(12px, env(safe-area-inset-top));
             }
         }
     </style>
@@ -609,15 +864,19 @@ HTML_TEMPLATE = """
 <body>
     <div class="app">
         <div class="header">
-            <h1>Prima<span class="highlight">t</span>e Coder</h1>
-            <div>
-                <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
+            <div class="header-content">
+                <div class="logo-container">
+                    <span class="paw-icon">👣</span>
+                    <h1>Primate Coder</h1>
+                    <span class="paw-icon">🐾</span>
+                </div>
             </div>
+            <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
         </div>
 
         <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
         <div class="menu" id="menu">
-            <div class="menu-header">Options</div>
+            <div class="menu-header">⚡ Options</div>
             <div class="menu-item" onclick="toggleTheme()">
                 <span id="themeIcon">☀️</span>
                 <span id="themeLabel">Switch to Light Mode</span>
@@ -651,9 +910,9 @@ HTML_TEMPLATE = """
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchView('chat')">Chat</button>
-            <button class="tab" onclick="switchView('output')">Output</button>
-            <button class="tab" onclick="switchView('debug')">Debug</button>
+            <button class="tab active" onclick="switchView('chat')">💬 Chat</button>
+            <button class="tab" onclick="switchView('output')">📊 Output</button>
+            <button class="tab" onclick="switchView('debug')">🔍 Debug</button>
         </div>
 
         <div class="input-area">
@@ -661,15 +920,16 @@ HTML_TEMPLATE = """
                 <textarea 
                     class="input" 
                     id="userInput" 
-                    placeholder="Describe what you want to build..."
+                    placeholder="🌿 Describe what you want to build..."
                     rows="1"
                 ></textarea>
-                <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">🚀 Send</button>
             </div>
         </div>
     </div>
 
     <script>
+        'use strict';
         let chatHistory = [];
         let theme = localStorage.getItem('primateTheme') || 'dark';
         let activeView = 'chat';
@@ -702,22 +962,24 @@ HTML_TEMPLATE = """
                     if (msg.role === 'user') {
                         addMessage(msg.content, 'user', false);
                     } else if (msg.role === 'assistant') {
-                        const htmlContent = marked.parse(msg.content);
-                        addMessage(htmlContent, 'assistant', false);
+                        addMessage(msg.content, 'assistant', false);
                     } else if (msg.role === 'system') {
-                        addMessage(msg.content, 'system', false);
+                        addMessageSimple(msg.content, 'system', false);
                     }
                 });
             } catch (e) {
                 console.error('Error loading chat history:', e);
                 chatHistory = [];
             }
+        } else {
+            // Show welcome message
+            addMessageSimple('👋 Welcome to Primate Coder! Describe what you want to build and I\'ll help you create it.', 'system', false);
         }
 
         // Auto-resize textarea
         const textarea = document.getElementById('userInput');
         textarea.addEventListener('input', function() {
-            this.style.height = '44px';
+            this.style.height = '52px';
             this.style.height = Math.min(this.scrollHeight, window.innerHeight * 0.3) + 'px';
         });
 
@@ -753,7 +1015,6 @@ HTML_TEMPLATE = """
             localStorage.setItem('primateTTSEnabled', ttsEnabled);
             updateTTSUI();
             
-            // Stop current audio if TTS is disabled
             if (!ttsEnabled && currentAudio) {
                 currentAudio.pause();
                 currentAudio = null;
@@ -761,7 +1022,6 @@ HTML_TEMPLATE = """
             
             addDebugLog('TTS Toggled', 'TTS is now ' + (ttsEnabled ? 'enabled' : 'disabled'));
             
-            // Close menu if it's open
             const menu = document.getElementById('menu');
             if (menu.classList.contains('show')) {
                 toggleMenu();
@@ -784,7 +1044,6 @@ HTML_TEMPLATE = """
         function playAudio(audioData) {
             if (!ttsEnabled || !audioData) return;
             
-            // Stop any currently playing audio
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio = null;
@@ -831,7 +1090,7 @@ HTML_TEMPLATE = """
             chatHistory = [];
             localStorage.removeItem('primateChatHistory');
             document.getElementById('chatMessages').innerHTML = '';
-            addMessage('Chat memory cleared', 'system');
+            addMessageSimple('🧹 Chat memory cleared', 'system');
             toggleMenu();
         }
 
@@ -846,17 +1105,55 @@ HTML_TEMPLATE = """
                     chatHistory = [];
                     localStorage.removeItem('primateChatHistory');
                     document.getElementById('chatMessages').innerHTML = '';
-                    addMessage('New session started', 'system');
+                    addMessageSimple('🔄 New session started', 'system');
                 } else {
-                    addMessage('Error: ' + data.error, 'error');
+                    addMessageSimple('❌ Error: ' + data.error, 'error');
                 }
             } catch (error) {
-                addMessage('Error: ' + error.message, 'error');
+                addMessageSimple('❌ Error: ' + error.message, 'error');
             }
             toggleMenu();
         }
 
         function addMessage(content, type, saveToHistory = true) {
+            const chatMessages = document.getElementById('chatMessages');
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper ' + type;
+            
+            // Add avatar
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar ' + (type === 'user' ? 'user-avatar' : 'ai-avatar');
+            avatar.textContent = type === 'user' ? '👤' : '🦍';
+            wrapper.appendChild(avatar);
+            
+            // Add message
+            const msg = document.createElement('div');
+            msg.className = 'message';
+            
+            if (type === 'assistant') {
+                const htmlContent = marked.parse(content);
+                msg.innerHTML = htmlContent;
+            } else {
+                msg.textContent = content;
+            }
+            
+            wrapper.appendChild(msg);
+            chatMessages.appendChild(wrapper);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            if (saveToHistory && type !== 'system' && type !== 'error' && type !== 'status') {
+                if (type === 'user') {
+                    chatHistory.push({ role: 'user', content: content });
+                } else if (type === 'assistant') {
+                    chatHistory.push({ role: 'assistant', content: content });
+                }
+                saveChatHistory();
+            }
+            
+            return msg;
+        }
+
+        function addMessageSimple(content, type, saveToHistory = true) {
             const chatMessages = document.getElementById('chatMessages');
             const msg = document.createElement('div');
             msg.className = 'message ' + type;
@@ -864,13 +1161,42 @@ HTML_TEMPLATE = """
             chatMessages.appendChild(msg);
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
-            if (saveToHistory && (type === 'system' || type === 'error')) {
+            if (saveToHistory) {
                 const textContent = content.replace(/<[^>]*>/g, '').trim();
                 chatHistory.push({ role: 'system', content: textContent });
                 saveChatHistory();
             }
             
             return msg;
+        }
+
+        function showTypingIndicator() {
+            const chatMessages = document.getElementById('chatMessages');
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper assistant';
+            wrapper.id = 'typing-indicator';
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar ai-avatar';
+            avatar.textContent = '🦍';
+            wrapper.appendChild(avatar);
+            
+            const indicator = document.createElement('div');
+            indicator.className = 'message';
+            indicator.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+            wrapper.appendChild(indicator);
+            
+            chatMessages.appendChild(wrapper);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return wrapper;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
         }
 
         function saveChatHistory() {
@@ -944,15 +1270,13 @@ HTML_TEMPLATE = """
             
             isProcessing = true;
             
-            addMessage(escapeHtml(message), 'user');
-            chatHistory.push({ role: 'user', content: message });
-            saveChatHistory();
+            addMessage(message, 'user');
             
             input.value = '';
-            input.style.height = '44px';
+            input.style.height = '52px';
             btn.disabled = true;
             
-            const statusMsg = addMessage('<span class="loading"></span>Processing your request...', 'status');
+            const typingIndicator = showTypingIndicator();
             
             const requestPayload = { message, chat_history: chatHistory };
             addDebugLog(
@@ -977,7 +1301,7 @@ HTML_TEMPLATE = """
                     responseText
                 );
                 
-                statusMsg.remove();
+                removeTypingIndicator();
                 
                 let data;
                 try {
@@ -993,7 +1317,7 @@ HTML_TEMPLATE = """
                         'Failed to parse response: ' + parseError.message,
                         responseText
                     );
-                    addMessage('Error: Invalid JSON response from server', 'error');
+                    addMessageSimple('❌ Error: Invalid JSON response from server', 'error');
                     btn.disabled = false;
                     isProcessing = false;
                     return;
@@ -1001,67 +1325,52 @@ HTML_TEMPLATE = """
                 
                 if (data.error) {
                     addDebugLog('Error Response', data.error);
-                    addMessage('Error: ' + data.error, 'error');
+                    addMessageSimple('❌ Error: ' + data.error, 'error');
                 } else {
                     if (data.files_updated && data.files_updated.length > 0) {
                         addDebugLog('Files Updated', 'Updated: ' + data.files_updated.join(', '));
-                        addMessage('Updated files: ' + data.files_updated.join(', '), 'system');
-                        addMessage('Files pushed to GitHub. Railway redeploying...', 'system');
+                        addMessageSimple('📝 Updated files: ' + data.files_updated.join(', '), 'system');
+                        addMessageSimple('🚀 Files pushed to GitHub. Railway redeploying...', 'system');
                         
-                        // Show auto-retry message
                         if (!data.script_confirmed_working) {
-                            addMessage('🔄 Auto-retry enabled: Will monitor script output and fix any errors automatically', 'auto-retry');
+                            addMessageSimple('🔄 Auto-retry enabled: Will monitor script output and fix any errors automatically', 'auto-retry');
                         }
                     }
                     
-                    // Handle deleted files
                     if (data.files_deleted && data.files_deleted.length > 0) {
                         addDebugLog('Files Deleted', 'Deleted: ' + data.files_deleted.join(', '));
-                        addMessage('Deleted files: ' + data.files_deleted.join(', '), 'system');
+                        addMessageSimple('🗑️ Deleted files: ' + data.files_deleted.join(', '), 'system');
                     }
                     
                     if (data.deepseek_response) {
-                        const htmlContent = marked.parse(data.deepseek_response);
-                        addMessage(htmlContent, 'assistant');
-                        chatHistory.push({ role: 'assistant', content: data.deepseek_response });
-                        saveChatHistory();
+                        addMessage(data.deepseek_response, 'assistant');
                         
-                        // Play TTS audio if available and enabled
                         if (data.audio) {
                             playAudio(data.audio);
                         }
                     }
                     
-                    // Handle auto-retry status messages
                     if (data.is_auto_retry) {
                         if (data.script_confirmed_working) {
-                            addMessage('✅ Auto-retry complete: Script is now working correctly!', 'system');
+                            addMessageSimple('✅ Auto-retry complete: Script is now working correctly!', 'system');
                         } else {
-                            addMessage('🔄 Auto-retry attempt ' + data.retry_attempt + ': Applying fixes...', 'auto-retry');
+                            addMessageSimple('🔄 Auto-retry attempt ' + data.retry_attempt + ': Applying fixes...', 'auto-retry');
                         }
                     }
                 }
             } catch (error) {
-                statusMsg.remove();
+                removeTypingIndicator();
                 addDebugLog(
                     'Client Fetch Error', 
                     error.message,
                     'Error: ' + error.name + '\\nMessage: ' + error.message + '\\nStack: ' + error.stack
                 );
-                addMessage('Network Error: ' + error.message, 'error');
+                addMessageSimple('❌ Network Error: ' + error.message, 'error');
             }
             
             btn.disabled = false;
             isProcessing = false;
         }
-
-        // Prevent Enter from sending - only button click sends
-        document.getElementById('userInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                // Allow Enter to create new line (default behavior)
-                // Do NOT prevent default or send message
-            }
-        });
 
         // Poll for script output
         const outputDiv = document.getElementById('outputContent');
@@ -1092,7 +1401,6 @@ HTML_TEMPLATE = """
                 const data = await response.json();
                 if (data.logs && data.logs.length > 0) {
                     data.logs.forEach(log => {
-                        // Check if log has fullData property
                         if (log.fullData !== undefined) {
                             addDebugLog(log.type, log.data, log.fullData);
                         } else {
@@ -1104,7 +1412,32 @@ HTML_TEMPLATE = """
                 console.error('Error fetching debug logs:', error);
             }
         }, 1000);
+
+        // Poll for auto-retry messages
+        setInterval(async () => {
+            try {
+                const response = await fetch('/get_auto_retry_messages');
+                const data = await response.json();
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        if (msg.type === 'assistant') {
+                            addMessage(msg.content, 'assistant', false);
+                        } else if (msg.type === 'system') {
+                            addMessageSimple(msg.content, 'system', false);
+                        } else if (msg.type === 'error') {
+                            addMessageSimple(msg.content, 'error', false);
+                        } else if (msg.type === 'status') {
+                            addMessageSimple(msg.content, 'status', false);
+                        } else if (msg.type === 'auto-retry') {
+                            addMessageSimple(msg.content, 'auto-retry', false);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching auto-retry messages:', error);
+            }
+        }, 1000);
     </script>
 </body>
 </html>
-"""
+'''
