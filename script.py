@@ -422,20 +422,23 @@ def run_test(start_date=None, test_name="Current"):
                     action = "SHORT"
                     direction = "SHORT"
             
+            # Apply 0.2% transaction fee twice (open and close)
+            trade_return_with_fees = trade_return - 0.004
+            
             # Track worst trade
-            if trade_return < worst_trade_return:
-                worst_trade_return = trade_return
+            if trade_return_with_fees < worst_trade_return:
+                worst_trade_return = trade_return_with_fees
                 worst_trade_date = current_date
                 worst_trade_direction = direction
                 worst_trade_entry = current_price
                 worst_trade_exit = next_close
             
             # Update balance and record return
-            test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
-            current_balance *= (1 + trade_return)
+            test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return_with_fees
+            current_balance *= (1 + trade_return_with_fees)
             
             # Print trade details
-            print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {direction:<12} {action:<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
+            print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {direction:<12} {action:<12} {trade_return_with_fees:>7.2%} ${current_balance:>11.2f}")
         
         # Print worst trade information
         if worst_trade_date is not None:
@@ -549,12 +552,16 @@ def analyze_capital_development(df, predictions, model_name):
                 # Normal short trade
                 trade_return = (entry_price - next_close) / entry_price
         
+        # Apply 0.2% transaction fee twice (open and close)
+        trade_return_with_fees = trade_return - 0.004
+        
         # Update capital with proper compounding
-        capital *= (1 + trade_return)
+        capital *= (1 + trade_return_with_fees)
         
         # Record capital and date
         capital_history.append(capital)
         dates_history.append(current_date)
+    
     # Create capital development DataFrame
     capital_df = pd.DataFrame({
         'date': dates_history,
@@ -782,20 +789,23 @@ def run_comprehensive_test():
                     action = "SHORT"
                     direction = "SHORT"
             
+            # Apply 0.2% transaction fee twice (open and close)
+            trade_return_with_fees = trade_return - 0.004
+            
             # Track worst trade
-            if trade_return < worst_trade_return:
-                worst_trade_return = trade_return
+            if trade_return_with_fees < worst_trade_return:
+                worst_trade_return = trade_return_with_fees
                 worst_trade_date = current_date
                 worst_trade_direction = direction
                 worst_trade_entry = current_price
                 worst_trade_exit = next_close
             
             # Update balance and record return
-            test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
-            current_balance *= (1 + trade_return)
+            test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return_with_fees
+            current_balance *= (1 + trade_return_with_fees)
             
             # Print trade details
-            print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {direction:<12} {action:<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
+            print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {direction:<12} {action:<12} {trade_return_with_fees:>7.2%} ${current_balance:>11.2f}")
         
         # Print worst trade information
         if worst_trade_date is not None:
