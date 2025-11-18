@@ -62,7 +62,6 @@ def fetch_financial_data():
             continue
     
     return all_data
-    return all_data
 
 def calculate_technical_indicators(all_data):
     """
@@ -94,7 +93,6 @@ def calculate_technical_indicators(all_data):
     
     return all_data
 
-def save_data_to_csv(all_data):
 def save_data_to_csv(all_data):
     """
     Save each dataset to individual CSV files
@@ -133,25 +131,26 @@ def display_summary_statistics(all_data):
         
         # Extract min and max as scalar values
         # Extract min and max as scalar values
-        close_min = float(data['Close'].min().iloc[0])
-        close_max = float(data['Close'].max().iloc[0])
-        latest_close = float(data['Close'].iloc[-1].iloc[0])
+        close_min = float(data['Close'].min())
+        close_max = float(data['Close'].max())
+        latest_close = float(data['Close'].iloc[-1])
         
         print(f"   Price range: ${close_min:.2f} - ${close_max:.2f}")
         print(f"   Latest close: ${latest_close:.2f}")
         
         if len(data) > 1:
-            first_close = float(data['Close'].iloc[0].iloc[0])
+            first_close = float(data['Close'].iloc[0])
             price_change = ((latest_close - first_close) / first_close) * 100
             print(f"   Total return: {price_change:+.2f}%")
         
-        avg_volume = float(data['Volume'].mean().iloc[0])
+        avg_volume = float(data['Volume'].mean())
         print(f"   Average volume: {avg_volume:,.0f}")
         
         # Display technical indicators
-        latest_sma = float(data['SMA_4H'].iloc[-1].iloc[0])
-        latest_ema = float(data['EMA_4H'].iloc[-1].iloc[0])
-        crossover_signal = data['SMA_EMA_Crossover'].iloc[-1].iloc[0]
+        # Display technical indicators
+        latest_sma = float(data['SMA_4H'].iloc[-1])
+        latest_ema = float(data['EMA_4H'].iloc[-1])
+        crossover_signal = int(data['SMA_EMA_Crossover'].iloc[-1])
         
         print(f"   Latest 4H SMA: ${latest_sma:.2f}")
         print(f"   Latest 4H EMA: ${latest_ema:.2f}")
@@ -162,7 +161,7 @@ def display_summary_statistics(all_data):
             print(f"   SMA/EMA Signal: 📉 EMA above SMA (Bearish)")
         else:
             print(f"   SMA/EMA Signal: ➖ Neutral")
-def main():
+            print(f"   SMA/EMA Signal: ➖ Neutral")
     """
     Main function to orchestrate the data fetching process
     """
@@ -188,7 +187,8 @@ def main():
         # Save data
         save_data_to_csv(all_data)
         
-        print("\n" + "=" * 60)
+        # Display summary statistics
+        display_summary_statistics(all_data)
         print("✅ DATA FETCH COMPLETED SUCCESSFULLY!")
         print("All data has been saved to the 'financial_data' directory")
         
