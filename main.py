@@ -420,7 +420,7 @@ def auto_retry_loop(chat_history, original_user_message, assistant_response):
             })
             
             # Wait for script to complete (script_is_running becomes False AND exit code is set)
-            completed = wait_for_script_completion(timeout=300)
+            completed = wait_for_script_completion(timeout=3000)
             
             if not completed:
                 debug_logs.put({
