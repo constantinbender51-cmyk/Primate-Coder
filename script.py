@@ -130,7 +130,6 @@ def display_summary_statistics(all_data):
         print(f"   Total records: {len(data):,}")
         
         # Extract min and max as scalar values
-        # Extract min and max as scalar values
         close_min = float(data['Close'].min())
         close_max = float(data['Close'].max())
         latest_close = float(data['Close'].iloc[-1])
@@ -147,7 +146,6 @@ def display_summary_statistics(all_data):
         print(f"   Average volume: {avg_volume:,.0f}")
         
         # Display technical indicators
-        # Display technical indicators
         latest_sma = float(data['SMA_4H'].iloc[-1])
         latest_ema = float(data['EMA_4H'].iloc[-1])
         crossover_signal = int(data['SMA_EMA_Crossover'].iloc[-1])
@@ -161,7 +159,8 @@ def display_summary_statistics(all_data):
             print(f"   SMA/EMA Signal: 📉 EMA above SMA (Bearish)")
         else:
             print(f"   SMA/EMA Signal: ➖ Neutral")
-            print(f"   SMA/EMA Signal: ➖ Neutral")
+
+def main():
     """
     Main function to orchestrate the data fetching process
     """
@@ -189,6 +188,8 @@ def display_summary_statistics(all_data):
         
         # Display summary statistics
         display_summary_statistics(all_data)
+        
+        print("\n" + "=" * 60)
         print("✅ DATA FETCH COMPLETED SUCCESSFULLY!")
         print("All data has been saved to the 'financial_data' directory")
         
