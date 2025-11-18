@@ -1,0 +1,144 @@
+import yfinance as yf
+import pandas as pd
+import time
+from datetime import datetime, timedelta
+import os
+
+def fetch_financial_data():
+    """
+    Fetch 60 days of hourly data for Bitcoin, HSI, S&P 500, and Gold
+    """
+    print("Starting data fetch from Yahoo Finance...")
+    
+    # Define tickers
+    tickers = {
+        'BTC-USD': 'Bitcoin',
+        '^HSI': 'Hang Seng Index',
+        '^GSPC': 'S&P 500',
+        'GC=F': 'Gold Futures'
+    }
+    
+    # Calculate date range (last 60 days)
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=60)
+    
+    print(f"Fetching data from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+    print("=" * 60)
+    
+    all_data = {}
+    
+    for ticker, name in tickers.items():
+        print(f"Fetching {name} ({ticker})...")
+        
+        try:
+            # Fetch data with 1-hour interval
+            data = yf.download(
+                ticker, 
+                start=start_date, 
+                end=end_date, 
+                interval='1h',
+                progress=False
+            )
+            
+            if data.empty:
+                print(f"  ⚠️  No data returned for {ticker}")
+                continue
+            
+            # Add ticker name and symbol as columns
+            data['Ticker'] = ticker
+            data['Asset'] = name
+            
+            # Reset index to get datetime as a column
+            data = data.reset_index()
+            
+            all_data[ticker] = data
+            print(f"  ✅ Successfully fetched {len(data)} hourly records")
+            
+            # Rate limiting - wait 1 second between requests
+            time.sleep(1)
+            
+        except Exception as e:
+            print(f"  ❌ Error fetching {ticker}: {e}")
+            continue
+    
+    return all_data
+
+def save_data_to_csv(all_data):
+    """
+    Save each dataset to individual CSV files
+    """
+    print("\n" + "=" * 60)
+    print("Saving data to CSV files...")
+    
+    # Create data directory if it doesn't exist
+    if not os.path.exists('financial_data'):
+        os.makedirs('financial_data')
+    
+    for ticker, data in all_data.items():
+        filename = f"financial_data/{ticker.replace('^', '').replace('=', '').replace('-', '_')}_hourly.csv"
+        data.to_csv(filename, index=False)
+        print(f"  ✅ Saved {ticker} data to {filename}")
+    
+    # Also create a combined dataset
+    if all_data:
+        combined_data = pd.concat(all_data.values(), ignore_index=True)
+        combined_filename = "financial_data/combined_hourly_data.csv"
+        combined_data.to_csv(combined_filename, index=False)
+        print(f"  ✅ Saved combined data to {combined_filename}")
+
+def display_summary_statistics(all_data):
+    """
+    Display summary statistics for each asset
+    """
+    print("\n" + "=" * 60)
+    print("SUMMARY STATISTICS")
+    print("=" * 60)
+    
+    for ticker, data in all_data.items():
+        print(f"\n📊 {ticker} - {data['Asset'].iloc[0]}")
+        print(f"   Period: {data['Datetime'].min()} to {data['Datetime'].max()}")
+        print(f"   Total records: {len(data):,}")
+        print(f"   Price range: ${data['Close'].min():.2f} - ${data['Close'].max():.2f}")
+        print(f"   Latest close: ${data['Close'].iloc[-1]:.2f}")
+        
+        if len(data) > 1:
+            price_change = ((data['Close'].iloc[-1] - data['Close'].iloc[0]) / data['Close'].iloc[0]) * 100
+            print(f"   Total return: {price_change:+.2f}%")
+        
+        print(f"   Average volume: {data['Volume'].mean():,.0f}")
+
+def main():
+    """
+    Main function to orchestrate the data fetching process
+    """
+    print("🚀 FINANCIAL DATA FETCHER")
+    print("Fetching 60 days of hourly data for:")
+    print("  • Bitcoin (BTC-USD)")
+    print("  • Hang Seng Index (^HSI)")
+    print("  • S&P 500 (^GSPC)")
+    print("  • Gold Futures (GC=F)")
+    print("=" * 60)
+    
+    try:
+        # Fetch data
+        all_data = fetch_financial_data()
+        
+        if not all_data:
+            print("❌ No data was successfully fetched. Please check your internet connection and try again.")
+            return
+        
+        # Save data
+        save_data_to_csv(all_data)
+        
+        # Display summary
+        display_summary_statistics(all_data)
+        
+        print("\n" + "=" * 60)
+        print("✅ DATA FETCH COMPLETED SUCCESSFULLY!")
+        print("All data has been saved to the 'financial_data' directory")
+        
+    except Exception as e:
+        print(f"❌ An unexpected error occurred: {e}")
+
+if __name__ == "__main__":
+    main()
