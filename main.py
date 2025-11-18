@@ -390,13 +390,13 @@ def auto_retry_loop(chat_history, original_user_message, assistant_response):
         
         # Wait for the NEW script to start (check if script_is_running becomes True)
         wait_start_time = time.time()
-        while not script_is_running and (time.time() - wait_start_time) < 60:
+        while not script_is_running and (time.time() - wait_start_time) < 600:
             time.sleep(2)
         
         if not script_is_running:
             debug_logs.put({
                 "type": "Auto-Retry",
-                "data": "Script did not start running within 60 seconds"
+                "data": "Script did not start running within 600 seconds"
             })
             auto_retry_messages.put({
                 "type": "error",
