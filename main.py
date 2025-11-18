@@ -543,12 +543,12 @@ def auto_retry_loop(chat_history, original_user_message, assistant_response):
                 })
                 
                 # Wait for redeployment and script to restart
-                time.sleep(20)
+                time.sleep(300)
                 
                 # Wait for script to start again
                 wait_start_time = time.time()
                 script_is_running = False  # Reset
-                while not script_is_running and (time.time() - wait_start_time) < 60:
+                while not script_is_running and (time.time() - wait_start_time) < 600:
                     time.sleep(2)
                 
                 if not script_is_running:
