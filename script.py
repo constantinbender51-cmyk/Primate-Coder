@@ -100,19 +100,20 @@ def display_summary_statistics(all_data):
         print(f"   Total records: {len(data):,}")
         
         # Extract min and max as scalar values
-        close_min = float(data['Close'].min())
-        close_max = float(data['Close'].max())
-        latest_close = float(data['Close'].iloc[-1])
+        # Extract min and max as scalar values
+        close_min = float(data['Close'].min().iloc[0])
+        close_max = float(data['Close'].max().iloc[0])
+        latest_close = float(data['Close'].iloc[-1].iloc[0])
         
         print(f"   Price range: ${close_min:.2f} - ${close_max:.2f}")
         print(f"   Latest close: ${latest_close:.2f}")
         
         if len(data) > 1:
-            first_close = float(data['Close'].iloc[0])
+            first_close = float(data['Close'].iloc[0].iloc[0])
             price_change = ((latest_close - first_close) / first_close) * 100
             print(f"   Total return: {price_change:+.2f}%")
         
-        avg_volume = float(data['Volume'].mean())
+        avg_volume = float(data['Volume'].mean().iloc[0])
         print(f"   Average volume: {avg_volume:,.0f}")
 
 def main():
