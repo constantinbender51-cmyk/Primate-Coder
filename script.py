@@ -378,20 +378,28 @@ def run_test(start_date=None, test_name="Current"):
         initial_balance = 1000
         current_balance = initial_balance
         
+        print(f"\n{model_name} - PERIOD-BY-PERIOD TRADING:")
+        print("=" * 80)
+        print(f"{'Date':<12} {'Price':<12} {'Prediction':<12} {'Action':<12} {'Return':<10} {'Balance':<12}")
+        print("-" * 80)
+        
         for i in range(len(test_df) - 1):
             current_price = test_df.iloc[i]['close']
             next_close = test_df.iloc[i + 1]['close']
             current_date = test_df.iloc[i]['date']
+            prediction = test_df.iloc[i]['prediction']
             
             # Enter new position if no current position
             if position == 0:
                 # Long position (prediction = 1)
-                if test_df.iloc[i]['prediction'] == 1:
+                if prediction == 1:
                     entry_price = current_price
                     position = 1
                     trade_return = (next_close - entry_price) / entry_price
                     test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
                     current_balance *= (1 + trade_return)
+                    
+                    print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {'LONG':<12} {'ENTER':<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
                     
                     # Track worst trade
                     if trade_return < worst_trade_return:
@@ -408,6 +416,8 @@ def run_test(start_date=None, test_name="Current"):
                     test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
                     current_balance *= (1 + trade_return)
                     
+                    print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {'SHORT':<12} {'ENTER':<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
+                    
                     # Track worst trade
                     if trade_return < worst_trade_return:
                         worst_trade_return = trade_return
@@ -419,11 +429,15 @@ def run_test(start_date=None, test_name="Current"):
                 # Exit position after one period
                 if position == 1:
                     trade_return = (next_close - entry_price) / entry_price
+                    action = "EXIT LONG"
                 else:  # position == -1
                     trade_return = (entry_price - next_close) / entry_price
+                    action = "EXIT SHORT"
                 
                 test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
                 current_balance *= (1 + trade_return)
+                
+                print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {'EXIT':<12} {action:<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
                 
                 # Track worst trade
                 if trade_return < worst_trade_return:
@@ -435,6 +449,8 @@ def run_test(start_date=None, test_name="Current"):
                 
                 # Reset position for next trade
                 position = 0
+        
+        print("=" * 80)
         
         # Print worst trade information
         if worst_trade_date is not None:
@@ -460,7 +476,6 @@ def run_test(start_date=None, test_name="Current"):
             sharpe_ratio = 0
         
         return total_return, sharpe_ratio, final_balance
-    results = {}
     for name, model_info in models.items():
         model = model_info['model']
         
@@ -711,7 +726,6 @@ def run_comprehensive_test():
         print(f"  {name}: {model_info['params']}")
     
     # Backtesting function to calculate returns, Sharpe ratio, and final balance
-    # Backtesting function to calculate returns, Sharpe ratio, and final balance
     def backtest_strategy(df, predictions, model_name):
         """Backtest trading strategy and calculate performance metrics"""
         # Align predictions with dataframe
@@ -738,20 +752,28 @@ def run_comprehensive_test():
         initial_balance = 1000
         current_balance = initial_balance
         
+        print(f"\n{model_name} - PERIOD-BY-PERIOD TRADING:")
+        print("=" * 80)
+        print(f"{'Date':<12} {'Price':<12} {'Prediction':<12} {'Action':<12} {'Return':<10} {'Balance':<12}")
+        print("-" * 80)
+        
         for i in range(len(test_df) - 1):
             current_price = test_df.iloc[i]['close']
             next_close = test_df.iloc[i + 1]['close']
             current_date = test_df.iloc[i]['date']
+            prediction = test_df.iloc[i]['prediction']
             
             # Enter new position if no current position
             if position == 0:
                 # Long position (prediction = 1)
-                if test_df.iloc[i]['prediction'] == 1:
+                if prediction == 1:
                     entry_price = current_price
                     position = 1
                     trade_return = (next_close - entry_price) / entry_price
                     test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
                     current_balance *= (1 + trade_return)
+                    
+                    print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {'LONG':<12} {'ENTER':<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
                     
                     # Track worst trade
                     if trade_return < worst_trade_return:
@@ -768,6 +790,8 @@ def run_comprehensive_test():
                     test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
                     current_balance *= (1 + trade_return)
                     
+                    print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {'SHORT':<12} {'ENTER':<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
+                    
                     # Track worst trade
                     if trade_return < worst_trade_return:
                         worst_trade_return = trade_return
@@ -779,11 +803,15 @@ def run_comprehensive_test():
                 # Exit position after one period
                 if position == 1:
                     trade_return = (next_close - entry_price) / entry_price
+                    action = "EXIT LONG"
                 else:  # position == -1
                     trade_return = (entry_price - next_close) / entry_price
+                    action = "EXIT SHORT"
                 
                 test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
                 current_balance *= (1 + trade_return)
+                
+                print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {'EXIT':<12} {action:<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
                 
                 # Track worst trade
                 if trade_return < worst_trade_return:
@@ -795,6 +823,8 @@ def run_comprehensive_test():
                 
                 # Reset position for next trade
                 position = 0
+        
+        print("=" * 80)
         
         # Print worst trade information
         if worst_trade_date is not None:
