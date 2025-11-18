@@ -363,10 +363,6 @@ def run_test(start_date=None, test_name="Current"):
         test_df['strategy_return'] = 0.0
         test_df['actual_return'] = test_df['close'].pct_change().shift(-1)
         
-        # Strategy: Buy when prediction is 1, Short when prediction is 0, hold for one period
-        position = 0  # 0 = no position, 1 = long, -1 = short
-        entry_price = 0
-        
         # Track worst trade
         worst_trade_return = 0
         worst_trade_date = None
@@ -389,69 +385,32 @@ def run_test(start_date=None, test_name="Current"):
             current_date = test_df.iloc[i]['date']
             prediction = test_df.iloc[i]['prediction']
             
-            action = "HOLD"
-            trade_return = 0.0
-            
-            # Enter new position if no current position
-            if position == 0:
-                # Long position (prediction = 1)
-                if prediction == 1:
-                    entry_price = current_price
-                    position = 1
-                    trade_return = (next_close - entry_price) / entry_price
-                    action = "ENTER LONG"
-                    
-                    # Track worst trade
-                    if trade_return < worst_trade_return:
-                        worst_trade_return = trade_return
-                        worst_trade_date = current_date
-                        worst_trade_direction = "LONG"
-                        worst_trade_entry = entry_price
-                        worst_trade_exit = next_close
-                # Short position (prediction = 0)
-                else:
-                    entry_price = current_price
-                    position = -1
-                    trade_return = (entry_price - next_close) / entry_price
-                    action = "ENTER SHORT"
-                    
-                    # Track worst trade
-                    if trade_return < worst_trade_return:
-                        worst_trade_return = trade_return
-                        worst_trade_date = current_date
-                        worst_trade_direction = "SHORT"
-                        worst_trade_entry = entry_price
-                        worst_trade_exit = next_close
+            # Simple strategy: LONG if prediction=1, SHORT if prediction=0
+            if prediction == 1:
+                # LONG position
+                trade_return = (next_close - current_price) / current_price
+                action = "LONG"
+                direction = "LONG"
             else:
-                # Exit position after one period
-                if position == 1:
-                    trade_return = (next_close - entry_price) / entry_price
-                    action = "EXIT LONG"
-                else:  # position == -1
-                    trade_return = (entry_price - next_close) / entry_price
-                    action = "EXIT SHORT"
-                
-                # Track worst trade
-                if trade_return < worst_trade_return:
-                    worst_trade_return = trade_return
-                    worst_trade_date = current_date
-                    worst_trade_direction = "LONG" if position == 1 else "SHORT"
-                    worst_trade_entry = entry_price
-                    worst_trade_exit = next_close
-                
-                # Reset position for next trade
-                position = 0
+                # SHORT position  
+                trade_return = (current_price - next_close) / current_price
+                action = "SHORT"
+                direction = "SHORT"
+            
+            # Track worst trade
+            if trade_return < worst_trade_return:
+                worst_trade_return = trade_return
+                worst_trade_date = current_date
+                worst_trade_direction = direction
+                worst_trade_entry = current_price
+                worst_trade_exit = next_close
             
             # Update balance and record return
             test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
             current_balance *= (1 + trade_return)
             
             # Print trade details
-            pred_text = "LONG" if prediction == 1 else "SHORT"
-            if "EXIT" in action:
-                pred_text = "EXIT"
-            
-            print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {pred_text:<12} {action:<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
+            print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {direction:<12} {action:<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
         print("=" * 80)
         
         # Print worst trade information
@@ -532,45 +491,22 @@ def analyze_capital_development(df, predictions, model_name):
     capital_history = []
     dates_history = []
     
-    # Strategy: Buy when prediction is 1, Short when prediction is 0, hold for one period
-    position = 0  # 0 = no position, 1 = long, -1 = short
-    entry_price = 0
-    
     for i in range(len(test_df) - 1):
         current_price = test_df.iloc[i]['close']
         next_close = test_df.iloc[i + 1]['close']
         current_date = test_df.iloc[i]['date']
         
-        trade_return = 0.0
-        
-        # Enter new position if no current position
-        if position == 0:
-            # Long position (prediction = 1)
-            if test_df.iloc[i]['prediction'] == 1:
-                entry_price = current_price
-                position = 1
-                trade_return = (next_close - entry_price) / entry_price
-            # Short position (prediction = 0)
-            else:
-                entry_price = current_price
-                position = -1
-                trade_return = (entry_price - next_close) / entry_price
+        # Simple strategy: LONG if prediction=1, SHORT if prediction=0
+        if test_df.iloc[i]['prediction'] == 1:
+            # LONG position
+            trade_return = (next_close - current_price) / current_price
         else:
-            # Exit position after one period
-            if position == 1:
-                trade_return = (next_close - entry_price) / entry_price
-            else:  # position == -1
-                trade_return = (entry_price - next_close) / entry_price
-            
-            # Reset position for next trade
-            position = 0
+            # SHORT position  
+            trade_return = (current_price - next_close) / current_price
         
         # Update capital with proper compounding
         capital *= (1 + trade_return)
         
-        # Record capital and date
-        capital_history.append(capital)
-        dates_history.append(current_date)
         # Record capital and date
         capital_history.append(capital)
         dates_history.append(current_date)
@@ -743,10 +679,6 @@ def run_comprehensive_test():
         test_df['strategy_return'] = 0.0
         test_df['actual_return'] = test_df['close'].pct_change().shift(-1)
         
-        # Strategy: Buy when prediction is 1, Short when prediction is 0, hold for one period
-        position = 0  # 0 = no position, 1 = long, -1 = short
-        entry_price = 0
-        
         # Track worst trade
         worst_trade_return = 0
         worst_trade_date = None
@@ -769,69 +701,32 @@ def run_comprehensive_test():
             current_date = test_df.iloc[i]['date']
             prediction = test_df.iloc[i]['prediction']
             
-            action = "HOLD"
-            trade_return = 0.0
-            
-            # Enter new position if no current position
-            if position == 0:
-                # Long position (prediction = 1)
-                if prediction == 1:
-                    entry_price = current_price
-                    position = 1
-                    trade_return = (next_close - entry_price) / entry_price
-                    action = "ENTER LONG"
-                    
-                    # Track worst trade
-                    if trade_return < worst_trade_return:
-                        worst_trade_return = trade_return
-                        worst_trade_date = current_date
-                        worst_trade_direction = "LONG"
-                        worst_trade_entry = entry_price
-                        worst_trade_exit = next_close
-                # Short position (prediction = 0)
-                else:
-                    entry_price = current_price
-                    position = -1
-                    trade_return = (entry_price - next_close) / entry_price
-                    action = "ENTER SHORT"
-                    
-                    # Track worst trade
-                    if trade_return < worst_trade_return:
-                        worst_trade_return = trade_return
-                        worst_trade_date = current_date
-                        worst_trade_direction = "SHORT"
-                        worst_trade_entry = entry_price
-                        worst_trade_exit = next_close
+            # Simple strategy: LONG if prediction=1, SHORT if prediction=0
+            if prediction == 1:
+                # LONG position
+                trade_return = (next_close - current_price) / current_price
+                action = "LONG"
+                direction = "LONG"
             else:
-                # Exit position after one period
-                if position == 1:
-                    trade_return = (next_close - entry_price) / entry_price
-                    action = "EXIT LONG"
-                else:  # position == -1
-                    trade_return = (entry_price - next_close) / entry_price
-                    action = "EXIT SHORT"
-                
-                # Track worst trade
-                if trade_return < worst_trade_return:
-                    worst_trade_return = trade_return
-                    worst_trade_date = current_date
-                    worst_trade_direction = "LONG" if position == 1 else "SHORT"
-                    worst_trade_entry = entry_price
-                    worst_trade_exit = next_close
-                
-                # Reset position for next trade
-                position = 0
+                # SHORT position  
+                trade_return = (current_price - next_close) / current_price
+                action = "SHORT"
+                direction = "SHORT"
+            
+            # Track worst trade
+            if trade_return < worst_trade_return:
+                worst_trade_return = trade_return
+                worst_trade_date = current_date
+                worst_trade_direction = direction
+                worst_trade_entry = current_price
+                worst_trade_exit = next_close
             
             # Update balance and record return
             test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
             current_balance *= (1 + trade_return)
             
             # Print trade details
-            pred_text = "LONG" if prediction == 1 else "SHORT"
-            if "EXIT" in action:
-                pred_text = "EXIT"
-            
-            print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {pred_text:<12} {action:<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
+            print(f"{current_date.strftime('%Y-%m-%d'):<12} ${current_price:<11.2f} {direction:<12} {action:<12} {trade_return:>7.2%} ${current_balance:>11.2f}")
         print("=" * 80)
         
         # Print worst trade information
