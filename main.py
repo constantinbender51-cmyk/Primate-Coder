@@ -97,7 +97,7 @@ def start_script_thread():
     thread.start()
 
 
-def wait_for_script_completion(timeout=300):
+def wait_for_script_completion(timeout=3000):
     """Wait for script to complete execution with timeout."""
     start_time = time.time()
     debug_logs.put({
