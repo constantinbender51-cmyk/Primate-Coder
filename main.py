@@ -97,7 +97,7 @@ def start_script_thread():
     thread.start()
 
 
-def wait_for_script_completion(timeout=3000):
+def wait_for_script_completion(timeout=300):
     """Wait for script to complete execution with timeout."""
     start_time = time.time()
     debug_logs.put({
@@ -152,6 +152,16 @@ def get_debug_logs():
         logs.append(debug_logs.get())
     
     return jsonify({"logs": logs})
+
+
+@app.route('/get_auto_retry_messages')
+def get_auto_retry_messages():
+    """Get auto-retry status messages for the frontend."""
+    messages = []
+    while not auto_retry_messages.empty():
+        messages.append(auto_retry_messages.get())
+    
+    return jsonify({"messages": messages})
 
 
 @app.route('/generate', methods=['POST'])
@@ -353,7 +363,7 @@ def generate():
 
 def auto_retry_loop(chat_history, original_user_message, assistant_response):
     """Auto-retry loop that analyzes script output and fixes issues."""
-    global auto_retry_in_progress, script_exit_code
+    global auto_retry_in_progress, script_exit_code, auto_retry_messages, script_is_running
     
     if auto_retry_in_progress:
         debug_logs.put({
@@ -368,20 +378,48 @@ def auto_retry_loop(chat_history, original_user_message, assistant_response):
         # Wait for Railway to redeploy and script to start
         debug_logs.put({
             "type": "Auto-Retry",
-            "data": "Waiting 15s for Railway redeployment..."
+            "data": "Waiting for Railway redeployment and script to start..."
         })
-        time.sleep(15)
+        auto_retry_messages.put({
+            "type": "status",
+            "content": "⏳ Waiting for Railway to redeploy and script to start..."
+        })
         
-        # Reset script state before starting auto-retry
-        script_exit_code = None
+        # Wait for deployment and script to actually start running
+        time.sleep(20)
+        
+        # Wait for the NEW script to start (check if script_is_running becomes True)
+        wait_start_time = time.time()
+        while not script_is_running and (time.time() - wait_start_time) < 60:
+            time.sleep(2)
+        
+        if not script_is_running:
+            debug_logs.put({
+                "type": "Auto-Retry",
+                "data": "Script did not start running within 60 seconds"
+            })
+            auto_retry_messages.put({
+                "type": "error",
+                "content": "⚠️ Script did not start running after deployment"
+            })
+            return
+        
+        debug_logs.put({
+            "type": "Auto-Retry",
+            "data": "Script is now running, waiting for completion..."
+        })
         
         for attempt in range(1, MAX_AUTO_RETRY_ATTEMPTS + 1):
             debug_logs.put({
                 "type": "Auto-Retry",
                 "data": f"Attempt {attempt}/{MAX_AUTO_RETRY_ATTEMPTS} - Waiting for script to complete..."
             })
+            auto_retry_messages.put({
+                "type": "auto-retry",
+                "content": f"🔄 Auto-Retry Attempt {attempt}/{MAX_AUTO_RETRY_ATTEMPTS}: Waiting for script to complete..."
+            })
             
-            # Wait for script to complete
+            # Wait for script to complete (script_is_running becomes False AND exit code is set)
             completed = wait_for_script_completion(timeout=300)
             
             if not completed:
@@ -389,7 +427,16 @@ def auto_retry_loop(chat_history, original_user_message, assistant_response):
                     "type": "Auto-Retry Timeout",
                     "data": f"Attempt {attempt}: Script did not complete within timeout"
                 })
+                auto_retry_messages.put({
+                    "type": "error",
+                    "content": f"⏱️ Timeout: Script did not complete within 5 minutes"
+                })
                 break
+            
+            debug_logs.put({
+                "type": "Auto-Retry",
+                "data": f"Attempt {attempt}: Script completed with exit code {script_exit_code}"
+            })
             
             # Get the script output
             script_output_text = getattr(get_output, 'accumulated', '')
@@ -399,21 +446,20 @@ def auto_retry_loop(chat_history, original_user_message, assistant_response):
                     "type": "Auto-Retry",
                     "data": f"Attempt {attempt}: No output captured, skipping analysis"
                 })
-                break
-            
-            # Check if output contains the completion marker
-            if "[Process exited with code" not in script_output_text:
-                debug_logs.put({
-                    "type": "Auto-Retry",
-                    "data": f"Attempt {attempt}: Script still running, waiting..."
+                auto_retry_messages.put({
+                    "type": "error",
+                    "content": f"❌ No output captured from script"
                 })
-                time.sleep(5)
-                continue
+                break
             
             # Analyze the output with DeepSeek
             debug_logs.put({
                 "type": "Auto-Retry",
-                "data": f"Attempt {attempt}: Script completed, analyzing output with DeepSeek..."
+                "data": f"Attempt {attempt}: Analyzing output with DeepSeek..."
+            })
+            auto_retry_messages.put({
+                "type": "status",
+                "content": f"🤖 Analyzing script output with DeepSeek..."
             })
             
             # Get current files
@@ -442,11 +488,21 @@ def auto_retry_loop(chat_history, original_user_message, assistant_response):
                 attempt
             )
             
+            # Send DeepSeek's analysis to frontend
+            auto_retry_messages.put({
+                "type": "assistant",
+                "content": analysis_response
+            })
+            
             # Check if DeepSeek confirmed script is working
             if "SCRIPT_WORKING_CORRECTLY" in analysis_response.upper():
                 debug_logs.put({
                     "type": "Auto-Retry Success",
                     "data": f"Script confirmed working after {attempt} attempt(s)"
+                })
+                auto_retry_messages.put({
+                    "type": "system",
+                    "content": f"✅ Auto-retry complete: Script is working correctly after {attempt} attempt(s)!"
                 })
                 break
             
@@ -458,9 +514,18 @@ def auto_retry_loop(chat_history, original_user_message, assistant_response):
                     "type": "Auto-Retry",
                     "data": f"Attempt {attempt}: No fixes provided by DeepSeek"
                 })
+                auto_retry_messages.put({
+                    "type": "system",
+                    "content": f"ℹ️ No code fixes needed"
+                })
                 break
             
             # Apply the fixes (similar to main generate logic)
+            auto_retry_messages.put({
+                "type": "status",
+                "content": f"🔧 Applying fixes from DeepSeek..."
+            })
+            
             files_updated = apply_deepseek_fixes(json_objects, file_contents)
             
             if files_updated:
@@ -468,18 +533,48 @@ def auto_retry_loop(chat_history, original_user_message, assistant_response):
                     "type": "Auto-Retry",
                     "data": f"Attempt {attempt}: Applied fixes to {', '.join(files_updated)}"
                 })
+                auto_retry_messages.put({
+                    "type": "system",
+                    "content": f"📝 Updated files: {', '.join(files_updated)}"
+                })
+                auto_retry_messages.put({
+                    "type": "system",
+                    "content": f"🚀 Redeploying to Railway..."
+                })
                 
-                # Wait for redeployment
-                time.sleep(15)
-                # Reset exit code for next iteration
-                script_exit_code = None
+                # Wait for redeployment and script to restart
+                time.sleep(20)
+                
+                # Wait for script to start again
+                wait_start_time = time.time()
+                script_is_running = False  # Reset
+                while not script_is_running and (time.time() - wait_start_time) < 60:
+                    time.sleep(2)
+                
+                if not script_is_running:
+                    auto_retry_messages.put({
+                        "type": "error",
+                        "content": "⚠️ Script did not restart after fixes"
+                    })
+                    break
             else:
                 break
+        
+        # If we reached max attempts
+        if attempt >= MAX_AUTO_RETRY_ATTEMPTS:
+            auto_retry_messages.put({
+                "type": "error",
+                "content": f"⚠️ Reached maximum retry attempts ({MAX_AUTO_RETRY_ATTEMPTS}). Please check the output manually."
+            })
         
     except Exception as e:
         debug_logs.put({
             "type": "Auto-Retry Error",
             "data": str(e)
+        })
+        auto_retry_messages.put({
+            "type": "error",
+            "content": f"❌ Auto-retry error: {str(e)}"
         })
     finally:
         auto_retry_in_progress = False
