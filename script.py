@@ -351,6 +351,7 @@ def run_test(start_date=None, test_name="Current"):
         print(f"  {name}: {model_info['params']}")
     
     # Backtesting function to calculate returns, Sharpe ratio, and final balance
+    # Backtesting function to calculate returns, Sharpe ratio, and final balance
     def backtest_strategy(df, predictions, model_name):
         """Backtest trading strategy and calculate performance metrics"""
         # Align predictions with dataframe
@@ -373,6 +374,10 @@ def run_test(start_date=None, test_name="Current"):
         worst_trade_entry = 0
         worst_trade_exit = 0
         
+        # Track capital with proper compounding
+        initial_balance = 1000
+        current_balance = initial_balance
+        
         for i in range(len(test_df) - 1):
             current_price = test_df.iloc[i]['close']
             next_close = test_df.iloc[i + 1]['close']
@@ -386,6 +391,7 @@ def run_test(start_date=None, test_name="Current"):
                     position = 1
                     trade_return = (next_close - entry_price) / entry_price
                     test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
+                    current_balance *= (1 + trade_return)
                     
                     # Track worst trade
                     if trade_return < worst_trade_return:
@@ -400,6 +406,7 @@ def run_test(start_date=None, test_name="Current"):
                     position = -1
                     trade_return = (entry_price - next_close) / entry_price
                     test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
+                    current_balance *= (1 + trade_return)
                     
                     # Track worst trade
                     if trade_return < worst_trade_return:
@@ -410,13 +417,13 @@ def run_test(start_date=None, test_name="Current"):
                         worst_trade_exit = next_close
             else:
                 # Exit position after one period
-                # Exit position after one period
                 if position == 1:
                     trade_return = (next_close - entry_price) / entry_price
                 else:  # position == -1
                     trade_return = (entry_price - next_close) / entry_price
                 
                 test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
+                current_balance *= (1 + trade_return)
                 
                 # Track worst trade
                 if trade_return < worst_trade_return:
@@ -428,6 +435,7 @@ def run_test(start_date=None, test_name="Current"):
                 
                 # Reset position for next trade
                 position = 0
+        
         # Print worst trade information
         if worst_trade_date is not None:
             print(f"\n{model_name} - WORST TRADE:")
@@ -440,8 +448,9 @@ def run_test(start_date=None, test_name="Current"):
         else:
             print(f"\n{model_name} - No trades executed or all trades were profitable")
         
-        # Calculate performance metrics
-        total_return = test_df['strategy_return'].sum()
+        # Calculate performance metrics with proper compounding
+        final_balance = current_balance
+        total_return = (final_balance - initial_balance) / initial_balance
         
         # Calculate Sharpe ratio (annualized)
         returns_series = test_df['strategy_return'].dropna()
@@ -449,10 +458,6 @@ def run_test(start_date=None, test_name="Current"):
             sharpe_ratio = returns_series.mean() / returns_series.std() * np.sqrt(52)  # Annualize for weekly data
         else:
             sharpe_ratio = 0
-        
-        # Calculate final balance (starting with $1000)
-        initial_balance = 1000
-        final_balance = initial_balance * (1 + total_return)
         
         return total_return, sharpe_ratio, final_balance
     results = {}
@@ -706,6 +711,7 @@ def run_comprehensive_test():
         print(f"  {name}: {model_info['params']}")
     
     # Backtesting function to calculate returns, Sharpe ratio, and final balance
+    # Backtesting function to calculate returns, Sharpe ratio, and final balance
     def backtest_strategy(df, predictions, model_name):
         """Backtest trading strategy and calculate performance metrics"""
         # Align predictions with dataframe
@@ -728,6 +734,10 @@ def run_comprehensive_test():
         worst_trade_entry = 0
         worst_trade_exit = 0
         
+        # Track capital with proper compounding
+        initial_balance = 1000
+        current_balance = initial_balance
+        
         for i in range(len(test_df) - 1):
             current_price = test_df.iloc[i]['close']
             next_close = test_df.iloc[i + 1]['close']
@@ -741,6 +751,7 @@ def run_comprehensive_test():
                     position = 1
                     trade_return = (next_close - entry_price) / entry_price
                     test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
+                    current_balance *= (1 + trade_return)
                     
                     # Track worst trade
                     if trade_return < worst_trade_return:
@@ -755,6 +766,7 @@ def run_comprehensive_test():
                     position = -1
                     trade_return = (entry_price - next_close) / entry_price
                     test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
+                    current_balance *= (1 + trade_return)
                     
                     # Track worst trade
                     if trade_return < worst_trade_return:
@@ -771,6 +783,7 @@ def run_comprehensive_test():
                     trade_return = (entry_price - next_close) / entry_price
                 
                 test_df.iloc[i, test_df.columns.get_loc('strategy_return')] = trade_return
+                current_balance *= (1 + trade_return)
                 
                 # Track worst trade
                 if trade_return < worst_trade_return:
@@ -795,8 +808,9 @@ def run_comprehensive_test():
         else:
             print(f"\n{model_name} - No trades executed or all trades were profitable")
         
-        # Calculate performance metrics
-        total_return = test_df['strategy_return'].sum()
+        # Calculate performance metrics with proper compounding
+        final_balance = current_balance
+        total_return = (final_balance - initial_balance) / initial_balance
         
         # Calculate Sharpe ratio (annualized)
         returns_series = test_df['strategy_return'].dropna()
@@ -804,10 +818,6 @@ def run_comprehensive_test():
             sharpe_ratio = returns_series.mean() / returns_series.std() * np.sqrt(52)  # Annualize for weekly data
         else:
             sharpe_ratio = 0
-        
-        # Calculate final balance (starting with $1000)
-        initial_balance = 1000
-        final_balance = initial_balance * (1 + total_return)
         
         return total_return, sharpe_ratio, final_balance
     
