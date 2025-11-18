@@ -229,6 +229,9 @@ def add_lagged_features_selected(X):
 
 def normalize_features(X):
     """Normalize features based on their value ranges"""
+    if len(X) == 0:
+        return X
+        
     X_normalized = X.copy()
     
     # Features that can be negative (normalize to [-1, 1])
@@ -268,13 +271,13 @@ def normalize_features(X):
     
     # Normalize negative features to [-1, 1]
     for feature in negative_features:
-        if feature in X.columns:
+        if feature in X.columns and len(X[feature].dropna()) > 0:
             scaler = MinMaxScaler(feature_range=(-1, 1))
             X_normalized[feature] = scaler.fit_transform(X[[feature]])
     
     # Normalize positive features to [0, 1]
     for feature in positive_features:
-        if feature in X.columns:
+        if feature in X.columns and len(X[feature].dropna()) > 0:
             scaler = MinMaxScaler(feature_range=(0, 1))
             X_normalized[feature] = scaler.fit_transform(X[[feature]])
     
@@ -596,18 +599,32 @@ def run_comprehensive_test():
     
     print(f"\nData Summary:")
     print(f"  Bitcoin data points: {len(btc_df)}")
+    print(f"  Ethereum data points: {len(eth_df)}")
+    print(f"  Ripple data points: {len(xrp_df)}")
+    print(f"  Cardano data points: {len(ada_df)}")
     print(f"  Date range: {btc_df['date'].min()} to {btc_df['date'].max()}")
-    print(f"  Training set: 20% ({int(len(btc_df) * 0.2)} weeks)")
-    print(f"  Test set: 80% ({int(len(btc_df) * 0.8)} weeks)")
+    
+    # Ensure we have enough data
+    min_data_points = 50
+    if len(btc_df) < min_data_points:
+        print(f"\nERROR: Insufficient data. Only {len(btc_df)} data points available.")
+        print("Need at least 50 data points for meaningful analysis.")
+        return {}, {}
     
     # Create features with altcoin data
     df = create_features_with_altcoins(btc_df, eth_df, xrp_df, ada_df)
+    
+    print(f"\nAfter feature engineering:")
+    print(f"  Total samples with features: {len(df)}")
     
     # Prepare features and target (EXCLUDE RAW PRICE DATA)
     exclude_cols = ['date', 'target', 'close', 'open', 'high', 'low', 'volume']
     feature_cols = [col for col in df.columns if col not in exclude_cols]
     X = df[feature_cols]
     y = df['target']
+    
+    print(f"  Features available: {len(feature_cols)}")
+    print(f"  Target samples: {len(y)}")
     
     # Add polynomial features (squared and cubed)
     X_with_poly = add_polynomial_features(X)
@@ -618,11 +635,26 @@ def run_comprehensive_test():
     # Update target to match lagged features (drop first 8 rows - maximum lag)
     y_lagged = y.iloc[8:]
     
+    print(f"\nAfter lagged features:")
+    print(f"  Feature samples: {len(X_with_lags)}")
+    print(f"  Target samples: {len(y_lagged)}")
+    
+    # Check if we have enough data after preprocessing
+    if len(X_with_lags) < 20:
+        print(f"\nERROR: Insufficient data after preprocessing. Only {len(X_with_lags)} samples available.")
+        print("Need at least 20 samples for training and testing.")
+        return {}, {}
+    
     # Normalize features
     X_normalized = normalize_features(X_with_lags)
     
     # Split data with 20% training, 80% testing (chronological split)
     split_idx = int(len(X_normalized) * 0.2)
+    
+    # Ensure we have at least 1 sample in training set
+    if split_idx == 0:
+        split_idx = 1
+    
     X_train = X_normalized.iloc[:split_idx]
     X_test = X_normalized.iloc[split_idx:]
     y_train = y_lagged.iloc[:split_idx]
@@ -631,14 +663,20 @@ def run_comprehensive_test():
     print(f"\nTraining/Test Split:")
     print(f"  Training samples: {len(X_train)}")
     print(f"  Test samples: {len(X_test)}")
-    print(f"  Training period: {df.iloc[8]['date']} to {df.iloc[8 + split_idx - 1]['date']}")
-    print(f"  Test period: {df.iloc[8 + split_idx]['date']} to {df.iloc[-1]['date']}")
+    
+    # Get corresponding dates for the split
+    train_start_idx = 8  # Account for lagged features
+    train_end_idx = train_start_idx + split_idx - 1
+    test_start_idx = train_start_idx + split_idx
+    test_end_idx = len(df) - 1
+    
+    print(f"  Training period: {df.iloc[train_start_idx]['date']} to {df.iloc[train_end_idx]['date']}")
+    print(f"  Test period: {df.iloc[test_start_idx]['date']} to {df.iloc[test_end_idx]['date']}")
     
     # Scale features (additional standardization for models that need it)
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
-    
     # Initialize classification models with parameters
     models = {
         'Logistic Regression': {
@@ -818,9 +856,16 @@ def run_comprehensive_test():
 
 def main():
     # Run comprehensive test with all data since 2018
-    results, capital_data = run_comprehensive_test()
-    
-    print("\n=== COMPLETE ===")
+    try:
+        results, capital_data = run_comprehensive_test()
+        if results and capital_data:
+            print("\n=== COMPLETE ===")
+        else:
+            print("\n=== TEST FAILED DUE TO INSUFFICIENT DATA ===")
+    except Exception as e:
+        print(f"\n=== ERROR OCCURRED: {str(e)} ===")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
