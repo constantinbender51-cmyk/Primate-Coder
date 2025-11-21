@@ -665,6 +665,25 @@ HTML_TEMPLATE = """
             <button class="tab" onclick="switchView('debug')">🔍 Debug</button>
         </div>
 
+        <div class="content">
+            <div class="view active" id="chatView">
+                <div class="chat-messages" id="chatMessages"></div>
+            </div>
+
+            <div class="view" id="outputView">
+                <div class="output-container" id="outputContent">Waiting for script.py output...</div>
+            </div>
+
+            <div class="view" id="debugView">
+                <div class="debug-container" id="debugConsole">No debug logs yet...</div>
+            </div>
+        </div>
+        <div class="tabs">
+            <button class="tab active" onclick="switchView('chat')">💬 Chat</button>
+            <button class="tab" onclick="switchView('output')">📊 Output</button>
+            <button class="tab" onclick="switchView('debug')">🔍 Debug</button>
+        </div>
+
         <div class="input-area">
             <div class="input-wrapper">
                 <textarea 
