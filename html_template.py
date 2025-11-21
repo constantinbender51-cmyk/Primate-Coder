@@ -4,43 +4,41 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>👣 Primate Coder 🐾</title>
+    <title>Primate Coder</title>
     <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
         :root {
-            --bg-primary: #faf8f3;
-            --bg-secondary: #f0ebe0;
-            --bg-tertiary: #e8e0d0;
-            --text-primary: #2d3436;
-            --text-secondary: #636e72;
-            --text-tertiary: #b2bec3;
-            --accent: #00b894;
-            --accent-hover: #00a383;
-            --accent-light: #55efc4;
-            --border: #dfe6e9;
-            --success: #00b894;
-            --error: #ff7675;
-            --shadow: rgba(45, 52, 54, 0.1);
-            --shadow-strong: rgba(45, 52, 54, 0.2);
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --text-primary: #000000;
+            --text-secondary: #6c757d;
+            --text-tertiary: #adb5bd;
+            --accent: #000000;
+            --accent-hover: #343a40;
+            --border: #dee2e6;
+            --success: #28a745;
+            --error: #dc3545;
+            --shadow: rgba(0, 0, 0, 0.05);
+            --shadow-strong: rgba(0, 0, 0, 0.1);
         }
 
         [data-theme="dark"] {
-            --bg-primary: #1a2f1a;
-            --bg-secondary: #243324;
-            --bg-tertiary: #2d3e2d;
-            --text-primary: #ecf0f1;
-            --text-secondary: #b2bec3;
-            --text-tertiary: #636e72;
-            --accent: #55efc4;
-            --accent-hover: #81ecdc;
-            --accent-light: #a8f5e5;
-            --border: #3d4f3d;
-            --success: #55efc4;
-            --error: #ff7675;
-            --shadow: rgba(0, 0, 0, 0.3);
-            --shadow-strong: rgba(0, 0, 0, 0.5);
+            --bg-primary: #000000;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #2d2d2d;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --text-tertiary: #808080;
+            --accent: #ffffff;
+            --accent-hover: #e0e0e0;
+            --border: #404040;
+            --success: #4ade80;
+            --error: #f87171;
+            --shadow: rgba(255, 255, 255, 0.05);
+            --shadow-strong: rgba(255, 255, 255, 0.1);
         }
 
         * {
@@ -51,7 +49,7 @@ HTML_TEMPLATE = """
         }
 
         body {
-            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg-secondary);
             color: var(--text-primary);
             overflow: hidden;
@@ -71,48 +69,43 @@ HTML_TEMPLATE = """
         }
 
         .header {
-            background: linear-gradient(135deg, var(--accent) 0%, #27ae60 100%);
-            padding: 12px 20px;
+            background: var(--accent);
+            padding: 16px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
             min-height: 60px;
-            box-shadow: 0 4px 20px var(--shadow);
-            position: relative;
+            border-bottom: 2px solid var(--accent);
         }
 
         .header h1 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .highlight {
-            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--bg-primary);
+            letter-spacing: -0.02em;
         }
 
         .menu-btn {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            font-size: 1.5rem;
+            background: transparent;
+            border: 2px solid var(--bg-primary);
+            font-size: 1.2rem;
             cursor: pointer;
-            padding: 8px 12px;
-            color: white;
-            min-width: 48px;
-            min-height: 48px;
+            padding: 8px 16px;
+            color: var(--bg-primary);
+            min-width: 44px;
+            min-height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 12px;
-            transition: all 0.3s ease;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            font-weight: 600;
         }
 
         .menu-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.05);
+            background: var(--bg-primary);
+            color: var(--accent);
         }
 
         .menu-overlay {
@@ -121,8 +114,7 @@ HTML_TEMPLATE = """
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(5px);
+            background: rgba(0, 0, 0, 0.5);
             z-index: 200;
             opacity: 0;
             visibility: hidden;
@@ -140,12 +132,11 @@ HTML_TEMPLATE = """
             left: 0;
             right: 0;
             background: var(--bg-primary);
-            border-top: 1px solid var(--border);
-            border-radius: 24px 24px 0 0;
+            border-top: 2px solid var(--border);
             z-index: 201;
             transform: translateY(100%);
-            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            box-shadow: 0 -8px 32px var(--shadow-strong);
+            transition: transform 0.3s ease;
+            box-shadow: 0 -4px 20px var(--shadow-strong);
             max-height: 80vh;
             overflow-y: auto;
         }
@@ -155,33 +146,28 @@ HTML_TEMPLATE = """
         }
 
         .menu-header {
-            padding: 20px;
+            padding: 20px 24px;
             border-bottom: 2px solid var(--border);
-            font-weight: 600;
-            font-size: 1.1rem;
+            font-weight: 700;
+            font-size: 1rem;
             color: var(--text-primary);
         }
 
         .menu-item {
-            padding: 18px 20px;
+            padding: 16px 24px;
             border-bottom: 1px solid var(--border);
             cursor: pointer;
             color: var(--text-primary);
             display: flex;
             align-items: center;
-            gap: 14px;
-            min-height: 60px;
-            transition: all 0.3s ease;
+            gap: 12px;
+            min-height: 56px;
+            transition: background 0.2s ease;
             font-weight: 500;
         }
 
         .menu-item:hover {
             background: var(--bg-secondary);
-            transform: translateX(5px);
-        }
-
-        .menu-item:active {
-            background: var(--bg-tertiary);
         }
 
         .menu-item:last-child {
@@ -193,27 +179,25 @@ HTML_TEMPLATE = """
             background: var(--bg-secondary);
             border-top: 1px solid var(--border);
             justify-content: flex-end;
-            padding: 0 16px;
+            padding: 0;
             flex-shrink: 0;
-            gap: 8px;
         }
 
         .tab {
-            padding: 10px 18px;
+            padding: 12px 20px;
             background: transparent;
             border: none;
-            border-bottom: 3px solid transparent;
+            border-bottom: 2px solid transparent;
             color: var(--text-secondary);
-            font-size: 0.85rem;
+            font-size: 0.875rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
-            min-height: 40px;
-            border-radius: 8px 8px 0 0;
+            transition: all 0.2s ease;
+            min-height: 44px;
         }
 
         .tab:hover {
-            color: var(--accent);
+            color: var(--text-primary);
             background: var(--bg-tertiary);
         }
 
@@ -246,29 +230,28 @@ HTML_TEMPLATE = """
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 12px;
             -webkit-overflow-scrolling: touch;
         }
 
         .message {
             padding: 12px 16px;
-            border-radius: 12px;
+            border-radius: 4px;
             max-width: 85%;
-            line-height: 1.5;
-            font-size: 0.9rem;
+            line-height: 1.6;
+            font-size: 0.9375rem;
             word-wrap: break-word;
-            white-space: pre-wrap;
-            box-shadow: 0 2px 8px var(--shadow);
-            animation: messageSlide 0.3s ease-out;
+            box-shadow: 0 1px 3px var(--shadow);
+            animation: messageSlide 0.2s ease-out;
         }
 
         @keyframes messageSlide {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(8px);
             }
             to {
                 opacity: 1;
@@ -277,23 +260,22 @@ HTML_TEMPLATE = """
         }
 
         .message.user {
-            background: linear-gradient(135deg, var(--accent) 0%, #27ae60 100%);
-            color: white;
+            background: var(--accent);
+            color: var(--bg-primary);
             margin-left: auto;
-            border-bottom-right-radius: 4px;
+            font-weight: 500;
         }
 
         .message.assistant {
             background: var(--bg-secondary);
             color: var(--text-primary);
             margin-right: auto;
-            border-bottom-left-radius: 4px;
-            padding: 14px 18px;
             border: 1px solid var(--border);
         }
 
+        /* Compact markdown styling */
         .message.assistant p {
-            margin: 10px 0;
+            margin: 6px 0;
         }
 
         .message.assistant p:first-child {
@@ -306,19 +288,19 @@ HTML_TEMPLATE = """
 
         .message.assistant code {
             background: var(--bg-tertiary);
-            padding: 3px 8px;
-            border-radius: 6px;
+            padding: 2px 6px;
+            border-radius: 3px;
             color: var(--accent);
-            font-size: 0.85em;
+            font-size: 0.875em;
             font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
         }
 
         .message.assistant pre {
             background: var(--bg-tertiary);
-            padding: 14px;
-            border-radius: 8px;
+            padding: 12px;
+            border-radius: 4px;
             overflow-x: auto;
-            margin: 12px 0;
+            margin: 8px 0;
             border: 1px solid var(--border);
         }
 
@@ -329,29 +311,28 @@ HTML_TEMPLATE = """
 
         .message.assistant ul,
         .message.assistant ol {
-            margin: 10px 0;
-            padding-left: 24px;
+            margin: 6px 0;
+            padding-left: 20px;
         }
 
         .message.assistant li {
-            margin: 6px 0;
+            margin: 3px 0;
         }
 
         .message.system {
-            background: linear-gradient(135deg, var(--success) 0%, #27ae60 100%);
+            background: var(--success);
             color: white;
-            font-size: 0.85rem;
+            font-size: 0.875rem;
             text-align: center;
             margin: 0 auto;
             max-width: 90%;
             font-weight: 500;
-            box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
         }
 
         .message.status {
             background: var(--bg-secondary);
             color: var(--text-secondary);
-            font-size: 0.85rem;
+            font-size: 0.875rem;
             font-style: italic;
             text-align: center;
             margin: 0 auto;
@@ -359,125 +340,118 @@ HTML_TEMPLATE = """
         }
 
         .message.error {
-            background: linear-gradient(135deg, var(--error) 0%, #e17055 100%);
+            background: var(--error);
             color: white;
-            font-size: 0.85rem;
+            font-size: 0.875rem;
             margin: 0 auto;
             text-align: center;
             max-width: 90%;
             font-weight: 500;
-            box-shadow: 0 4px 12px rgba(255, 118, 117, 0.3);
         }
 
         .message.auto-retry {
-            background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent) 100%);
+            background: var(--bg-tertiary);
             color: var(--text-primary);
-            font-size: 0.85rem;
+            font-size: 0.875rem;
             text-align: center;
             margin: 0 auto;
             max-width: 90%;
             padding: 12px 16px;
-            border-left: 4px solid var(--accent);
+            border-left: 3px solid var(--accent);
             font-weight: 500;
         }
 
         .output-container {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 20px;
             background: var(--bg-tertiary);
             font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-            font-size: 0.8rem;
-            color: var(--accent);
+            font-size: 0.8125rem;
+            color: var(--text-primary);
             white-space: pre-wrap;
             word-wrap: break-word;
             -webkit-overflow-scrolling: touch;
-            border-radius: 8px;
-            margin: 12px;
-            box-shadow: inset 0 2px 6px var(--shadow);
+            margin: 16px;
+            border: 1px solid var(--border);
         }
 
         .debug-container {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
-            background: var(--bg-tertiary);
+            padding: 20px;
+            background: var(--bg-secondary);
             font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-            font-size: 0.75rem;
+            font-size: 0.8125rem;
             color: var(--text-secondary);
             -webkit-overflow-scrolling: touch;
         }
 
         .debug-entry {
-            margin-bottom: 14px;
+            margin-bottom: 12px;
             padding: 12px;
             background: var(--bg-primary);
-            border-left: 4px solid var(--accent);
-            border-radius: 8px;
-            box-shadow: 0 2px 8px var(--shadow);
-            transition: all 0.3s ease;
+            border-left: 3px solid var(--accent);
+            border-radius: 2px;
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
         }
 
         .debug-entry:hover {
-            transform: translateX(4px);
+            box-shadow: 0 2px 6px var(--shadow);
         }
 
         .debug-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             flex-wrap: wrap;
             gap: 8px;
         }
 
         .debug-timestamp {
-            color: var(--accent);
-            font-weight: 700;
-            font-size: 0.7rem;
+            color: var(--text-tertiary);
+            font-weight: 600;
+            font-size: 0.75rem;
         }
 
         .debug-type {
-            color: var(--success);
+            color: var(--accent);
             font-weight: 700;
-            margin-bottom: 6px;
-            font-size: 0.75rem;
+            margin-bottom: 4px;
+            font-size: 0.8125rem;
         }
 
         .debug-data {
             color: var(--text-primary);
             word-wrap: break-word;
-            font-size: 0.75rem;
+            font-size: 0.8125rem;
         }
 
         .debug-expand-btn {
             background: var(--accent);
             border: none;
-            color: white;
+            color: var(--bg-primary);
             padding: 6px 12px;
-            border-radius: 8px;
+            border-radius: 3px;
             cursor: pointer;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             font-weight: 600;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             white-space: nowrap;
         }
 
         .debug-expand-btn:hover {
             background: var(--accent-hover);
-            transform: translateY(-2px);
-        }
-
-        .debug-expand-btn.expanded {
-            background: #8b6f47;
         }
 
         .debug-full-data {
-            margin-top: 10px;
+            margin-top: 8px;
             padding: 10px;
             background: var(--bg-tertiary);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 3px;
             max-height: 300px;
             overflow: auto;
             display: none;
@@ -491,79 +465,69 @@ HTML_TEMPLATE = """
             margin: 0;
             white-space: pre-wrap;
             word-wrap: break-word;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
         }
 
         .input-area {
-            padding: 14px 18px;
+            padding: 16px 20px;
             background: var(--bg-primary);
             border-top: 1px solid var(--border);
             flex-shrink: 0;
             position: relative;
-            padding-bottom: max(14px, env(safe-area-inset-bottom));
-            box-shadow: 0 -4px 16px var(--shadow);
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
         }
 
         .input-wrapper {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             align-items: flex-end;
         }
 
         .input {
             flex: 1;
-            padding: 12px 14px;
+            padding: 12px;
             border: 2px solid var(--border);
-            border-radius: 12px;
+            border-radius: 4px;
             background: var(--bg-secondary);
             color: var(--text-primary);
-            font-size: 0.95rem;
-            font-family: 'Poppins', sans-serif;
+            font-size: 0.9375rem;
+            font-family: 'Inter', sans-serif;
             resize: none;
             min-height: 48px;
             max-height: 30vh;
             overflow-y: auto;
             line-height: 1.5;
-            transition: all 0.3s ease;
+            transition: border-color 0.2s ease;
         }
 
         .input:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(0, 184, 148, 0.1);
         }
 
         .send-btn {
-            padding: 12px 22px;
-            background: linear-gradient(135deg, var(--accent) 0%, #27ae60 100%);
-            color: white;
+            padding: 12px 24px;
+            background: var(--accent);
+            color: var(--bg-primary);
             border: none;
-            border-radius: 12px;
-            font-size: 0.95rem;
+            border-radius: 4px;
+            font-size: 0.9375rem;
             font-weight: 600;
             cursor: pointer;
             min-height: 48px;
-            min-width: 76px;
-            transition: all 0.3s ease;
+            min-width: 80px;
+            transition: all 0.2s ease;
             flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
         }
 
         .send-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0, 184, 148, 0.4);
-        }
-
-        .send-btn:active {
-            transform: translateY(0);
+            background: var(--accent-hover);
         }
 
         .send-btn:disabled {
             background: var(--border);
             color: var(--text-tertiary);
             cursor: not-allowed;
-            box-shadow: none;
-            transform: none;
         }
 
         .loading {
@@ -582,7 +546,6 @@ HTML_TEMPLATE = """
             100% { transform: rotate(360deg); }
         }
 
-        /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -593,43 +556,31 @@ HTML_TEMPLATE = """
         }
 
         ::-webkit-scrollbar-thumb {
-            background: var(--accent);
+            background: var(--border);
             border-radius: 4px;
         }
 
-        /* Desktop styles */
-        @media (min-width: 768px) {
-            body {
-                position: static;
-            }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-tertiary);
+        }
 
+        @media (min-width: 768px) {
             .app {
-                max-width: 1200px;
+                max-width: 1400px;
                 margin: 0 auto;
-                height: 95vh;
-                margin-top: 2.5vh;
-                border-radius: 16px;
+                height: 96vh;
+                margin-top: 2vh;
+                border: 2px solid var(--border);
                 overflow: hidden;
-                box-shadow: 0 20px 60px var(--shadow-strong);
             }
 
             .header {
-                border-radius: 16px 16px 0 0;
-                padding: 16px 28px;
+                padding: 20px 32px;
                 min-height: 70px;
             }
 
             .header h1 {
-                font-size: 1.4rem;
-            }
-
-            .tabs {
-                padding: 0 24px;
-            }
-
-            .tab {
-                padding: 12px 24px;
-                font-size: 0.9rem;
+                font-size: 1.5rem;
             }
 
             .content {
@@ -646,46 +597,20 @@ HTML_TEMPLATE = """
                 border-right: none;
             }
 
-            .view.active {
-                display: flex;
-            }
-
             .chat-messages {
-                padding: 24px;
+                padding: 28px;
             }
 
             .message {
                 max-width: 70%;
-                font-size: 0.95rem;
             }
 
             .output-container, .debug-container {
-                padding: 24px;
-                font-size: 0.85rem;
+                padding: 28px;
             }
 
             .input-area {
-                padding: 20px 24px;
-            }
-
-            .input {
-                font-size: 1rem;
-            }
-
-            .send-btn {
-                font-size: 1rem;
-            }
-        }
-
-        /* iOS safe area support */
-        @supports (padding: max(0px)) {
-            .app {
-                padding-left: env(safe-area-inset-left);
-                padding-right: env(safe-area-inset-right);
-            }
-            
-            .header {
-                padding-top: max(12px, env(safe-area-inset-top));
+                padding: 20px 28px;
             }
         }
     </style>
@@ -693,25 +618,25 @@ HTML_TEMPLATE = """
 <body>
     <div class="app">
         <div class="header">
-            <h1>👣 Prima<span class="highlight">t</span>e Coder 🐾</h1>
+            <h1>Primate Coder</h1>
             <div>
-                <button class="menu-btn" onclick="toggleMenu()">⚙️</button>
+                <button class="menu-btn" onclick="toggleMenu()">☰</button>
             </div>
         </div>
 
         <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
         <div class="menu" id="menu">
-            <div class="menu-header">⚡ Options</div>
+            <div class="menu-header">Settings</div>
             <div class="menu-item" onclick="toggleTheme()">
                 <span id="themeIcon">☀️</span>
-                <span id="themeLabel">Switch to Light Mode</span>
+                <span id="themeLabel">Light Mode</span>
             </div>
             <div class="menu-item" onclick="toggleTTS()">
                 <span id="ttsMenuIcon">🔊</span>
                 <span id="ttsMenuLabel">TTS: On</span>
             </div>
             <div class="menu-item" onclick="clearMemory()">
-                <span>🧹</span>
+                <span>🗑️</span>
                 <span>Clear Memory</span>
             </div>
             <div class="menu-item" onclick="startNewSession()">
@@ -745,10 +670,10 @@ HTML_TEMPLATE = """
                 <textarea 
                     class="input" 
                     id="userInput" 
-                    placeholder="🌿 Describe what you want to build..."
+                    placeholder="Describe what you want to build..."
                     rows="1"
                 ></textarea>
-                <button class="send-btn" id="sendBtn" onclick="sendMessage()">🚀 Send</button>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
             </div>
         </div>
     </div>
@@ -763,21 +688,23 @@ HTML_TEMPLATE = """
         let currentAudio = null;
         let isProcessing = false;
 
-        // Configure marked.js
-        marked.setOptions({ breaks: true, gfm: true });
+        // Configure marked.js for compact output
+        marked.setOptions({ 
+            breaks: false,  // Don't add <br> on single line breaks
+            gfm: true,
+            headerIds: false,
+            mangle: false
+        });
 
-        // Initialize theme
         document.documentElement.setAttribute('data-theme', theme);
         updateThemeUI();
 
-        // Load TTS preference
         const savedTTSPref = localStorage.getItem('primateTTSEnabled');
         if (savedTTSPref !== null) {
             ttsEnabled = savedTTSPref === 'true';
         }
         updateTTSUI();
 
-        // Load chat history
         const savedHistory = localStorage.getItem('primateChatHistory');
         if (savedHistory) {
             try {
@@ -798,7 +725,6 @@ HTML_TEMPLATE = """
             }
         }
 
-        // Auto-resize textarea
         const textarea = document.getElementById('userInput');
         textarea.addEventListener('input', function() {
             this.style.height = '48px';
@@ -825,10 +751,10 @@ HTML_TEMPLATE = """
             const label = document.getElementById('themeLabel');
             if (theme === 'dark') {
                 icon.textContent = '☀️';
-                label.textContent = 'Switch to Light Mode';
+                label.textContent = 'Light Mode';
             } else {
                 icon.textContent = '🌙';
-                label.textContent = 'Switch to Dark Mode';
+                label.textContent = 'Dark Mode';
             }
         }
 
@@ -982,7 +908,7 @@ HTML_TEMPLATE = """
                 html += '<div><div class="debug-timestamp">' + log.timestamp + '</div>';
                 html += '<div class="debug-type">' + escapeHtml(log.type) + '</div></div>';
                 if (log.fullData) {
-                    html += '<button class="debug-expand-btn" onclick="toggleDebugData(' + index + ')">Show Details</button>';
+                    html += '<button class="debug-expand-btn" onclick="toggleDebugData(' + index + ')">Details</button>';
                 }
                 html += '</div>';
                 html += '<div class="debug-data">' + escapeHtml(log.data) + '</div>';
@@ -1003,8 +929,7 @@ HTML_TEMPLATE = """
             const btn = buttons[index];
             if (elem && btn) {
                 elem.classList.toggle('visible');
-                btn.classList.toggle('expanded');
-                btn.textContent = elem.classList.contains('visible') ? 'Hide Details' : 'Show Details';
+                btn.textContent = elem.classList.contains('visible') ? 'Hide' : 'Details';
             }
         }
 
@@ -1043,11 +968,18 @@ HTML_TEMPLATE = """
             );
             
             try {
+                // Increased timeout to 5 minutes (300000ms)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 300000);
+                
                 const response = await fetch('/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestPayload)
+                    body: JSON.stringify(requestPayload),
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
                 
                 addDebugLog('Server → Client', 'Status: ' + response.status + ' ' + response.statusText);
                 
@@ -1120,19 +1052,23 @@ HTML_TEMPLATE = """
                 }
             } catch (error) {
                 statusMsg.remove();
-                addDebugLog(
-                    'Client Fetch Error', 
-                    error.message,
-                    'Error: ' + error.name + '\\nMessage: ' + error.message + '\\nStack: ' + error.stack
-                );
-                addMessage('Network Error: ' + error.message, 'error');
+                if (error.name === 'AbortError') {
+                    addDebugLog('Request Timeout', 'Request exceeded 5 minute timeout');
+                    addMessage('Request timeout: The operation took longer than 5 minutes. Please try again.', 'error');
+                } else {
+                    addDebugLog(
+                        'Client Fetch Error', 
+                        error.message,
+                        'Error: ' + error.name + '\nMessage: ' + error.message + '\nStack: ' + error.stack
+                    );
+                    addMessage('Network Error: ' + error.message, 'error');
+                }
             }
             
             btn.disabled = false;
             isProcessing = false;
         }
 
-        // Poll for script output
         const outputDiv = document.getElementById('outputContent');
         outputDiv.addEventListener('scroll', function() {
             const distanceFromBottom = outputDiv.scrollHeight - outputDiv.scrollTop - outputDiv.clientHeight;
@@ -1154,7 +1090,6 @@ HTML_TEMPLATE = """
             }
         }, 1000);
 
-        // Poll for debug logs
         setInterval(async () => {
             try {
                 const response = await fetch('/get_debug_logs');
@@ -1173,7 +1108,6 @@ HTML_TEMPLATE = """
             }
         }, 1000);
 
-        // Poll for auto-retry messages
         setInterval(async () => {
             try {
                 const response = await fetch('/get_auto_retry_messages');
