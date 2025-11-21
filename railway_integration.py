@@ -141,22 +141,8 @@ def get_deployment_logs(deployment_id, debug_logs):
         return formatted_logs
         
     except Exception as e:
-def monitor_deployment_status(debug_logs, interval=60):
-    """Continuously monitor Railway deployment status"""
-    while True:
-        get_deployment_status(debug_logs)
-        time.sleep(interval)
-
-
-def start_railway_monitor(debug_logs):
-    """Start Railway monitoring in background thread"""
-    monitor_thread = threading.Thread(
-        target=monitor_deployment_status,
-        args=(debug_logs,),
-        daemon=True
-    )
-    monitor_thread.start()
-    debug_logs.put({
-        "type": "Railway Monitor",
-        "data": "Started deployment status monitoring"
-    })
+        debug_logs.put({
+            "type": "Railway Logs Error",
+            "data": str(e)
+        })
+        return None
